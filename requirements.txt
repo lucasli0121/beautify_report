@@ -1,0 +1,20 @@
+nicegui >= 2.0
+fastapi >= 0.63.0
+numpy >= 1.20.1
+simpy >= 4.0.1
+pyzmq >= 26.0.0
+contextlib2 >= 0.6.0
+matplotlib >= 3.3.4
+pandas >= 2.1.1
+openpyxl >= 3.1.5
+paho-mqtt
+selenium
+pywinauto
+webdriver_manager
+pdfkit
+imgkit
+types-pytz
+mysql>=0.0.3
+types-mysqlclient >= 2.2.0
+redis>=4.5.4
+dbutils>=3.0.2

@@ -1,0 +1,50 @@
+// This file defines how to build the container and what to install in it.
+// 这个文件禁止编译新的镜像，而是采用现有的容器
+// 所以去掉编译部分
+{
+    "name": "beautify_report",
+    // "build": {
+    //     "context": "..",
+    //     "dockerfile": "../Dockerfile",
+    //     "args": {
+    //         "VARIANT": "3.12.5"
+    //     }
+    // },
+    // 采用现有的镜像
+    // 这个镜像是通过 直接使用DockerFile编译的
+    "image": "beautifyreport:latest",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "charliermarsh.ruff",
+                "cschleiden.vscode-github-actions",
+                "esbenp.prettier-vscode",
+                "littlefoxteam.vscode-python-test-adapter",
+                "ms-python.autopep8",
+                "ms-python.mypy-type-checker",
+                "ms-python.pylint",
+                "ms-python.python",
+                "ms-python.vscode-pylance",
+                "samuelcolvin.jinjahtml",
+                "Vue.volar"
+            ],
+            "settings": {
+                "ruff.enable": true,
+                "terminal.integrated.defaultProfile.linux": "bash",
+                "terminal.integrated.shell.linux": "bash",
+                "terminal.integrated.profiles.linux": {
+                    "bash (container default)": {
+                        "path": "/usr/bin/bash",
+                        "overrideName": true
+                    }
+                },
+            }
+        }
+    },
+    "postCreateCommand": "pip install -r requirements.txt",
+    "remoteUser": "appuser",
+    "mounts": [
+        "source=${localWorkspaceFolder},target=/beautify_report,type=bind,consistency=cached"
+    ],
+    "workspaceFolder": "/beautify_report"
+}
