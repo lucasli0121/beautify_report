@@ -1,0 +1,51 @@
+from dataclasses import dataclass
+from datetime import datetime
+import json
+from typing import Any
+from api import api_manager
+
+
+@dataclass
+class InvoiceRecordDao:
+    id: str  # 发票记录ID
+    from_company_id: str
+    to_company_id: str
+    invoice_type: int # 0: 普通发票, 1: 专用发票
+    tax_rate: float # 税率
+    invoice_content: str # 发票内容
+    before_tax_money: float # 税前金额
+    added_tax: float # 增值税
+    invoice_money: float # 开票金额
+    contract_content: str # 合同内容
+    create_time: str
+    
+    def __init__(self, id:str = '',from_company_id: str = "", to_company_id: str = "", invoice_type: int = 0, tax_rate: float = 0.0,
+                 invoice_content: str = "", before_tax_money: float = 0.0, added_tax: float = 0.0,
+                 invoice_money: float = 0.0, contract_content: str = "", create_time: str = "") -> None:
+        self.id = id
+        self.from_company_id = from_company_id
+        self.to_company_id = to_company_id
+        self.invoice_type = invoice_type
+        self.tax_rate = tax_rate
+        self.invoice_content = invoice_content
+        self.before_tax_money = before_tax_money
+        self.added_tax = added_tax
+        self.invoice_money = invoice_money
+        self.contract_content = contract_content
+        self.create_time = create_time if create_time else datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    def from_db(self, data: dict[str, Any]) -> None:
+        self.id = str(data.get('_id', ''))
+        self.from_company_id = str(data.get('from_company_id', ''))
+        self.to_company_id = str(data.get('to_company_id', ''))
+        self.invoice_type = int(data.get('invoice_type', 0))
+        self.tax_rate = float(data.get('tax_rate', 0.0))
+        self.invoice_content = str(data.get('invoice_content', ''))
+        self.before_tax_money = float(data.get('before_tax_money', 0.0))
+        self.added_tax = float(data.get('added_tax', 0.0))
+        self.invoice_money = float(data.get('invoice_money', 0.0))
+        self.contract_content = str(data.get('contract_content', ''))
+        self.create_time = str(data.get('create_time', datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+
+    def to_db(self) -> dict[str, Any]:
+        return self.__dict__
