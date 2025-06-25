@@ -54,11 +54,11 @@ def navigation_company_page() -> None:
 
 #
 # @description: 定义公司详情页面,设置公司详情类型
-# @param {int} company_id 公司ID
+# @param {str} company_id 公司ID
 # @param {Callable[[], None]} onback 回调函数
 # @return {*}
 #
-def navigation_company_detail_page(company_id: int, company_name: str, onback: Callable[[], None]) -> None:
+def navigation_company_detail_page(company_id: str, company_name: str, onback: Callable[[], None]) -> None:
     app.storage.user['navigation'] = COMPANY_DETAIL_NAVIGATION
     app.storage.user['onback'] = onback
     app.storage.user['company_container'] = COMPANY_DETAIL_NAVIGATION

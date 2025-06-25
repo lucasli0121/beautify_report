@@ -18,3 +18,4 @@ mysql>=0.0.3
 types-mysqlclient >= 2.2.0
 redis>=4.5.4
 dbutils>=3.0.2
+pymongo>=4.13.2

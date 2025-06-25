@@ -1,17 +1,8 @@
 from nicegui import app
-from dao.classroom_dao import ClassRoomDao
 from mq.mq_impl import MqImpl
-from db.mysql_db import MySqlImpl
+from db.mydb import MyDb
 mq_impl = MqImpl()
-mysql_impl = MySqlImpl()
-
-def set_class_room(class_room_obj: ClassRoomDao) -> None:
-    app.storage.general['class_room'] = class_room_obj
-
-def get_class_room() -> ClassRoomDao:
-    if 'class_room' not in app.storage.general:
-        app.storage.general['class_room'] = ClassRoomDao()
-    return app.storage.general['class_room']
+my_db = MyDb()
 
 def create_mq() -> bool:
     if mq_impl.connect() is False:

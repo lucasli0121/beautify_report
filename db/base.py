@@ -22,6 +22,13 @@ class DbBaseImpl:
             self.mysql_username = cp.get("mysql", "username")
             self.mysql_password = cp.get("mysql", "password")
             self.mysql_database = cp.get("mysql", "database")
+
+            self.mongo_host = cp.get("mongo", "host")
+            self.mongo_port = cp.get("mongo", "port")
+            self.mongo_username = cp.get("mongo", "username")
+            self.mongo_password = cp.get("mongo", "password")
+            self.mongo_database = cp.get("mongo", "database")
+            
             self.redis_host = cp.get("redis", "host")
             self.redis_port = cp.get("redis", "port")
             self.redis_password = cp.get("redis", "password")

@@ -9,8 +9,9 @@ from dataclasses import dataclass
 from nicegui import ui,app,events
 from components import tables, inputs, dialogs
 import navigation
-from dao.company_dao import CompanyDao, get_all_company
+from dao.company_dao import CompanyDao
 from typing import Optional
+from utils import global_vars as g
 
 @dataclass
 class SearchCondition:
@@ -27,20 +28,20 @@ def show_company_page() -> None:
     with ui.row().classes('w-full h-[80px] px-[20px] mt-0 place-content-between gap-0') \
         .style('background-color: #FFFFFF !important; border-radius: 10px;'):
         with ui.row().classes('h-full items-center'):
-            name_input = inputs.input_search_w40('名称', on_search)
+            name_input = inputs.input_search_w40('名称或简称', on_search)
             name_input.bind_value_to(search_condition, 'name')
             address_input = inputs.input_search_w40('地址', on_search)
             address_input.bind_value_to(search_condition, 'address')
             contacts_input = inputs.input_search_w40('联系人', on_search)
             contacts_input.bind_value_to(search_condition, 'contacts')
-        with ui.row().classes('h-full items-center'):
-            ui.button('删除', icon='img:/static/images/delete@2x.png', on_click=del_select_company) \
-                .classes('w-25 rounded-md text-red') \
-                .style('background-color: rgba(255,77,77,0.39) !important')
+        with ui.row().classes('h-full ml-[30px] items-center'):
             ui.button('刷新', icon='img:/static/images/refresh@2x.png', on_click=on_search) \
                 .classes('w-25 rounded-md text-white') \
                 .style('background-color: #6C96FB !important')
-            ui.button('创建公司', icon='img:/static/images/add_course@2x.png', on_click=add_company) \
+            ui.button('删除', icon='img:/static/images/delete@2x.png', on_click=del_select_company) \
+                .classes('w-25 rounded-md text-red') \
+                .style('background-color: rgba(255,77,77,0.39) !important')
+            ui.button('新建', icon='img:/static/images/add_course@2x.png', on_click=add_company) \
                 .classes('w-25 rounded-md text-white') \
                 .style('background-color: #65B6FF !important')
             
@@ -50,20 +51,24 @@ def show_company_page() -> None:
     on_search()
 
 def on_search() -> None:
-    result, company_list = get_all_company(search_condition.name, search_condition.address, search_condition.contacts)
+    result, list_values = g.my_db.query_all_company(search_condition.name, search_condition.address, search_condition.contacts)
     if result is False:
         ui.notify('查询公司失败')
         return
     if 'company_table' in app.storage.client:
         app.storage.client['company_table'].rows.clear()
-        if company_list is None or len(company_list) == 0:
+        app.storage.client['company_table'].update()
+        if list_values is None or len(list_values) == 0:
             ui.notify('没有查询到公司信息')
             return
         sn = 1
-        for item in company_list:
-            row_dict = item.__dict__
+        for item in list_values:
+            row_dict = {}
             row_dict['sn'] = sn
-            app.storage.client['company_table'].add_row(item.__dict__)
+            company = CompanyDao()
+            company.from_db(item)
+            row_dict.update(company.to_db())
+            app.storage.client['company_table'].add_row(row_dict)
             sn += 1
         app.storage.client['company_table'].update()
 
@@ -93,52 +98,58 @@ def show_company_detail(e: events.GenericEventArguments) -> None:
 #
 def add_company():
     company_dao = CompanyDao()
-    with ui.dialog().props('persistent') as dialog, ui.card().classes('w-1/2 h-full') \
+    with ui.dialog().props('persistent') as dialog, ui.card().classes('w-1/2') \
         .style('background-color: #FFFFFF !important; border-radius: 10px;'):
         ui.label('创建公司').classes('w-full text-[20px] text-[#333333] font-medium')
-        with ui.row().classes('w-full mt-5 place-content-between'):
-            ui.label('名称').classes('w-full text-[16px] text-[#333333] font-medium')
-            classes_ui = ui.input(placeholder='请输入公司名称') \
+        with ui.row().classes('w-full mt-5 place-content-start items-center'):
+            ui.label('名称').classes('w-[20%] text-[16px] text-[#333333] font-medium')
+            ui.input(placeholder='请输入公司名称') \
                 .props('rounded-md outlined dense') \
-                .classes('w-full self-center item-center ')
-            classes_ui.bind_value_to(company_dao, 'name')
-        with ui.row().classes('w-full place-content-between'):
-            ui.label('地址').classes('w-full text-[16px] text-[#333333] font-medium')
-            subject_ui = ui.input(placeholder='请输入公司地址') \
+                .classes('w-[70%] self-center item-center ') \
+                .bind_value_to(company_dao, 'name')
+        with ui.row().classes('w-full place-content-start items-center'):
+            ui.label('简称').classes('w-[20%] text-[16px] text-[#333333] font-medium')
+            ui.input(placeholder='请输入公司简称') \
                 .props('rounded-md outlined dense') \
-                .classes('w-full self-center item-center ')
-            subject_ui.bind_value_to(company_dao, 'address')
-        with ui.row().classes('w-full place-content-between'):
-            ui.label('联系人').classes('w-full text-[16px] text-[#333333] font-medium')
-            teacher_ui = ui.input(placeholder='请输入联系人姓名') \
+                .classes('w-[30%] self-center item-center ') \
+                .bind_value_to(company_dao, 'brief_name')
+        with ui.row().classes('w-full place-content-start items-center'):
+            ui.label('地址').classes('w-[20%] text-[16px] text-[#333333] font-medium')
+            ui.input(placeholder='请输入公司地址') \
                 .props('rounded-md outlined dense') \
-                .classes('w-full self-center item-center ')
-            teacher_ui.bind_value_to(company_dao, 'contacts')
-        with ui.row().classes('w-full place-content-between'):
-            ui.label('电话').classes('w-full text-[16px] text-[#333333] font-medium')
+                .classes('w-[70%] self-center item-center ') \
+                .bind_value_to(company_dao, 'address')
+        with ui.row().classes('w-full place-content-start items-center'):
+            ui.label('联系人').classes('w-[20%] text-[16px] text-[#333333] font-medium')
+            ui.input(placeholder='请输入联系人姓名') \
+                .props('rounded-md outlined dense') \
+                .classes('w-[30%] self-center item-center ') \
+                .bind_value_to(company_dao, 'contacts')
+        with ui.row().classes('w-full place-content-start items-center'):
+            ui.label('电话').classes('w-[20%] text-[16px] text-[#333333] font-medium')
             ui.input(placeholder='请输入联系人电话') \
                 .props('rounded-md outlined dense') \
-                .classes('w-full self-center item-center ') \
+                .classes('w-[30%] self-center item-center ') \
                 .bind_value_to(company_dao, 'phone')
-        with ui.row().classes('w-full place-content-between'):
-            ui.label('邮箱').classes('w-full text-[16px] text-[#333333] font-medium')
+        with ui.row().classes('w-full place-content-start items-center'):
+            ui.label('邮箱').classes('w-[20%] text-[16px] text-[#333333] font-medium')
             ui.input(placeholder='请输入联系人邮箱') \
                 .props('rounded-md outlined dense') \
-                .classes('w-full self-center item-center ') \
+                .classes('w-[30%] self-center item-center ') \
                 .bind_value_to(company_dao, 'email')
-        with ui.row().classes('w-full place-content-between'):
-            ui.label('开票限额').classes('w-full text-[16px] text-[#333333] font-medium')
+        with ui.row().classes('w-full place-content-start items-center'):
+            ui.label('开票限额').classes('w-[20%] text-[16px] text-[#333333] font-medium')
             ui.input(placeholder='请输入开票最高限额') \
                 .props('rounded-md outlined dense') \
-                .classes('w-[1/2] self-center item-center ') \
+                .classes('w-[20%] self-center item-center ') \
                 .bind_value_to(company_dao, 'invoice_limit')
             ui.label('万').classes('text-[16px] text-[#333333] font-medium')
-        with ui.row().classes('w-full place-content-between'):
-            ui.label('信用代码').classes('w-full text-[16px] text-[#333333] font-medium')
+        with ui.row().classes('w-full place-content-start items-center'):
+            ui.label('信用代码').classes('w-[20%] text-[16px] text-[#333333] font-medium')
             ui.input(placeholder='请输入统一信用代码') \
                 .props('rounded-md outlined dense') \
-                .classes('w-full self-center item-center ') \
-                .bind_value_to(company_dao, 'tax_id')
+                .classes('w-[30%] self-center item-center ') \
+                .bind_value_to(company_dao, 'tax_no')
         with ui.row().classes('w-full place-content-end'):         
             ui.button('取消', color=None, on_click=dialog.close) \
                 .props('flat') \
@@ -148,7 +159,8 @@ def add_company():
                 if company_dao.name == "" or company_dao.address == "" or company_dao.contacts == "":
                     ui.notify('公司名称,地址,联系人不能为空')
                     return
-                result = company_dao.add_company()
+                data = company_dao.to_db()
+                result = g.my_db.add_company(data)
                 if result is True:
                     ui.notify('添加公司成功')
                     on_search()
@@ -172,24 +184,23 @@ def del_select_company():
     ids = [item['id'] for item in selection]
     del_company_by_ids(ids)
 
-def del_company_by_ids(ids: list[int]) -> None:
+def del_company_by_ids(ids: list[str]) -> None:
     if ids is None or len(ids) == 0:
         ui.notify('请选择要删除的公司')
         return
     def make_delete():
         delok = True
         for id in ids:
-            if id is None or id <= 0:
+            if id is None or len(id) == 0:
                 continue
-            company_dao = CompanyDao()
-            company_dao.id = id
-            result = company_dao.delete_company(id)
+            result = g.my_db.delete_company(id)
             if result is False:
                 delok = False
                 ui.notify(f'删除公司失败: {id}')
                 return
         if delok is True:
             ui.notify('删除公司成功')
+            on_search()
         dialog.close()
 
     with ui.dialog().props('persistent') as dialog, ui.card() \

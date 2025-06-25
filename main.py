@@ -10,12 +10,10 @@ from fastapi import Request
 from fastapi.responses import RedirectResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from nicegui import ui,app
-from dao.classroom_dao import ClassRoomSeatsDao, get_class_room_seats_by_classes_id
 from resources import strings
 import logging
 import logging.config
 import yaml
-from utils import global_vars
 from pages import main_page, login_page
 
 
@@ -87,15 +85,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
 app.add_middleware(AuthMiddleware)
 
 def app_shutdown():
-    try:
-        status, seats_list = get_class_room_seats_by_classes_id(global_vars.get_class_room().id)
-        if status == 200:
-            for item in seats_list:
-                if isinstance(item, ClassRoomSeatsDao):
-                    if item.mac is not None and item.mac != "":
-                        global_vars.unsubscribe_online_topic(item.mac)
-    except Exception as e:
-        pass
+    """应用关闭时清理存储"""
     authenticated = app.storage.user['authenticated']
     try:
         app.storage.user.clear()

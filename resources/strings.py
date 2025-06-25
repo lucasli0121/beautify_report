@@ -26,6 +26,7 @@ string_resources = {
     'company_detail_page': COMPANY_DETAIL_PAGE,
     'login_page': LOGIN_PAGE,
     'brief_report': "财税简报",
+    'bank_account': '银行账户',
     'invoice_title': "发票抬头",
     'invoiced_record': "开票记录",
     'payment_record': "付款记录",

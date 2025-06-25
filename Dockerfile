@@ -67,7 +67,8 @@ RUN pip install -r requirements.txt
 WORKDIR /
 
 # 拷贝代码
-COPY . /beautify_report
+#COPY . /beautify_report
+RUN git clone https://github.com/lucasli0121/beautify_report.git
 WORKDIR /beautify_report
 
 RUN mkdir /usr/share/fonts/chinese && \

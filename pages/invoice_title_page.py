@@ -19,8 +19,8 @@ def show_invoice_title_page() -> None:
                     .bind_text_from(company_dao, 'address')
             with ui.row().classes('w-full items-center justify-start gap-2'):
                 ui.label('税号').classes('text-[16px] text-[#333333] font-medium')
-                ui.label('tex_id').classes('text-[16px] text-[#333333] font-medium') \
-                    .bind_text_from(company_dao, 'tex_id')
+                ui.label('tax_no').classes('text-[16px] text-[#333333] font-medium') \
+                    .bind_text_from(company_dao, 'tax_no')
             with ui.row().classes('w-full items-center justify-start gap-2'):
                 ui.label('联系人').classes('wtext-[16px] text-[#333333] font-medium')
                 ui.label('phone').classes('text-[16px] text-[#333333] font-medium') \
