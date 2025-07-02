@@ -7,7 +7,7 @@ Description:
 '''
 from nicegui import ui
 
-def show_company_table(datas, show_detail, show_delete) -> ui.table:
+def show_company_table(datas, show_delete) -> ui.table:
     table_columns = [
         {'name': 'id', 'label': 'id', 'field': 'id', 'width': '0%', 'align': 'center'},
         {'name': 'sn', 'label': '序号', 'field': 'sn', 'width': '5%', 'align': 'center'},
@@ -43,16 +43,11 @@ def show_company_table(datas, show_detail, show_delete) -> ui.table:
         
         table.add_slot('body-cell-operation', r'''
             <q-td auto-width key="operation" :props="props" class="item-left">
-                <q-btn size="sm" flat round dense icon="img:/static/images/report_mini.png"
-                    @click="() => $parent.$emit('show_detail', props.row)"
-                />
-                <span style="display: inline-block; width: 5px;"></span>
                 <q-btn size="sm" flat round dense icon="img:/static/images/delete_mini.png"
                     @click="() => $parent.$emit('show_delete', props.row)"
                 />
             </q-td>
         ''')
-        table.on('show_detail', show_detail)
         table.on('show_delete', show_delete)
     return table
 

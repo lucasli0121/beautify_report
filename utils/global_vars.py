@@ -1,4 +1,5 @@
 from nicegui import app
+from dao.company_dao import CompanyDao
 from mq.mq_impl import MqImpl
 from db.mydb import MyDb
 mq_impl = MqImpl()
@@ -22,3 +23,16 @@ def unsubscribe_event_topic(mac: str):
     mq_impl.unsubscribe(f'server-h03/study/event/{mac.lower()}')
 def unsubscribe_attr_topic(mac: str):
     mq_impl.unsubscribe(f'server-t1/study/attr/{mac.lower()}')
+
+
+def query_company_name_company() -> tuple[bool, dict[str, CompanyDao]]:
+    result, list_values = my_db.query_all_company('','','')
+    if result is False:
+        return False, {}
+    company_info = {}
+    if result and list_values is not None:
+        for item in list_values:
+            company = CompanyDao()
+            company.from_db(item)
+            company_info[company.name] = company
+    return True, company_info

@@ -9,28 +9,38 @@ from utils import global_vars as g
 
 @dataclass
 class SearchCondition:
-    payment_to: str = ""
+    payment_from_id: str = ""
+    payment_from_name: str = ""
+    payment_to_id: str = ""
+    payment_to_name: str = ""
     status: int = -1
     begin_time: str = ""
     end_time: str = ""
 search_condition = SearchCondition()
 
 def show_payment_record_page():
-    result, list_values = g.my_db.query_all_company('', '', '')  # 确保公司数据已加载
-    company_info = {}
-    if result and list_values is not None:
-        for item in list_values:
-            company = CompanyDao()
-            company.from_db(item)
-            company_info[company.name] = company.id
+    result, company_info = g.query_company_name_company()
+    if result is False:
+        ui.notify('查询公司信息失败')
+        return
     options = list(company_info.keys())  # 获取所有公司名称
-    def on_change(value):
-        if value in company_info:
-            search_condition.payment_to = company_info[value]
-    with ui.row().classes('w-full h-[80px] px-[20px] mt-0 place-content-between gap-0') \
+    with ui.column().classes('w-full px-[20px] py-[10px] mt-0 items-center gap-2') \
         .style('background-color: #FFFFFF !important; border-radius: 10px;'):
-        with ui.row().classes('h-full items-center'):
-            inputs.selection_w40(options, None, on_change=on_change)
+        with ui.row().classes('w-full place-content-start items-center'):
+            with ui.row().classes('w-[25%] place-content-start items-center'):
+                ui.label('付款方').classes('w-[20%] text-[16px] text-[#333333] font-medium')
+                def on_from_change(value):
+                    if value in company_info:
+                        search_condition.payment_from_id = company_info[value].id
+                        search_condition.payment_from_name = value
+                inputs.selection_w60(options, None, need_input=True, on_change=on_from_change)
+            with ui.row().classes('w-[25%] place-content-start items-center'):
+                ui.label('受款方').classes('w-[20%] text-[16px] text-[#333333] font-medium')
+                def on_to_change(value):
+                    if value in company_info:
+                        search_condition.payment_to_id = company_info[value].id
+                        search_condition.payment_to_name = value
+                inputs.selection_w60(options, None, need_input=True, on_change=on_to_change)
             def on_status_change(value):
                 if value == '未完成':
                     search_condition.status = 0
@@ -45,7 +55,7 @@ def show_payment_record_page():
                 .bind_value_to(search_condition, 'begin_time')
             inputs.date_input_w40('结束时间', on_search) \
                 .bind_value_to(search_condition, 'end_time')
-        with ui.row().classes('h-full items-center'):
+        with ui.row().classes('w-full place-content-end items-center'):
             ui.button('刷新', icon='img:/static/images/refresh@2x.png', on_click=on_search) \
                 .classes('w-25 rounded-md text-white') \
                 .style('background-color: #6C96FB !important')
@@ -57,23 +67,13 @@ def show_payment_record_page():
                 .style('background-color: #65B6FF !important')
             
     table_rows: list[dict] = []
-    record_table: Optional[ui.table] = tables.show_payment_record_table(table_rows, delete_one)
-    app.storage.client['payment_record_table'] = record_table
+    app.storage.client['payment_record_table'] = tables.show_payment_record_table(table_rows, delete_one)
     on_search()
 
 def on_search() -> None:
-    from_company_id = ''
-    from_company_name = ''
-    if 'company_dao' in app.storage.user:
-        company_dao = app.storage.user['company_dao']
-        from_company_id = str(company_dao.id)
-        from_company_name = company_dao.name
-    else:
-        ui.notify('请先选择公司')
-        return
     result, list_values = g.my_db.query_all_payment_record(
-        from_company_id,
-        search_condition.payment_to,
+        search_condition.payment_from_id,
+        search_condition.payment_to_id,
         search_condition.status,
         search_condition.begin_time,
         search_condition.end_time,)
@@ -82,23 +82,26 @@ def on_search() -> None:
         return
     if 'payment_record_table' in app.storage.client:
         app.storage.client['payment_record_table'].rows.clear()
-        app.storage.client['payment_record_table'].update()
-        if list_values is None or len(list_values) == 0:
-            ui.notify('没有查询到付款记录')
-            return
-        sn = 1
-        for item in list_values:
-            row_dict: dict[str, Any] = {}
-            row_dict['sn'] = sn
-            row_dict['from_company_name'] = from_company_name
-            payment_record = PaymentRecordDao()
-            payment_record.from_db(item)
-            result, to_company_dao = g.my_db.query_company_by_id(payment_record.to_company_id)
-            if result and to_company_dao is not None:
-                row_dict['to_company_name'] = to_company_dao.name
-            row_dict.update(payment_record.to_db())
-            app.storage.client['payment_record_table'].add_row(row_dict)
-            sn += 1
+        if list_values is not None:
+            sn = 1
+            for item in list_values:
+                payment_record = PaymentRecordDao()
+                payment_record.from_db(item)
+                row_dict: dict[str, Any] = {}
+                row_dict['sn'] = sn
+                result, from_company_dao = g.my_db.query_company_by_id(payment_record.from_company_id)
+                if result and from_company_dao is not None:
+                    row_dict['from_company_name'] = from_company_dao.name
+                else:
+                    row_dict['from_company_name'] = '未知付款方'
+                result, to_company_dao = g.my_db.query_company_by_id(payment_record.to_company_id)
+                if result and to_company_dao is not None:
+                    row_dict['to_company_name'] = to_company_dao.name
+                else:
+                    row_dict['to_company_name'] = '未知受款方'
+                row_dict.update(payment_record.to_db())
+                app.storage.client['payment_record_table'].add_row(row_dict)
+                sn += 1
         app.storage.client['payment_record_table'].update()
 
 #
@@ -107,31 +110,27 @@ def on_search() -> None:
 # @return: None
 #             
 def add_payment():
-    company_dao: CompanyDao = CompanyDao()
-    if 'company_dao' in app.storage.user:
-        company_dao = app.storage.user['company_dao']
-    else:
-        ui.notify('请先选择公司')
+    result, company_info = g.query_company_name_company()
+    if result is False:
+        ui.notify('查询公司信息失败')
         return
+    options = list(company_info.keys())  # 获取所有公司名称
     dao = PaymentRecordDao()
-    dao.from_company_id = str(company_dao.id)
     with ui.dialog().props('persistent') as dialog, ui.card().classes('w-1/2') \
         .style('background-color: #FFFFFF !important; border-radius: 10px;'):
         ui.label('付款').classes('w-full text-[20px] text-[#333333] font-medium')
         with ui.row().classes('w-full mt-5 place-content-start items-center'):
-            ui.label('受款方').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
-            result, list_values = g.my_db.query_all_company('', '', '')  # 确保公司数据已加载
-            company_info = {}
-            if result and list_values is not None:
-                for item in list_values:
-                    company = CompanyDao()
-                    company.from_db(item)
-                    company_info[company.name] = company.id
-            options = list(company_info.keys())  # 获取所有公司名称
-            def on_change(value):
+            ui.label('付款方').classes('w-[20%] text-[16px] text-[#333333] font-medium')
+            def on_from_change(value):
                 if value in company_info:
-                    dao.to_company_id = company_info[value]
-            inputs.selection_w40(options, None, on_change=on_change)
+                    dao.from_company_id = company_info[value].id
+            inputs.selection_w60(options, None, need_input=True, on_change=on_from_change)
+        with ui.row().classes('w-full place-content-start items-center'):
+            ui.label('受款方').classes('w-[20%] text-[16px] text-[#333333] font-medium')
+            def on_to_change(value):
+                if value in company_info:
+                    dao.to_company_id = company_info[value].id
+            inputs.selection_w60(options, None, need_input=True, on_change=on_to_change)
         with ui.row().classes('w-full place-content-start items-center'):
             ui.label('付款金额').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
             def on_payment_change(e: events.ValueChangeEventArguments) -> None:
@@ -186,8 +185,8 @@ def add_payment():
                 .classes('w-[120px] text-[16px] text-[#888888] font-[400]') \
                 .style('background-color: #FFFFFF !important;border-radius: 10px;border: 1px solid #888888;')
             def on_create():
-                if dao.to_company_id == "" or dao.payment_money == 0:
-                    ui.notify('受款方,付款额不能为空')
+                if dao.from_company_id == '' or dao.to_company_id == "" or dao.payment_money == 0:
+                    ui.notify('付款方，受款方,付款额不能为空')
                     return
                 dao.create_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 if g.my_db.add_payment_record(dao.to_db()):

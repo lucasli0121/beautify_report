@@ -66,10 +66,21 @@ def date_input_w40(placeholder, on_enterkey) -> ui.input:
     date_input.on('keydown.enter', on_enterkey)
     return date_input
 
+
 def selection_w40(options, value, on_change) -> ui.select:
     return ui.select(options=options, value=value, with_input=False, on_change=lambda e: on_change(e.value)) \
         .props('autofocus rounded-md outlined dense') \
         .classes('w-40 self-center item-center transition-all')
+
+def selection_w60(options, value, need_input:bool, on_change) -> ui.select:
+    return ui.select(options=options, value=value, with_input=need_input, on_change=lambda e: on_change(e.value)) \
+        .props('autofocus rounded-md outlined dense') \
+        .classes('w-60 self-center item-center transition-all')
+
+def selection_w80(options, value, need_input:bool, on_change) -> ui.select:
+    return ui.select(options=options, value=value, with_input=need_input, on_change=lambda e: on_change(e.value)) \
+        .props('autofocus rounded-md outlined dense') \
+        .classes('w-80 self-center item-center transition-all')
 
 def show_add_device_input(placeholder) -> ui.input:
     intput = ui.input(placeholder=placeholder) \

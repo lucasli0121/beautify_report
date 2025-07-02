@@ -28,7 +28,7 @@ def show_company_page() -> None:
     with ui.row().classes('w-full h-[80px] px-[20px] mt-0 place-content-between gap-0') \
         .style('background-color: #FFFFFF !important; border-radius: 10px;'):
         with ui.row().classes('h-full items-center'):
-            name_input = inputs.input_search_w40('名称或简称', on_search)
+            name_input = inputs.input_search_w60('名称或简称', on_search)
             name_input.bind_value_to(search_condition, 'name')
             address_input = inputs.input_search_w40('地址', on_search)
             address_input.bind_value_to(search_condition, 'address')
@@ -46,7 +46,7 @@ def show_company_page() -> None:
                 .style('background-color: #65B6FF !important')
             
     table_rows: list[dict] = []
-    course_table: Optional[ui.table] = tables.show_company_table(table_rows, show_company_detail, show_company_delete)
+    course_table: Optional[ui.table] = tables.show_company_table(table_rows, show_company_delete)
     app.storage.client['company_table'] = course_table
     on_search()
 

@@ -10,7 +10,12 @@ from nicegui import ui,app
 from resources import strings
 from menu.top_menu import top_menu
 from pages.company_page import show_company_page
-from pages.company_detail_page import show_company_detail_page
+from pages.invoice_title_page import show_invoice_title_page
+from pages.invoice_record_page import show_invoice_record_page
+from pages.paytax_record_page import show_paytax_record_page
+from pages.brief_report_page import show_brief_report_page
+from pages.company_bank_account_page import show_company_bank_account_page
+from pages.payment_record_page import show_payment_record_page
 import navigation
 
 @ui.page('/')
@@ -75,20 +80,18 @@ def main_page() -> None:
         with ui.row():
             top_menu()
     tab_panels = show_tabs()
-    if app.storage.user['navigation'] == navigation.HOME_NAVIGATION or app.storage.user['navigation'] == navigation.COMPANY_NAVIGATION:
-        with header_row:
-            header_row.clear()
-            title = ui.label(navigation.navigation_switcher.get(navigation.HOME_NAVIGATION, '')).classes('place-self-center').style('font-size: 24px; color:#65B6FF')
-            title.bind_text_from(tab_panels, 'value', lambda value: value.props["label"] if not isinstance(value, str) else value)
-    elif app.storage.user['navigation'] == navigation.COMPANY_DETAIL_NAVIGATION:
-        with header_row:
-            header_row.clear()
-            onback = app.storage.user['onback']
-            ui.icon('img:/static/images/back@2x.png') \
-                .classes('w-[24px] h-[24px]') \
-                .on('click', onback)
-            ui.label('公司管理 / ').classes('ml-2 text-[20px] text-[#333333]')
-            ui.label('课程详情').classes('text-[20px] text-[#65B6FF]').set_text(app.storage.user['company_name'])
+    with header_row:
+        header_row.clear()
+        title = ui.label(navigation.navigation_switcher.get(navigation.HOME_NAVIGATION, '')).classes('place-self-center').style('font-size: 24px; color:#65B6FF')
+        title.bind_text_from(tab_panels, 'value', lambda value: value.props["label"] if not isinstance(value, str) else value)
+        # with header_row:
+        #     header_row.clear()
+        #     onback = app.storage.user['onback']
+        #     ui.icon('img:/static/images/back@2x.png') \
+        #         .classes('w-[24px] h-[24px]') \
+        #         .on('click', onback)
+        #     ui.label('公司管理 / ').classes('ml-2 text-[20px] text-[#333333]')
+        #     ui.label('课程详情').classes('text-[20px] text-[#65B6FF]').set_text(app.storage.user['company_name'])
 
 def show_tabs() -> ui.tab_panels:
     with ui.left_drawer(top_corner=True).props('width=260').classes('gap-0'):
@@ -97,28 +100,34 @@ def show_tabs() -> ui.tab_panels:
             # ui.image('/static/images/logo@2x.png').classes('w-[206px] h-[47px] place-self-start')
         with ui.tabs().props('vertical no-caps inline-label').classes('text-white custom-tabs') as tabs:
             # home = ui.tab(strings.get('home_page'), icon='img:/static/images/course.png').props('icon-left').classes('w-full h-[80px]')
-            company = ui.tab(strings.get('company_page'), icon='img:/static/images/devices.png').props('icon-left').classes('w-full h-[80px]')
+            company = ui.tab(strings.get('company_page'), icon='domain').props('icon-left').classes('w-full h-[80px]')
+            invoice_title = ui.tab(strings.get('invoice_title'), icon='list').props('icon-left').classes('w-full h-[80px]')
+            bank_account = ui.tab(strings.get('bank_account'), icon='account_balance').props('icon-left').classes('w-full h-[80px]')
+            invoiced_record = ui.tab(strings.get('invoiced_record'), icon='receipt').props('icon-left').classes('w-full h-[80px]')
+            payment_record = ui.tab(strings.get('payment_record'), icon='payment').props('icon-left').classes('w-full h-[80px]')
+            paytax_record = ui.tab(strings.get('paytax_record'), icon='paid').props('icon-left').classes('w-full h-[80px]')
+            brief_report = ui.tab(strings.get('brief_report'), icon='bar_chart').props('icon-left').classes('w-full h-[80px]')
             tab_value = company
             if app.storage.user['navigation'] == navigation.HOME_NAVIGATION:
                 tab_value = company
             elif app.storage.user['navigation'] == navigation.COMPANY_NAVIGATION:
-                tab_value = company
-            elif app.storage.user['navigation'] == navigation.COMPANY_DETAIL_NAVIGATION:
                 tab_value = company
     with ui.tab_panels(tabs, value=tab_value) \
         .props('vertical') \
         .classes('w-full h-full q-pa-none') \
         .style('margin: 0 !important; padding: 0 !important;') as tab_panels:
         with ui.tab_panel(company).classes('gap-0').style('margin: 0 !important; padding: 0 !important; background-color: #F4F9FD !important;'):
-            if 'company_container' not in app.storage.user:
-                app.storage.user['company_container'] = navigation.COMPANY_NAVIGATION
-
-            if app.storage.user['company_container'] == navigation.COMPANY_NAVIGATION:
-                show_company_page()
-            elif app.storage.user['company_container'] == navigation.COMPANY_DETAIL_NAVIGATION:
-                company_id = app.storage.user['company_id']
-                show_company_detail_page(company_id)
-            
-        # with ui.tab_panel(home).classes('gap-0').style('margin: 0 !important; padding: 0 !important; background-color: #F4F9FD !important;') as home_panel:
-        #     pass
+            show_company_page()
+        with ui.tab_panel(invoice_title).classes('gap-0').style('margin: 0 !important; padding: 0 !important; background-color: #F4F9FD !important;'):
+            show_invoice_title_page()
+        with ui.tab_panel(bank_account).classes('gap-0').style('margin: 0 !important; padding: 0 !important; background-color: #F4F9FD !important;'):
+            show_company_bank_account_page()
+        with ui.tab_panel(invoiced_record).classes('gap-0').style('margin: 0 !important; padding: 0 !important; background-color: #F4F9FD !important;'):
+            show_invoice_record_page()
+        with ui.tab_panel(payment_record).classes('gap-0').style('margin: 0 !important; padding: 0 !important; background-color: #F4F9FD !important;'):
+            show_payment_record_page()
+        with ui.tab_panel(paytax_record).classes('gap-0').style('margin: 0 !important; padding: 0 !important; background-color: #F4F9FD !important;'):
+            show_paytax_record_page()
+        with ui.tab_panel(brief_report).classes('gap-0').style('margin: 0 !important; padding: 0 !important; background-color: #F4F9FD !important;'):
+            show_brief_report_page()
     return tab_panels

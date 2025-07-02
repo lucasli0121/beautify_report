@@ -9,35 +9,46 @@ from utils import global_vars as g
 
 @dataclass
 class SearchCondition:
-    invoice_to: str = ""
+    invoice_from_id: str = ""
+    invoice_from_name: str = ""
+    invoice_to_id: str = ""
+    invoice_to_name: str = ""
     invoice_content: str = ""
     begin_time: str = ""
     end_time: str = ""
 search_condition = SearchCondition()
 
 def show_invoice_record_page():
-    result, list_values = g.my_db.query_all_company('', '', '')  # 确保公司数据已加载
-    company_info = {}
-    if result and list_values is not None:
-        for item in list_values:
-            company = CompanyDao()
-            company.from_db(item)
-            company_info[company.name] = company.id
+    result, company_info = g.query_company_name_company()
+    if result is False:
+        ui.notify('查询公司信息失败')
+        return
     options = list(company_info.keys())  # 获取所有公司名称
-    def on_change(value):
-        if value in company_info:
-            search_condition.invoice_to = company_info[value]
-    with ui.row().classes('w-full h-[80px] px-[20px] mt-0 place-content-between gap-0') \
+    
+    with ui.column().classes('w-full px-[20px] py-[10px] mt-0 items-center gap-2') \
         .style('background-color: #FFFFFF !important; border-radius: 10px;'):
-        with ui.row().classes('h-full items-center'):
-            inputs.selection_w40(options, None, on_change=on_change)
+        with ui.row().classes('w-full place-content-start items-center'):
+            with ui.row().classes('w-[25%] place-content-start items-center'):
+                ui.label('开票方').classes('w-[20%] text-[16px] text-[#333333] font-medium')
+                def on_from_change(value):
+                    if value in company_info:
+                        search_condition.invoice_from_id = company_info[value].id
+                        search_condition.invoice_from_name = value
+                inputs.selection_w60(options, None, need_input=True, on_change=on_from_change)
+            with ui.row().classes('w-[25%] place-content-start items-center'):
+                ui.label('受票方').classes('w-[20%] text-[16px] text-[#333333] font-medium')
+                def on_to_change(value):
+                    if value in company_info:
+                        search_condition.invoice_to_id = company_info[value].id
+                        search_condition.invoice_to_name = value
+                inputs.selection_w60(options, None, need_input=True, on_change=on_to_change)
             inputs.input_search_w40('发票内容', on_search) \
                 .bind_value_to(search_condition, 'invoice_content')
             inputs.date_input_w40('开始时间', on_search) \
                 .bind_value_to(search_condition, 'begin_time')
             inputs.date_input_w40('结束时间', on_search) \
                 .bind_value_to(search_condition, 'end_time')
-        with ui.row().classes('h-full items-center'):
+        with ui.row().classes('w-full place-content-end items-center'):
             ui.button('刷新', icon='img:/static/images/refresh@2x.png', on_click=on_search) \
                 .classes('w-25 rounded-md text-white') \
                 .style('background-color: #6C96FB !important')
@@ -49,23 +60,13 @@ def show_invoice_record_page():
                 .style('background-color: #65B6FF !important')
             
     table_rows: list[dict] = []
-    record_table: Optional[ui.table] = tables.show_open_invoice_table(table_rows, delete_one)
-    app.storage.client['invoice_record_table'] = record_table
+    app.storage.client['invoice_record_table'] = tables.show_open_invoice_table(table_rows, delete_one)
     on_search()
 
 def on_search() -> None:
-    from_company_id = ''
-    from_company_name = ''
-    if 'company_dao' in app.storage.user:
-        company_dao = app.storage.user['company_dao']
-        from_company_id = str(company_dao.id)
-        from_company_name = company_dao.name
-    else:
-        ui.notify('请先选择公司')
-        return
     result, list_values = g.my_db.query_all_invoice_record(
-        from_company_id,
-        search_condition.invoice_to,
+        search_condition.invoice_from_id,
+        search_condition.invoice_to_id,
         search_condition.invoice_content,
         search_condition.begin_time,
         search_condition.end_time,)
@@ -74,23 +75,27 @@ def on_search() -> None:
         return
     if 'invoice_record_table' in app.storage.client:
         app.storage.client['invoice_record_table'].rows.clear()
-        app.storage.client['invoice_record_table'].update()
-        if list_values is None or len(list_values) == 0:
-            ui.notify('没有查询到开票记录')
-            return
-        sn = 1
-        for item in list_values:
-            row_dict: dict[str, Any] = {}
-            row_dict['sn'] = sn
-            row_dict['from_company_name'] = from_company_name
-            invoice_record = InvoiceRecordDao()
-            invoice_record.from_db(item)
-            result, to_company_dao = g.my_db.query_company_by_id(invoice_record.to_company_id)
-            if result and to_company_dao is not None:
-                row_dict['to_company_name'] = to_company_dao.name
-            row_dict.update(invoice_record.to_db())
-            app.storage.client['invoice_record_table'].add_row(row_dict)
-            sn += 1
+        if list_values is not None:
+            sn = 1
+            for item in list_values:
+                invoice_record = InvoiceRecordDao()
+                invoice_record.from_db(item)
+                row_dict: dict[str, Any] = {}
+                row_dict['sn'] = sn
+                result, company_dao = g.my_db.query_company_by_id(invoice_record.from_company_id)
+                if result and company_dao is not None:
+                    from_company_name = company_dao.name
+                else:
+                    from_company_name = '未知开票方'
+                row_dict['from_company_name'] = from_company_name
+                result, to_company_dao = g.my_db.query_company_by_id(invoice_record.to_company_id)
+                if result and to_company_dao is not None:
+                    row_dict['to_company_name'] = to_company_dao.name
+                else:
+                    row_dict['to_company_name'] = '未知受票方'
+                row_dict.update(invoice_record.to_db())
+                app.storage.client['invoice_record_table'].add_row(row_dict)
+                sn += 1
         app.storage.client['invoice_record_table'].update()
 #
 # @description: 开票
@@ -98,31 +103,27 @@ def on_search() -> None:
 # @return: None
 #             
 def add_invoice():
-    company_dao: CompanyDao = CompanyDao()
-    if 'company_dao' in app.storage.user:
-        company_dao = app.storage.user['company_dao']
-    else:
-        ui.notify('请先选择公司')
+    result, company_info = g.query_company_name_company()
+    if result is False:
+        ui.notify('查询公司信息失败')
         return
+    options = list(company_info.keys())  # 获取所有公司名称
     dao = InvoiceRecordDao()
-    dao.from_company_id = str(company_dao.id)
     with ui.dialog().props('persistent') as dialog, ui.card().classes('w-1/2') \
         .style('background-color: #FFFFFF !important; border-radius: 10px;'):
         ui.label('开票').classes('w-full text-[20px] text-[#333333] font-medium')
         with ui.row().classes('w-full mt-5 place-content-start items-center'):
-            ui.label('受票方').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
-            result, list_values = g.my_db.query_all_company('', '', '')  # 确保公司数据已加载
-            company_info = {}
-            if result and list_values is not None:
-                for item in list_values:
-                    company = CompanyDao()
-                    company.from_db(item)
-                    company_info[company.name] = company.id
-            options = list(company_info.keys())  # 获取所有公司名称
-            def on_change(value):
+            ui.label('开票方').classes('w-[20%] text-[16px] text-[#333333] font-medium')
+            def on_from_change(value):
                 if value in company_info:
-                    dao.to_company_id = company_info[value]
-            inputs.selection_w40(options, None, on_change=on_change)
+                    dao.from_company_id = company_info[value].id
+            inputs.selection_w60(options, None, need_input=True, on_change=on_from_change)
+        with ui.row().classes('w-full place-content-start items-center'):
+            ui.label('受票方').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
+            def on_to_change(value):
+                if value in company_info:
+                    dao.to_company_id = company_info[value].id
+            inputs.selection_w60(options, None, need_input=True, on_change=on_to_change)
         with ui.row().classes('w-full place-content-start items-center'):
             ui.label('发票类型').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
             inputs.selection_w40(['普票', '专票'], '普票', on_change=lambda value: setattr(dao, 'invoice_type', 0 if value == '普票' else 1))

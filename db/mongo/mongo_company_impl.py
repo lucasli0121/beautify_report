@@ -88,6 +88,7 @@ class MongoCompanyImpl():
             query = {}
             if name or len(name) > 0:
                 query['name'] = {'$regex': name, '$options': 'i'}
+                query['brief_name'] = {'$regex': name, '$options': 'i'}
             if address or len(address) > 0:
                 query['address'] = {'$regex': address, '$options': 'i'}
             if contacts or len(contacts) > 0:

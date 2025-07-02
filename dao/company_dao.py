@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class CompanyDao:
-    id: int|str
+    id: str
     name: str
     brief_name: str
     address: str
@@ -33,7 +33,7 @@ class CompanyDao:
         if '_id' in data:
             self.id = str(data['_id'])
         else:
-            self.id = data.get('id', 0)
+            self.id = str(data.get('id', 0))
         self.name = data.get('name', "")
         self.brief_name = data.get('brief_name', "")
         self.address = data.get('address', "")
