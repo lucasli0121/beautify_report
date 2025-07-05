@@ -8,6 +8,7 @@ Description:
 # coding="utf8"
 
 from typing import Any
+from bson import ObjectId
 from pymongo import MongoClient
 from pymongo.collection import Collection
 import logging
@@ -74,6 +75,8 @@ class MongoImpl(DbBaseImpl):
             if table is None:
                 self.logger.error("table not found in MongoDB.")
                 return False
+            if len(condition) == 0:
+                condition = {'_id': ObjectId(data.get('id', ''))}  # 如果没有条件，使用id作为默认条件
             if 'id' in data:
                 del data['id']
             ret = table.update_one(condition, {'$set': data})

@@ -5,6 +5,7 @@ from components import inputs, tables, dialogs
 from typing import Any, Optional
 from dao.company_dao import CompanyDao
 from dao.payment_record_dao import PaymentRecordDao
+from dao.service_record_dao import ServiceRecordDao
 from utils import global_vars as g
 
 @dataclass
@@ -99,6 +100,11 @@ def on_search() -> None:
                     row_dict['to_company_name'] = to_company_dao.name
                 else:
                     row_dict['to_company_name'] = '未知受款方'
+                result, service_dao = g.my_db.query_service_record_by_id(payment_record.contract_id)
+                if result and service_dao is not None:
+                    row_dict['contract_name'] = service_dao.contract_name
+                else:
+                    row_dict['contract_name'] = '无'
                 row_dict.update(payment_record.to_db())
                 app.storage.client['payment_record_table'].add_row(row_dict)
                 sn += 1
@@ -116,6 +122,18 @@ def add_payment():
         return
     options = list(company_info.keys())  # 获取所有公司名称
     dao = PaymentRecordDao()
+    contract_name_dict = {}
+    select_service_dao: ServiceRecordDao | None = None
+    def change_contract_name():
+        global contract_name_dict
+        result, contract_name_dict = g.query_service_name_dict(from_company_id=dao.from_company_id, to_company_id=dao.to_company_id)
+        if result is False or contract_name_dict is None or len(contract_name_dict) == 0:
+            contract_name_select.options = []
+            contract_name_select.update()
+            return
+        contract_options = list(contract_name_dict.keys())
+        contract_name_select.options = contract_options
+        contract_name_select.update()
     with ui.dialog().props('persistent') as dialog, ui.card().classes('w-1/2') \
         .style('background-color: #FFFFFF !important; border-radius: 10px;'):
         ui.label('付款').classes('w-full text-[20px] text-[#333333] font-medium')
@@ -124,72 +142,86 @@ def add_payment():
             def on_from_change(value):
                 if value in company_info:
                     dao.from_company_id = company_info[value].id
+                    if dao.to_company_id is not None and dao.to_company_id != "":
+                        change_contract_name()
             inputs.selection_w60(options, None, need_input=True, on_change=on_from_change)
         with ui.row().classes('w-full place-content-start items-center'):
             ui.label('受款方').classes('w-[20%] text-[16px] text-[#333333] font-medium')
             def on_to_change(value):
                 if value in company_info:
                     dao.to_company_id = company_info[value].id
+                    if dao.from_company_id is not None and dao.from_company_id != "":
+                        change_contract_name()
             inputs.selection_w60(options, None, need_input=True, on_change=on_to_change)
+        with ui.row().classes('w-full place-content-start items-center'):
+            ui.label('合同名称').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
+            def on_contract_change(value):
+                global contract_name_dict, select_service_dao
+                if value in contract_name_dict:
+                    dao.contract_id = contract_name_dict[value].id
+                    select_service_dao = contract_name_dict[value]
+                    payment_money_label.set_text(f'未付款金额: {select_service_dao.contract_money - select_service_dao.payment_money if select_service_dao else 0}')
+                    dao.should_invoice_money = select_service_dao.payment_money + dao.payment_money
+                    dao.has_invoice_money = select_service_dao.invoice_money
+                    gap_money = dao.should_invoice_money - select_service_dao.invoice_money
+                    dao.remain_invoice_money = 0 if gap_money < 0 else gap_money
+            contract_name_select = inputs.selection_w60([], None, need_input=True, on_change=on_contract_change)
         with ui.row().classes('w-full place-content-start items-center'):
             ui.label('付款金额').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
             def on_payment_change(e: events.ValueChangeEventArguments) -> None:
+                global select_service_dao
                 value = e.value
                 if value is None or value == '':
                     dao.payment_money = 0
                 else:
                     try:
                         dao.payment_money = float(value)
-                        invoice_money_input.set_value(dao.payment_money if dao.payment_money else 0)
-                        remain = invoice_money_input.value - has_invoice_money_input.value
-                        remain_invoice_money_input.set_value(remain)
+                        if select_service_dao is not None:
+                            gap_payment_money = select_service_dao.contract_money - select_service_dao.payment_money
+                            if dao.payment_money > gap_payment_money:
+                                ui.notify(f'付款金额不能大于未付款金额，未付款金额: {gap_payment_money}')
+                                dao.payment_money = gap_payment_money
+                                return
+                            dao.should_invoice_money = select_service_dao.payment_money + dao.payment_money
+                            dao.has_invoice_money = select_service_dao.invoice_money
+                            gap_money = dao.should_invoice_money - select_service_dao.invoice_money
+                            dao.remain_invoice_money = 0 if gap_money < 0 else gap_money
                     except ValueError:
                         ui.notify('开票金额必须是数字')
                         dao.payment_money = 0
-            ui.input(placeholder='请输入付款总额') \
+            ui.input(placeholder='请输入付款总额', value=str(dao.payment_money)) \
                 .props('rounded-md outlined dense') \
                 .classes('w-[30%] self-center item-center ') \
-                    .bind_value_to(dao, 'before_tax_money') \
-                    .on_value_change(on_payment_change)
-        
+                .on_value_change(on_payment_change)
+            payment_money_label = ui.label('').classes('w-[40%] text-[14px] text-red font-small self-center')
         with ui.row().classes('w-full place-content-start items-center'):
             ui.label('应开票金额').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
-            invoice_money_input = ui.input(placeholder='请输入开票金额') \
-                .props('rounded-md outlined dense') \
-                .classes('w-[30%] self-center item-center ') \
-                    .bind_value_to(dao, 'total_invoice_money')
+            ui.label('').classes('w-[30%] text-[14px] text-red font-small self-center').bind_text_from(dao, 'should_invoice_money')
         with ui.row().classes('w-full place-content-start items-center'):
             ui.label('已开票金额').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
-            has_invoice_money_input = ui.input(placeholder='请输入已开票金额') \
-                .props('rounded-md outlined dense') \
-                .classes('w-[30%] self-center item-center ') \
-                    .bind_value_to(dao, 'has_invoice_money')
+            ui.label('').classes('w-[30%] text-[14px] text-red font-small self-center').bind_text_from(dao, 'has_invoice_money')
         with ui.row().classes('w-full place-content-start items-center'):
             ui.label('未开票金额').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
-            remain_invoice_money_input = ui.input(placeholder='请输入未开票金额') \
-                .props('rounded-md outlined dense') \
-                .classes('w-[30%] self-center item-center ') \
-                    .bind_value_to(dao, 'remain_invoice_money')
-        with ui.row().classes('w-full place-content-start items-center'):
-            ui.label('发票内容').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
-            ui.input(placeholder='请输入发票内容') \
-                .props('rounded-md outlined dense') \
-                .classes('w-[30%] self-center item-center ').bind_value_to(dao, 'invoice_content')
-        with ui.row().classes('w-full place-content-start items-center'):
-            ui.label('状态').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
-            inputs.selection_w40(['未完成', '已完成'], '未完成', on_change=lambda value: setattr(dao, 'status', 0 if value == '未完成' else 1))
-            dao.status = 0  # 默认状态为未完成
+            ui.label('').classes('w-[30%] text-[14px] text-red font-small self-center').bind_text_from(dao, 'remain_invoice_money')
         with ui.row().classes('w-full place-content-end'):         
             ui.button('取消', color=None, on_click=dialog.close) \
                 .props('flat') \
                 .classes('w-[120px] text-[16px] text-[#888888] font-[400]') \
                 .style('background-color: #FFFFFF !important;border-radius: 10px;border: 1px solid #888888;')
             def on_create():
-                if dao.from_company_id == '' or dao.to_company_id == "" or dao.payment_money == 0:
-                    ui.notify('付款方，受款方,付款额不能为空')
+                global select_service_dao
+                if dao.from_company_id == '' or dao.to_company_id == "" or dao.contract_id == '' or dao.payment_money == 0:
+                    ui.notify('付款方，受款方,合同，付款额不能为空')
                     return
                 dao.create_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                if select_service_dao is not None:
+                    select_service_dao.payment_money += dao.payment_money
+                    if select_service_dao.payment_money == select_service_dao.contract_money:
+                        dao.status = 1
+                    else:
+                        dao.status = 0
                 if g.my_db.add_payment_record(dao.to_db()):
+                    g.update_contract_payment_money(dao.contract_id, dao.payment_money)
                     ui.notify('添加成功')
                     on_search()
                 dialog.close()

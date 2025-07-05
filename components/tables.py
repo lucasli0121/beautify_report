@@ -58,9 +58,10 @@ def show_company_table(datas, show_delete) -> ui.table:
 def show_open_invoice_table(datas, show_delete) -> ui.table:
     table_columns = [
         {'name': 'id', 'label': 'id', 'field': 'id', 'width': '1%', 'align': 'center'},
-        {'name': 'sn', 'label': '排名', 'field': 'sn', 'width': '5%', 'align': 'center'},
+        {'name': 'sn', 'label': '序号', 'field': 'sn', 'width': '5%', 'align': 'center'},
         {'name': 'from_company_name', 'label': '开票方', 'field': 'from_company_name', 'width': '10%', 'align': 'center'},
         {'name': 'to_company_name', 'label': '受票方', 'field': 'to_company_name', 'width': '10%', 'align': 'center'},
+        {'name': 'contract_name', 'label': '合同名称', 'field': 'contract_name', 'width': '10%', 'align': 'center'},
         {'name': 'invoice_type', 'label': '发票类型', 'field': 'invoice_type', 'width': '5%', 'align': 'center'},
         {'name': 'invoice_content', 'label': '发票内容', 'field': 'invoice_content', 'width': '5%', 'align': 'center'},
         {'name': 'before_tax_money', 'label': '税前额', 'field': 'before_tax_money', 'width': '10%', 'align': 'center'},
@@ -75,7 +76,7 @@ def show_open_invoice_table(datas, show_delete) -> ui.table:
         columns=table_columns,
         rows=datas,
         selection='multiple',
-        row_key='name',
+        row_key='id',
         pagination={'rowsPerPage': 10, 'sortBy': 'sn', 'page': 1}) \
             .props('table-header-style="color: white; font-size: 16px; background-color: #65B6FF;" flat no-shadow') \
             .classes('w-full mt-2 gap-0') \
@@ -86,6 +87,7 @@ def show_open_invoice_table(datas, show_delete) -> ui.table:
                     \'sn\', \
                     \'from_company_name\', \
                     \'to_company_name\', \
+                    \'contract_name\', \
                     \'invoice_type\', \
                     \'invoice_content\', \
                     \'before_tax_money\', \
@@ -171,14 +173,14 @@ def show_company_bank_account_table(datas, show_delete) -> ui.table:
 def show_payment_record_table(datas, show_delete) -> ui.table:
     table_columns = [
         {'name': 'id', 'label': 'id', 'field': 'id', 'width': '0%', 'align': 'center'},
-        {'name': 'sn', 'label': '排名', 'field': 'sn', 'width': '5%', 'align': 'center'},
+        {'name': 'sn', 'label': '序号', 'field': 'sn', 'width': '5%', 'align': 'center'},
         {'name': 'from_company_name', 'label': '付款方', 'field': 'from_company_name', 'width': '10%', 'align': 'center'},
         {'name': 'to_company_name', 'label': '受款方', 'field': 'to_company_name', 'width': '10%', 'align': 'center'},
+        {'name': 'contract_name', 'label': '合同名称', 'field': 'contract_name', 'width': '10%', 'align': 'center'},
         {'name': 'payment_money', 'label': '付款金额', 'field': 'payment_money', 'width': '10%', 'align': 'center'},
-        {'name': 'total_invoice_money', 'label': '应开票金额', 'field': 'total_invoice_money', 'width': '10%', 'align': 'center'},
+        {'name': 'should_invoice_money', 'label': '应开票金额', 'field': 'should_invoice_money', 'width': '10%', 'align': 'center'},
         {'name': 'has_invoice_money', 'label': '已开票金额', 'field': 'has_invoice_money', 'width': '10%', 'align': 'center'},
         {'name': 'remain_invoice_money', 'label': '未开票金额', 'field': 'remain_invoice_money', 'width': '10%', 'align': 'center'},
-        {'name': 'invoice_content', 'label': '开票内容', 'field': 'invoice_content', 'width': '5%', 'align': 'center'},
         {'name': 'status', 'label': '状态', 'field': 'status', 'width': '10%', 'align': 'center'},
         {'name': 'create_time', 'label': '付款时间', 'field': 'create_time', 'width': '10%', 'align': 'center'},
         {'name': 'operation', 'label': '操作', 'field': 'operation', 'width': '10%', 'align': 'center'}
@@ -187,7 +189,7 @@ def show_payment_record_table(datas, show_delete) -> ui.table:
         columns=table_columns,
         rows=datas,
         selection='multiple',
-        row_key='name',
+        row_key='id',
         pagination={'rowsPerPage': 10, 'sortBy': 'sn', 'page': 1}) \
             .props('table-header-style="color: white; font-size: 16px; background-color: #65B6FF;" flat no-shadow') \
             .classes('w-full mt-2 gap-0') \
@@ -198,11 +200,11 @@ def show_payment_record_table(datas, show_delete) -> ui.table:
                     \'sn\', \
                     \'from_company_name\', \
                     \'to_company_name\', \
+                    \'contract_name\', \
                     \'payment_money\', \
-                    \'total_invoice_money\', \
+                    \'should_invoice_money\', \
                     \'has_invoice_money\', \
                     \'remain_invoice_money\', \
-                    \'invoice_content\', \
                     \'status\', \
                     \'create_time\', \
                     \'operation\']"')
@@ -217,6 +219,97 @@ def show_payment_record_table(datas, show_delete) -> ui.table:
                 </template>
                 <template v-if="props.row.status == 1">
                     已取消
+                </template>
+            </q-td>
+        ''')
+        table.add_slot('body-cell-operation', r'''
+            <q-td auto-width key="operation" :props="props" class="item-left">
+                <q-btn size="sm" flat round dense icon="img:/static/images/delete_mini.png"
+                    @click="() => $parent.$emit('show_delete', props.row)"
+                />
+            </q-td>
+        ''')
+        table.on('show_delete', show_delete)
+    return table    
+
+#
+# @description: 显示业务记录表格
+# @param {list} datas 数据列表
+#
+def show_service_record_table(datas, show_delete) -> ui.table:
+    table_columns = [
+        {'name': 'id', 'label': 'id', 'field': 'id', 'width': '0%', 'align': 'center'},
+        {'name': 'sn', 'label': '序号', 'field': 'sn', 'width': '5%', 'align': 'center'},
+        {'name': 'from_company_name', 'label': '甲方', 'field': 'from_company_name', 'width': '10%', 'align': 'center'},
+        {'name': 'to_company_name', 'label': '乙方', 'field': 'to_company_name', 'width': '10%', 'align': 'center'},
+        {'name': 'contract_name', 'label': '合同名称', 'field': 'contract_name', 'width': '10%', 'align': 'center'},
+        {'name': 'contract_content', 'label': '合同内容', 'field': 'contract_name', 'width': '10%', 'align': 'center'},
+        {'name': 'contract_money', 'label': '合同金额', 'field': 'contract_money', 'width': '5%', 'align': 'center'},
+        {'name': 'is_contract', 'label': '是否有合同', 'field': 'is_contract', 'width': '5%', 'align': 'center'},
+        {'name': 'invoice_money', 'label': '开票金额', 'field': 'invoice_money', 'width': '5%', 'align': 'center'},
+        {'name': 'payment_money', 'label': '付款金额', 'field': 'payment_money', 'width': '5%', 'align': 'center'},
+        {'name': 'invoice_gap_money', 'label': '发票差额', 'field': 'invoice_gap_money', 'width': '5%', 'align': 'center'},
+        {'name': 'payment_gap_money', 'label': '付款差额', 'field': 'payment_gap_money', 'width': '5%', 'align': 'center'},
+        {'name': 'latest_payment_time', 'label': '最近付款时间', 'field': 'latest_payment_time', 'width': '10%', 'align': 'center'},
+        {'name': 'status', 'label': '状态', 'field': 'status', 'width': '5%', 'align': 'center'},
+        {'name': 'create_time', 'label': '创建时间', 'field': 'create_time', 'width': '10%', 'align': 'center'},
+        {'name': 'operation', 'label': '操作', 'field': 'operation', 'width': '5%', 'align': 'center'}
+    ]
+    with ui.table(
+        columns=table_columns,
+        rows=datas,
+        selection='multiple',
+        row_key='id',
+        pagination={'rowsPerPage': 10, 'sortBy': 'sn', 'page': 1}) \
+            .props('table-header-style="color: white; font-size: 16px; background-color: #65B6FF;" flat no-shadow') \
+            .classes('w-full mt-2 gap-0') \
+            .style('border: 1px solid #ECECEC; border-radius: 10px 10px 0px 0px;') as table:
+        
+        table.props('v-model:selected="selected"')
+        table.props('visible-columns="[ \
+                    \'sn\', \
+                    \'from_company_name\', \
+                    \'to_company_name\', \
+                    \'contract_name\', \
+                    \'contract_content\', \
+                    \'contract_money\', \
+                    \'is_contract\', \
+                    \'remain_invoice_money\', \
+                    \'invoice_money\', \
+                    \'payment_money\', \
+                    \'invoice_gap_money\', \
+                    \'payment_gap_money\', \
+                    \'latest_payment_time\', \
+                    \'status\', \
+                    \'create_time\', \
+                    \'operation\']"')
+
+        table.add_slot('body-cell-is_contract', r'''
+            <q-td auto-width key="is_contract" :props="props">  
+                <template v-if="props.row.is_contract == 0">
+                    无
+                </template>
+                <template v-if="props.row.status == 1">
+                    有
+                </template>
+            </q-td>
+        ''')
+        table.add_slot('body-cell-status', r'''
+            <q-td auto-width key="status" :props="props">  
+                <template v-if="props.row.status == 0">
+                    无
+                </template>
+                <template v-if="props.row.status == 1">
+                    无合同
+                </template>
+                <template v-if="props.row.status == 2">
+                    待付款
+                </template>
+                <template v-if="props.row.status == 3">
+                    待开票
+                </template>
+                <template v-if="props.row.status == 4">
+                    完成
                 </template>
             </q-td>
         ''')

@@ -94,7 +94,7 @@ class MongoInvoiceRecordImpl():
             self.logger.error("No invoice record found with the given ID.")
             return False, None
         dao = InvoiceRecordDao()
-        dao.from_db(value)
+        dao.from_db(value[0])
         return True, dao
     """
     function:

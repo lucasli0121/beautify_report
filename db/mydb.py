@@ -17,6 +17,7 @@ from db.mysql.mysql_db import MySqlImpl
 from db.mongo.mongo_company_impl import MongoCompanyImpl
 from db.mongo.mongo_invoice_record_impl import MongoInvoiceRecordImpl
 from db.mongo.mongo_payment_record_impl import MongoPaymentRecordImpl
+from db.mongo.mongo_service_record_impl import MongoServiceRecordImpl
 from db.mysql.mysql_company_impl import MySqlCompanyImpl
 from dao.company_dao import CompanyDao
 from dao.company_bank_account_dao import CompanyBankAccountDao
@@ -220,4 +221,44 @@ class MyDb:
             if self.mongo is not None:
                 return MongoPaymentRecordImpl(self.mongo).delete(id)
         self.logger.error("No database implementation available for deleting payment record.")
+        return False
+    def add_service_record(self, d: dict[str, Any]) -> bool:
+        if self.mysql is not None:
+            return False
+        else:
+            if self.mongo is not None:
+                return MongoServiceRecordImpl(self.mongo).add(d)
+        self.logger.error("No database implementation available for adding service record.")
+        return False
+    def update_service_record(self, d: dict[str, Any], condition: dict[str, Any]) -> bool:
+        if self.mysql is not None:
+            return False
+        else:
+            if self.mongo is not None:
+                return MongoServiceRecordImpl(self.mongo).update(d, condition)
+        self.logger.error("No database implementation available for updating service record.")
+        return False
+    def query_all_service_record(self, from_company_id: str, to_company_id: str, status: int, begin_time: str, end_time: str) -> tuple[bool, Any|None]:
+        if self.mysql is not None:
+            return False, None
+        else:
+            if self.mongo is not None:
+                return MongoServiceRecordImpl(self.mongo).query_all(from_company_id, to_company_id, status, begin_time, end_time)
+        self.logger.error("No database implementation available for querying service record.")
+        return False, None
+    def query_service_record_by_id(self, id: str) -> tuple[bool, Any|None]:
+        if self.mysql is not None:
+            return False, None
+        else:
+            if self.mongo is not None:
+                return MongoServiceRecordImpl(self.mongo).query_by_id(id)
+        self.logger.error("No database implementation available for querying service record by id.")
+        return False, None
+    def delete_service_record(self, id: str) -> bool:
+        if self.mysql is not None:
+            return False
+        else:
+            if self.mongo is not None:
+                return MongoServiceRecordImpl(self.mongo).delete(id)
+        self.logger.error("No database implementation available for deleting service record.")
         return False

@@ -10,6 +10,7 @@ class InvoiceRecordDao:
     id: str  # 发票记录ID
     from_company_id: str
     to_company_id: str
+    contract_id: str  # 合同ID
     invoice_type: int # 0: 普通发票, 1: 专用发票
     tax_rate: float # 税率
     invoice_content: str # 发票内容
@@ -19,12 +20,13 @@ class InvoiceRecordDao:
     contract_content: str # 合同内容
     create_time: str
     
-    def __init__(self, id:str = '',from_company_id: str = "", to_company_id: str = "", invoice_type: int = 0, tax_rate: float = 0.0,
+    def __init__(self, id:str = '',from_company_id: str = "", to_company_id: str = "", contract_id = '', invoice_type: int = 0, tax_rate: float = 0.0,
                  invoice_content: str = "", before_tax_money: float = 0.0, added_tax: float = 0.0,
                  invoice_money: float = 0.0, contract_content: str = "", create_time: str = "") -> None:
         self.id = id
         self.from_company_id = from_company_id
         self.to_company_id = to_company_id
+        self.contract_id = contract_id
         self.invoice_type = invoice_type
         self.tax_rate = tax_rate
         self.invoice_content = invoice_content
@@ -38,6 +40,7 @@ class InvoiceRecordDao:
         self.id = str(data.get('_id', ''))
         self.from_company_id = str(data.get('from_company_id', ''))
         self.to_company_id = str(data.get('to_company_id', ''))
+        self.contract_id = str(data.get('contract_id', ''))
         self.invoice_type = int(data.get('invoice_type', 0))
         self.tax_rate = float(data.get('tax_rate', 0.0))
         self.invoice_content = str(data.get('invoice_content', ''))
