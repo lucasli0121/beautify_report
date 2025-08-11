@@ -31,7 +31,7 @@ string_resources = {
     'invoiced_record': "开票记录",
     'payment_record': "付款记录",
     'paytax_record': "税务记录",
-    'service_record': '合同管理'
+    'service_record': '业务管理'
 }
 
 def get(key: str) -> str:

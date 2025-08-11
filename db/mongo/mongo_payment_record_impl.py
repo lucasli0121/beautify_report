@@ -34,11 +34,11 @@ class MongoPaymentRecordImpl():
     :param data: 信息字典
     :return: 成功返回True，否则返回False
     """
-    def add(self, data: dict[str, Any]) -> bool:
+    def add(self, data: dict[str, Any]) -> tuple[bool, str|None]:
         tbl_name = self.payment_record_tbl()
         if tbl_name is None:
             self.logger.error("invoice table not found in MongoDB.")
-            return False
+            return False, None
         return self.mongo_impl.add(tbl_name, data)
         
     """ 

@@ -230,3 +230,28 @@ def make_sure_dialog(message: str, on_ok: Callable) -> ui.dialog:
                 .style('background-color: #65B6FF !important; border-radius: 10px')
     dialog.open()
     return dialog
+
+def show_extents_fields_dialog(on_submit: Callable) -> None:
+    with ui.dialog(value=True).props('persistent') as dialog, \
+        ui.card().classes('p-10').style('background-color: #f5f5f5; width: 30%; max-width: 30%;'):
+        ui.label('增加扩展字段').classes('w-full text-[20px] text-[#333333] font-medium')
+        with ui.row().classes('w-full mt-1 place-content-start items-center'):
+            ui.label('字段名称:').classes('w-[20%] text-[16px] text-[#333333] font-medium')
+            field_input = ui.input(placeholder='请输入字段名称').props('rounded-md outlined dense').classes('w-[70%] self-center item-center')
+        with ui.row().classes('w-full mt-2 place-content-center items-center'):
+            def onOk():
+                field_name = field_input.value.strip()
+                if not field_name:
+                    ui.notify('字段名称不能为空', color='red')
+                    return
+                on_submit(field_name)
+                dialog.close()
+            ui.button('提交', on_click=onOk) \
+                .props('flat') \
+                .classes('w-[120px] text-[16px] text-white font-[400]') \
+                .style('background-color: #65B6FF !important; border-radius: 10px')
+            ui.button('取消', on_click=dialog.close) \
+                .props('flat') \
+                .classes('w-[120px] text-[16px] text-[#888888] font-[400]') \
+                .style('background-color: #FFFFFF !important;border-radius: 10px;border: 1px solid #888888;')
+    dialog.open()

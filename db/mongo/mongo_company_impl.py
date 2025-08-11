@@ -40,19 +40,22 @@ class MongoCompanyImpl():
     :param data: 公司信息字典
     :return: 成功返回True，否则返回False
     """
-    def add_company(self, data: dict[str, Any]) -> bool:
-        try:
-            tbl_name = self.company_tbl()
-            if tbl_name is None:
-                self.logger.error("Company table not found in MongoDB.")
-                return False
-            if 'id' in data:
-                del data['id']
-            ret = tbl_name.insert_one(data)
-            return ret.acknowledged  # 确认插入操作已被确认
-        except Exception as e:
-            self.logger.error(f"添加公司信息失败: {e}")
-            return False
+    def add_company(self, data: dict[str, Any]) -> tuple[bool, str|None]:
+        tbl_name = self.company_tbl()
+        if tbl_name is None:
+            self.logger.error("Company table not found in MongoDB.")
+            return False, None
+        return self.mongo_impl.add(tbl_name, data)
+    
+    def query_same_company(self, name: str, brief_name: str) -> tuple[bool, None|list[Any]]:
+        tbl_name = self.company_tbl()
+        if tbl_name is None:
+            self.logger.error("Company table not found in MongoDB.")
+            return False, None
+        query: dict[str, Any] = {}
+        query['name'] = {'$regex': name, '$options': 'i'}
+        query['brief_name'] = {'$regex': brief_name, '$options': 'i'}
+        return self.mongo_impl.query_by_condition(tbl_name, query)
         
     """ 
     更新公司信息到数据库
@@ -61,18 +64,11 @@ class MongoCompanyImpl():
     :return: 成功返回True，否则返回False
     """
     def update_company(self, data: dict[str, Any], condition: dict[str, Any]) -> bool:
-        try:
-            tbl_name = self.company_tbl()
-            if tbl_name is None:
-                self.logger.error("Company table not found in MongoDB.")
-                return False
-            if 'id' in data:
-                del data['id']
-            ret = tbl_name.update_one(condition, {'$set': data})
-            return ret.modified_count > 0  # 返回是否有记录被修改
-        except Exception as e:
-            self.logger.error(f"更新公司信息失败: {e}")
+        tbl_name = self.company_tbl()
+        if tbl_name is None:
+            self.logger.error("Company table not found in MongoDB.")
             return False
+        return self.mongo_impl.update(tbl_name, data, condition)
         
     """
     查询公司信息
@@ -80,24 +76,46 @@ class MongoCompanyImpl():
     :return: 查询结果列表，每个元素是一个字典，包含公司信息
     """
     def query_all_company(self, name: str, address: str, contacts: str) -> tuple[bool, None|list[Any]]:
-        try:
-            tbl_name = self.company_tbl()
-            if tbl_name is None:
-                self.logger.error("Company table not found in MongoDB.")
-                return False, None
-            query = {}
-            if name or len(name) > 0:
-                query['name'] = {'$regex': name, '$options': 'i'}
-                query['brief_name'] = {'$regex': name, '$options': 'i'}
-            if address or len(address) > 0:
-                query['address'] = {'$regex': address, '$options': 'i'}
-            if contacts or len(contacts) > 0:
-                query['contacts'] = {'$regex': contacts, '$options': 'i'}
-            results = list(tbl_name.find(query))
-            return True, results
-        except Exception as e:
-            self.logger.error(f"查询公司信息失败: {e}")
+        tbl_name = self.company_tbl()
+        if tbl_name is None:
+            self.logger.error("Company table not found in MongoDB.")
             return False, None
+        query: dict[str, Any] = {}
+        if name or len(name) > 0:
+            query['name'] = {'$regex': name, '$options': 'i'}
+            query['brief_name'] = {'$regex': name, '$options': 'i'}
+        if address or len(address) > 0:
+            query['address'] = {'$regex': address, '$options': 'i'}
+        if contacts or len(contacts) > 0:
+            query['contacts'] = {'$regex': contacts, '$options': 'i'}
+        return self.mongo_impl.query_by_condition(tbl_name, query)
+    
+    """
+    查询内部公司信息 type 不等于 2
+    :param condition: 查询条件，例如 "id = 1"
+    :return: 查询结果列表，每个元素是一个字典，包含公司信息
+    """
+    def query_inner_company(self, name: str, address: str, contacts: str) -> tuple[bool, None|list[Any]]:
+        """
+        查询内部公司信息
+        :return: 成功返回True和公司信息字典，否则返回False和空字典
+        """
+        tbl_name = self.company_tbl()
+        if tbl_name is None:
+            self.logger.error("Company table not found in MongoDB.")
+            return False, None
+        condition: dict[str, Any] = {}
+        if name or len(name) > 0:
+            condition['name'] = {'$regex': name, '$options': 'i'}
+            condition['brief_name'] = {'$regex': name, '$options': 'i'}
+        if address or len(address) > 0:
+            condition['address'] = {'$regex': address, '$options': 'i'}
+        if contacts or len(contacts) > 0:
+            condition['contacts'] = {'$regex': contacts, '$options': 'i'}
+        # 只查询公司类型不是2的记录
+        condition['type'] = {'$ne': 2}
+        return self.mongo_impl.query_by_condition(tbl_name, condition)
+    
     """
     function:
     description: 从服务器查询公司信息
@@ -146,19 +164,18 @@ class MongoCompanyImpl():
     param {*} self
     return {*}
     """
-    def add_company_bank_account(self, data: dict[str, Any]) -> bool:
+    def add_company_bank_account(self, data: dict[str, Any]) -> tuple[bool, str|None]:
         try:
             tbl_name = self.company_bank_account_tbl()
             if tbl_name is None:
                 self.logger.error("Company bank account table not found in MongoDB.")
-                return False
+                return False, None
             if 'id' in data:
                 del data['id']
-            ret = tbl_name.insert_one(data)
-            return ret.acknowledged  # 确认插入操作已被确认
+            return self.mongo_impl.add(tbl_name, data)
         except Exception as e:
             self.logger.error(f"添加公司银行账户信息失败: {e}")
-            return False
+            return False, None
         
     """ 
     更新公司银行账户到数据库
@@ -174,8 +191,7 @@ class MongoCompanyImpl():
                 return False
             if 'id' in data:
                 del data['id']
-            ret = tbl_name.update_one(condition, {'$set': data})
-            return ret.modified_count > 0  # 返回是否有记录被修改
+            return self.mongo_impl.update(tbl_name, data, condition)
         except Exception as e:
             self.logger.error(f"更新公司银行账户信息失败: {e}")
             return False
@@ -206,6 +222,19 @@ class MongoCompanyImpl():
         except Exception as e:
             self.logger.error(f"查询公司银行账户信息失败: {e}")
             return False, None
+        
+    def query_company_bank_account_by_id(self, id: str) -> tuple[bool, CompanyBankAccountDao|None]:
+        tbl_name = self.company_bank_account_tbl()
+        if tbl_name is None:
+            self.logger.error("Company bank account table not found in MongoDB.")
+            return False, None
+        query = {'_id': ObjectId(id)}
+        result, value = self.mongo_impl.query_by_condition(tbl_name, query)
+        if not result or value is None:
+            return False, None
+        dao = CompanyBankAccountDao()
+        dao.from_db(value[0])
+        return True, dao
     """
     function:
     description: 删除公司银行账户信息

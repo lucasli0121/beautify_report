@@ -13,6 +13,7 @@ from typing import Any
 from configparser import ConfigParser, NoSectionError
 import logging
 from db.mongo.mongo_impl import MongoImpl
+from db.mongo.mongo_invoice_title_impl import MongoInvoiceTitleImpl
 from db.mysql.mysql_db import MySqlImpl
 from db.mongo.mongo_company_impl import MongoCompanyImpl
 from db.mongo.mongo_invoice_record_impl import MongoInvoiceRecordImpl
@@ -52,15 +53,23 @@ class MyDb:
     param {*} d
     return {*}
     '''    
-    def add_company(self, d: dict[str, Any]) -> bool:
+    def add_company(self, d: dict[str, Any]) -> tuple[bool, str|None]:
         if self.mysql is not None:
-            return MySqlCompanyImpl(self.mysql).add_company(d)
+            return False, None
         else:
             if self.mongo is not None:
                 return MongoCompanyImpl(self.mongo).add_company(d)
         self.logger.error("No database implementation available for adding company.")
-        return False
+        return False, None
     
+    def query_same_company(self, name: str, brief_name: str) -> tuple[bool, None|list[Any]]:
+        if self.mysql is not None:
+            return False, None
+        else:
+            if self.mongo is not None:
+                return MongoCompanyImpl(self.mongo).query_same_company(name, brief_name)
+        self.logger.error("No database implementation available for querying same company.")
+        return False, None
     '''
     function: update_company
     description: 更新公司信息
@@ -90,6 +99,14 @@ class MyDb:
                 return MongoCompanyImpl(self.mongo).query_all_company(name, address, contacts)
         self.logger.error("No database implementation available for querying company.")
         return False, None
+    def query_inner_company(self, name: str, address: str, contacts: str) -> tuple[bool, None|list[Any]]:
+        if self.mysql is not None:
+            return MySqlCompanyImpl(self.mysql).query_all_company(name, address, contacts)
+        else:
+            if self.mongo is not None:
+                return MongoCompanyImpl(self.mongo).query_inner_company(name, address, contacts)
+        self.logger.error("No database implementation available for querying company.")
+        return False, None
     
     def query_company_by_id(self, id: str) -> tuple[bool, CompanyDao|None]:
         if self.mysql is not None:
@@ -109,14 +126,14 @@ class MyDb:
         self.logger.error("No database implementation available for deleting company.")
         return False
     
-    def add_company_bank_account(self, d: dict[str, Any]) -> bool:
+    def add_company_bank_account(self, d: dict[str, Any]) -> tuple[bool, str|None]:
         if self.mysql is not None:
-            return False
+            return False, None
         else:
             if self.mongo is not None:
                 return MongoCompanyImpl(self.mongo).add_company_bank_account(d)
         self.logger.error("No database implementation available for adding company bank account.")
-        return False
+        return False, None
     def update_company_bank_account(self, d: dict[str, Any], condition: dict[str, Any]) -> bool:
         if self.mysql is not None:
             return False
@@ -133,6 +150,15 @@ class MyDb:
                 return MongoCompanyImpl(self.mongo).query_all_company_bank_account(company_id)
         self.logger.error("No database implementation available for querying company bank account.")
         return False, None
+    def query_company_bank_account_by_id(self, id: str) -> tuple[bool, CompanyBankAccountDao|None]:
+        if self.mysql is not None:
+            return False, None
+        else:
+            if self.mongo is not None:
+                return MongoCompanyImpl(self.mongo).query_company_bank_account_by_id(id)
+        self.logger.error("No database implementation available for querying company bank account by id.")
+        return False, None
+    
     def delete_company_bank_account(self, id: str) -> bool:
         if self.mysql is not None:
             return False
@@ -141,14 +167,54 @@ class MyDb:
                 return MongoCompanyImpl(self.mongo).delete_company_bank_account(id)
         self.logger.error("No database implementation available for deleting company bank account.")
         return False
-    def add_invoice_record(self, d: dict[str, Any]) -> bool:
+    def add_invoice_title(self, d: dict[str, Any]) -> tuple[bool, str|None]:
+        if self.mysql is not None:
+            return False, None
+        else:
+            if self.mongo is not None:
+                return MongoInvoiceTitleImpl(self.mongo).add(d)
+        self.logger.error("No database implementation available for adding invoice title.")
+        return False, None
+    def update_invoice_title(self, d: dict[str, Any], condition: dict[str, Any]) -> bool:
         if self.mysql is not None:
             return False
         else:
             if self.mongo is not None:
+                return MongoInvoiceTitleImpl(self.mongo).update(d, condition)
+        self.logger.error("No database implementation available for updating invoice title.")
+        return False
+    def query_invoice_title_all(self, company_id: str) -> tuple[bool, Any|None]:
+        if self.mysql is not None:
+            return False, None
+        else:
+            if self.mongo is not None:
+                return MongoInvoiceTitleImpl(self.mongo).query_all(company_id)
+        self.logger.error("No database implementation available for querying invoice title.")
+        return False, None
+    def query_invoice_title_by_id(self, id: str) -> tuple[bool, Any|None]:
+        if self.mysql is not None:
+            return False, None
+        else:
+            if self.mongo is not None:
+                return MongoInvoiceTitleImpl(self.mongo).query_by_id(id)
+        self.logger.error("No database implementation available for querying invoice title by id.")
+        return False, None
+    def delete_invoice_title(self, id: str) -> bool:
+        if self.mysql is not None:
+            return False
+        else:
+            if self.mongo is not None:
+                return MongoInvoiceTitleImpl(self.mongo).delete(id)
+        self.logger.error("No database implementation available for deleting invoice title.")
+        return False
+    def add_invoice_record(self, d: dict[str, Any]) -> tuple[bool, str|None]:
+        if self.mysql is not None:
+            return False, None
+        else:
+            if self.mongo is not None:
                 return MongoInvoiceRecordImpl(self.mongo).add(d)
         self.logger.error("No database implementation available for adding invoice record.")
-        return False
+        return False, None
     def update_invoice_record(self, d: dict[str, Any], condition: dict[str, Any]) -> bool:
         if self.mysql is not None:
             return False
@@ -182,14 +248,14 @@ class MyDb:
         self.logger.error("No database implementation available for deleting invoice record.")
         return False
     
-    def add_payment_record(self, d: dict[str, Any]) -> bool:
+    def add_payment_record(self, d: dict[str, Any]) -> tuple[bool, str|None]:
         if self.mysql is not None:
-            return False
+            return False, None
         else:
             if self.mongo is not None:
                 return MongoPaymentRecordImpl(self.mongo).add(d)
         self.logger.error("No database implementation available for adding payment record.")
-        return False
+        return False, None
     def update_payment_record(self, d: dict[str, Any], condition: dict[str, Any]) -> bool:
         if self.mysql is not None:
             return False
@@ -222,14 +288,14 @@ class MyDb:
                 return MongoPaymentRecordImpl(self.mongo).delete(id)
         self.logger.error("No database implementation available for deleting payment record.")
         return False
-    def add_service_record(self, d: dict[str, Any]) -> bool:
+    def add_service_record(self, d: dict[str, Any]) -> tuple[bool, str|None]:
         if self.mysql is not None:
-            return False
+            return False, None
         else:
             if self.mongo is not None:
                 return MongoServiceRecordImpl(self.mongo).add(d)
         self.logger.error("No database implementation available for adding service record.")
-        return False
+        return False, None
     def update_service_record(self, d: dict[str, Any], condition: dict[str, Any]) -> bool:
         if self.mysql is not None:
             return False

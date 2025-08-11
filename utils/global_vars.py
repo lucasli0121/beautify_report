@@ -1,5 +1,6 @@
 from datetime import datetime
-from nicegui import app
+from typing import Any
+from nicegui import app, ui
 from dao.company_dao import CompanyDao
 from dao.service_record_dao import ServiceRecordDao
 from mq.mq_impl import MqImpl
@@ -38,6 +39,70 @@ def query_company_name_company() -> tuple[bool, dict[str, CompanyDao]]:
             company.from_db(item)
             company_info[company.name] = company
     return True, company_info
+
+def add_out_company(onComplete) -> None:
+    """
+    添加外部公司信息
+    :param data: 外部公司信息字典
+    :return: 成功返回True，否则返回False
+    """
+    company_dao = CompanyDao()
+    with ui.dialog().props('persistent') as dialog, ui.card().classes('w-1/2') \
+        .style('background-color: #FFFFFF !important; border-radius: 10px;'):
+        ui.label('创建外部公司').classes('w-full text-[20px] text-[#333333] font-medium')
+        with ui.row().classes('w-full mt-5 place-content-start items-center'):
+            ui.label('名称').classes('w-[20%] text-[16px] text-[#333333] font-medium')
+            ui.input(placeholder='请输入公司名称') \
+                .props('rounded-md outlined dense') \
+                .classes('w-[70%] self-center item-center ') \
+                .bind_value_to(company_dao, 'name')
+        with ui.row().classes('w-full place-content-start items-center'):
+            ui.label('简称').classes('w-[20%] text-[16px] text-[#333333] font-medium')
+            ui.input(placeholder='请输入公司简称') \
+                .props('rounded-md outlined dense') \
+                .classes('w-[30%] self-center item-center ') \
+                .bind_value_to(company_dao, 'brief_name')
+        with ui.row().classes('w-full place-content-start items-center'):
+            ui.label('地址').classes('w-[20%] text-[16px] text-[#333333] font-medium')
+            ui.input(placeholder='请输入公司地址') \
+                .props('rounded-md outlined dense') \
+                .classes('w-[70%] self-center item-center ') \
+                .bind_value_to(company_dao, 'address')
+        with ui.row().classes('w-full place-content-start items-center'):
+            ui.label('信用代码').classes('w-[20%] text-[16px] text-[#333333] font-medium')
+            ui.input(placeholder='请输入统一信用代码') \
+                .props('rounded-md outlined dense') \
+                .classes('w-[30%] self-center item-center ') \
+                .bind_value_to(company_dao, 'tax_no')
+        with ui.row().classes('w-full place-content-end'):
+            ui.button('取消', color=None, on_click=dialog.close) \
+                .props('flat') \
+                .classes('w-[120px] text-[16px] text-[#888888] font-[400]') \
+                .style('background-color: #FFFFFF !important;border-radius: 10px;border: 1px solid #888888;')
+            def on_create_company():
+                if company_dao.name == "" or company_dao.address == "" or company_dao.tax_no == "":
+                    ui.notify('公司名称,地址,税号不能为空')
+                    return
+                company_dao.type = 2 # 外部公司
+                data = company_dao.to_db()
+                result, values = my_db.query_same_company(data['name'], data['brief_name'])
+                if result and values and len(values) > 0:
+                    ui.notify('公司名称或简称已存在，请修改后再试')
+                    return
+                result, id = my_db.add_company(data)
+                if result is True:
+                    company_dao.id = str(id)
+                    ui.notify('添加外部公司成功')
+                    dialog.close()
+                    if onComplete is not None:
+                        onComplete(company_dao)
+                else:
+                    ui.notify('添加公司失败')
+            ui.button('确定', color=None, on_click=on_create_company) \
+                .props('flat') \
+                .classes('w-[120px] text-[16px] text-white font-[400]') \
+                .style('background-color: #65B6FF !important; border-radius: 10px')
+        dialog.open()
 #
 # 查询服务记录的合同名称字典
 # 返回的字典以合同名称为键，ServiceRecordDao对象为值
@@ -73,6 +138,7 @@ def update_contract_invoice_money(contract_id: str, invoice_money: float) -> boo
         service_dao.status = 3 # 更新状态为待开票
     if service_dao.invoice_money == service_dao.contract_money and service_dao.payment_money == service_dao.contract_money:
         service_dao.status = 4 # 更新状态为完成
+    service_dao.latest_invoice_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     return my_db.update_service_record(service_dao.to_db(), {})
 
 #

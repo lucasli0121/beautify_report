@@ -10,7 +10,7 @@ from nicegui import ui,app,events
 from components import tables, inputs, labels, dialogs
 from dao.company_dao import CompanyDao
 from dao.company_bank_account_dao import CompanyBankAccountDao
-from typing import Any, Optional
+from typing import Any, Optional, cast
 from utils import global_vars as g
 
 @dataclass
@@ -36,14 +36,20 @@ def show_company_bank_account_page() -> None:
     with ui.row().classes('w-full h-[60px] px-[20px] py-[10px] place-content-between items-center') \
         .style('background-color: #FFFFFF !important; border-radius: 10px;'):
         with ui.row().classes('h-full items-center'):
-            inputs.selection_w80(options, None, need_input=True, on_change=on_change)
+            company_search_select = inputs.selection_w80(options, None, need_input=True, on_change=on_change)
         with ui.row().classes('h-full ml-[30px] items-center'):
-            ui.button('新建账户', icon='img:/static/images/add_course@2x.png', on_click=add_company_bank_account) \
+            ui.button('刷新', icon='img:/static/images/refresh@2x.png', on_click=on_search) \
+                .classes('w-25 rounded-md text-white') \
+                .style('background-color: #6C96FB !important')
+            ui.button('删除', icon='img:/static/images/delete@2x.png', on_click=del_select) \
+                .classes('w-25 rounded-md text-red') \
+                .style('background-color: rgba(255,77,77,0.39) !important')
+            ui.button('新建', icon='img:/static/images/add_course@2x.png', on_click=add_company_bank_account) \
                 .classes('w-25 rounded-md text-white') \
                 .style('background-color: #65B6FF !important')
             
     table_rows: list[dict] = []
-    app.storage.client['company_bank_account_table'] = tables.show_company_bank_account_table(table_rows, show_delete)
+    app.storage.client['company_bank_account_table'] = tables.show_company_bank_account_table(table_rows, show_edit, show_delete)
     search_condition.company_list = list(company_info.values())
     on_search()
 
@@ -105,36 +111,74 @@ def del_by_ids(ids: list[str]) -> None:
             on_search()
     dialogs.make_sure_dialog('确认要进行删除操作?', make_delete)
 
+def show_edit(e: events.GenericEventArguments) -> None:
+    id = e.args['id']
+    if id is None or len(id) == 0:
+        ui.notify('请选择要编辑的公司银行账户')
+        return
+    result, dao = g.my_db.query_company_bank_account_by_id(id)
+    if result is False or dao is None:
+        ui.notify('查询公司银行账户信息失败')
+        return
+    modify_or_new_company_bank_account(dao, is_add=False)
 #
 # @description: 显示添加公司银行账户对话框
 # @return {*}
 #
 def add_company_bank_account():
     account_dao = CompanyBankAccountDao()
+    modify_or_new_company_bank_account(account_dao, is_add=True)
+
+
+def modify_or_new_company_bank_account(account_dao: CompanyBankAccountDao, is_add: bool = True) -> None:
     options = [item.name for item in search_condition.company_list]  # 获取所有公司名称
+    company_dao: CompanyDao = CompanyDao()
+    if not is_add:
+        result, value = g.my_db.query_company_by_id(account_dao.company_id)
+        if result is False or value is None:
+            ui.notify('查询公司信息失败')
+            return
+        company_dao = cast(CompanyDao, value)
     def on_select_change(value):
-        for company_dao in search_condition.company_list:
-            if company_dao.name == value:
-                account_dao.company_id = company_dao.id
+        global company_dao
+        for company in search_condition.company_list:
+            if company.name == value:
+                account_dao.company_id = company.id
+                company_dao = company
                 break
     with ui.dialog().props('persistent') as dialog, ui.card().classes('w-1/2') \
         .style('background-color: #FFFFFF !important; border-radius: 10px;'):
-        ui.label('增加银行账户').classes('w-full text-[20px] text-[#333333] font-medium')
+        if is_add:
+            ui.label('增加银行账户').classes('w-full text-[20px] text-[#333333] font-medium')
+        else:
+            ui.label('修改银行账户').classes('w-full text-[20px] text-[#333333] font-medium')
         with ui.row().classes('w-full mt-5 place-content-start items-center'):
             ui.label('选择公司').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
-            inputs.selection_w80(options, None, need_input=True, on_change=on_select_change)
+            company_select = inputs.selection_w60(options, None, need_input=True, on_change=on_select_change)
+            if not is_add:
+                company_select.set_value(company_dao.name)
+            def add_out_company():
+                def on_complete(new_company: CompanyDao):
+                    search_condition.company_list.append(new_company)
+                    options.append(new_company.name)
+                    company_select.set_options(options)
+                    company_select.set_value(new_company.name)
+                g.add_out_company(on_complete)
+            ui.button('增加公司', icon='add', on_click=add_out_company)
         with ui.row().classes('w-full place-content-start items-center'):
             ui.label('账号').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
-            classes_ui = ui.input(placeholder='请输入银行账户') \
+            ui.input(placeholder='请输入银行账户') \
                 .props('rounded-md outlined dense') \
-                .classes('self-left')
-            classes_ui.bind_value_to(account_dao, 'bank_account')
+                .classes('self-left') \
+                .bind_value_from(account_dao, 'bank_account') \
+                .bind_value_to(account_dao, 'bank_account')
         with ui.row().classes('w-full place-content-start items-center'):
             ui.label('银行名称').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
-            subject_ui = ui.input(placeholder='请输入银行名称') \
+            ui.input(placeholder='请输入银行名称') \
                 .props('rounded-md outlined dense') \
-                .classes('self-left')
-            subject_ui.bind_value_to(account_dao, 'bank_name')
+                .classes('self-left') \
+                .bind_value_from(account_dao, 'bank_name') \
+                .bind_value_to(account_dao, 'bank_name')
         with ui.row().classes('w-full place-content-start items-center'):
             ui.label('账户类型').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
             def on_change(value):
@@ -147,12 +191,18 @@ def add_company_bank_account():
                         account_dao.account_type = 1
                     case _:
                         account_dao.account_type = 0
-            inputs.selection_w40(['基本户', '一般户'], value='基本户', on_change=on_change)
+            account_type_select = inputs.selection_w40(['基本户', '一般户'], value='基本户', on_change=on_change)
+            if not is_add:
+                if account_dao.account_type == 0:
+                    account_type_select.set_value('基本户')
+                else:
+                    account_type_select.set_value('一般户')
         with ui.row().classes('w-full place-content-start items-center'):
             ui.label('银行地址').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
             ui.input(placeholder='请输入银行地址') \
                 .props('rounded-md outlined dense') \
                 .classes('w-80 self-left') \
+                .bind_value_from(account_dao, 'bank_address') \
                 .bind_value_to(account_dao, 'bank_address')
         
         with ui.row().classes('w-full place-content-end items-center'):         
@@ -168,13 +218,22 @@ def add_company_bank_account():
                     ui.notify('账户名称,地址不能为空')
                     return
                 data = account_dao.to_db()
-                result = g.my_db.add_company_bank_account(data)
-                if result is True:
-                    ui.notify('添加成功')
-                    on_search()
-                    dialog.close()
+                if is_add:
+                    result, _ = g.my_db.add_company_bank_account(data)
+                    if result is True:
+                        ui.notify('添加成功')
+                        on_search()
+                        dialog.close()
+                    else:
+                        ui.notify('添加失败')
                 else:
-                    ui.notify('添加失败')
+                    result = g.my_db.update_company_bank_account(data, {'id': account_dao.id})
+                    if result is True:
+                        ui.notify('修改成功')
+                        on_search()
+                        dialog.close()
+                    else:
+                        ui.notify('修改失败')
             ui.button('确定', color=None, on_click=on_create_account) \
                 .props('flat') \
                 .classes('w-[120px] text-[16px] text-white font-[400]') \

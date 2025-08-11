@@ -7,7 +7,7 @@ Description:
 '''
 from nicegui import ui
 
-def show_company_table(datas, show_delete) -> ui.table:
+def show_company_table(datas, show_edit, show_delete) -> ui.table:
     table_columns = [
         {'name': 'id', 'label': 'id', 'field': 'id', 'width': '0%', 'align': 'center'},
         {'name': 'sn', 'label': '序号', 'field': 'sn', 'width': '5%', 'align': 'center'},
@@ -20,6 +20,7 @@ def show_company_table(datas, show_delete) -> ui.table:
         {'name': 'invoice_limit', 'label': '开票额度', 'field': 'invoice_limit', 'width': '5%', 'align': 'center'},
         {'name': 'has_invoiced', 'label': '已开票', 'field': 'has_invoiced', 'width': '5%', 'align': 'center'},
         {'name': 'tax_no', 'label': '税号', 'field': 'tax_no', 'width': '10%', 'align': 'center'},
+        {'name': 'extends', 'label': '扩展信息', 'field': 'extends', 'width': '10%', 'align': 'center'},
         {'name': 'operation', 'label': '操作', 'field': 'operation', 'width': '10%', 'align': 'center'}
     ]
     with ui.table(
@@ -39,15 +40,64 @@ def show_company_table(datas, show_delete) -> ui.table:
         #     </q-tr>
         # ''')
         table.props('v-model:selected="selected"')
-        table.props('visible-columns="[\'sn\', \'name\', \'brief_name\', \'address\', \'contacts\', \'phone\', \'email\', \'invoice_limit\', \'has_invoiced\', \'tax_no\', \'operation\']"')
+        table.props('visible-columns="[\'sn\', \'name\', \'brief_name\', \'address\', \'contacts\', \'phone\', \'email\', \'invoice_limit\', \'has_invoiced\', \'tax_no\', \'extends\', \'operation\']"')
         
         table.add_slot('body-cell-operation', r'''
             <q-td auto-width key="operation" :props="props" class="item-left">
-                <q-btn size="sm" flat round dense icon="img:/static/images/delete_mini.png"
+                <q-btn size="sm" flat round dense icon="edit"
+                    @click="() => $parent.$emit('show_edit', props.row)"
+                />
+                &nbsp;
+                <q-btn size="sm" flat round dense icon="delete_outline"
                     @click="() => $parent.$emit('show_delete', props.row)"
                 />
             </q-td>
         ''')
+        table.on('show_delete', show_delete)
+        table.on('show_edit', show_edit)
+    return table
+
+#
+# @description: 显示发票抬头的表格
+# @param {list} datas 数据列表
+# @param {function} show_edit, show_delete 删除操作的回调函数
+#
+def show_invoice_title_table(datas, show_edit, show_delete) -> ui.table:
+    table_columns = [
+        {'name': 'id', 'label': 'id', 'field': 'id', 'width': '0%', 'align': 'center'},
+        {'name': 'sn', 'label': '序号', 'field': 'sn', 'width': '5%', 'align': 'center'},
+        {'name': 'company_name', 'label': '公司名称', 'field': 'company_name', 'width': '10%', 'align': 'center'},
+        {'name': 'address', 'label': '地址', 'field': 'address', 'width': '10%', 'align': 'center'},
+        {'name': 'tax_no', 'label': '税号', 'field': 'tax_no', 'width': '5%', 'align': 'center'},
+        {'name': 'bank_name', 'label': '银行名称', 'field': 'bank_name', 'width': '10%', 'align': 'center'},
+        {'name': 'bank_account', 'label': '银行账户', 'field': 'bank_account', 'width': '10%', 'align': 'center'},
+        {'name': 'contact_phone', 'label': '电话', 'field': 'contact_phone', 'width': '5%', 'align': 'center'},
+        {'name': 'operation', 'label': '操作', 'field': 'operation', 'width': '10%', 'align': 'center'}
+    ]
+    with ui.table(
+        columns=table_columns,
+        rows=datas,
+        row_key='id',
+        pagination={'rowsPerPage': 10, 'sortBy': 'sn', 'page': 1}) \
+            .props('table-header-style="color: white; font-size: 16px; background-color: #65B6FF;"') \
+            .classes('w-full mt-2 gap-0') \
+            .style('border: 1px solid #ECECEC; border-radius: 10px 10px 0px 0px;') as table:
+        table.props('v-model:selected="selected"')
+        table.props('visible-columns="[\'sn\', \'name\', \'address\', \'tax_no\', \'bank_name\', \'bank_account\', \'contact_phone\', \'operation\']"')
+        
+
+        table.add_slot('body-cell-operation', r'''
+            <q-td auto-width key="operation" :props="props" class="item-left">
+                <q-btn size="sm" flat round dense icon="edit"
+                    @click="() => $parent.$emit('show_edit', props.row)"
+                />
+                &nbsp;
+                <q-btn size="sm" flat round dense icon="delete_outline"
+                    @click="() => $parent.$emit('show_delete', props.row)"
+                />
+            </q-td>
+        ''')
+        table.on('show_edit', show_edit)
         table.on('show_delete', show_delete)
     return table
 
@@ -55,7 +105,7 @@ def show_company_table(datas, show_delete) -> ui.table:
 # @description: 显示开票的表格
 # @param {list} datas 数据列表
 #
-def show_open_invoice_table(datas, show_delete) -> ui.table:
+def show_open_invoice_table(datas, show_edit, show_delete) -> ui.table:
     table_columns = [
         {'name': 'id', 'label': 'id', 'field': 'id', 'width': '1%', 'align': 'center'},
         {'name': 'sn', 'label': '序号', 'field': 'sn', 'width': '5%', 'align': 'center'},
@@ -110,11 +160,16 @@ def show_open_invoice_table(datas, show_delete) -> ui.table:
         ''')
         table.add_slot('body-cell-operation', r'''
             <q-td auto-width key="operation" :props="props" class="item-left">
-                <q-btn size="sm" flat round dense icon="img:/static/images/delete_mini.png"
+                <q-btn size="sm" flat round dense icon="edit"
+                    @click="() => $parent.$emit('show_edit', props.row)"
+                />
+                &nbsp;
+                <q-btn size="sm" flat round dense icon="delete_outline"
                     @click="() => $parent.$emit('show_delete', props.row)"
                 />
             </q-td>
         ''')
+        table.on('show_edit', show_edit)
         table.on('show_delete', show_delete)
     return table
 
@@ -123,7 +178,7 @@ def show_open_invoice_table(datas, show_delete) -> ui.table:
 # @param {list} datas 数据列表
 # @param {function} show_delete 删除操作的回调函数
 #
-def show_company_bank_account_table(datas, show_delete) -> ui.table:
+def show_company_bank_account_table(datas, show_edit, show_delete) -> ui.table:
     table_columns = [
         {'name': 'id', 'label': 'id', 'field': 'id', 'width': '0%', 'align': 'center'},
         {'name': 'sn', 'label': '序号', 'field': 'sn', 'width': '5%', 'align': 'center'},
@@ -158,11 +213,16 @@ def show_company_bank_account_table(datas, show_delete) -> ui.table:
 
         table.add_slot('body-cell-operation', r'''
             <q-td auto-width key="operation" :props="props" class="item-left">
-                <q-btn size="sm" flat round dense icon="img:/static/images/delete_mini.png"
+                <q-btn size="sm" flat round dense icon="edit"
+                    @click="() => $parent.$emit('show_edit', props.row)"
+                />
+                &nbsp;
+                <q-btn size="sm" flat round dense icon="delete_outline"
                     @click="() => $parent.$emit('show_delete', props.row)"
                 />
             </q-td>
         ''')
+        table.on('show_edit', show_edit)
         table.on('show_delete', show_delete)
     return table
 
@@ -170,7 +230,7 @@ def show_company_bank_account_table(datas, show_delete) -> ui.table:
 # @description: 显示付款记录表格
 # @param {list} datas 数据列表
 #
-def show_payment_record_table(datas, show_delete) -> ui.table:
+def show_payment_record_table(datas, show_edit, show_delete) -> ui.table:
     table_columns = [
         {'name': 'id', 'label': 'id', 'field': 'id', 'width': '0%', 'align': 'center'},
         {'name': 'sn', 'label': '序号', 'field': 'sn', 'width': '5%', 'align': 'center'},
@@ -224,11 +284,16 @@ def show_payment_record_table(datas, show_delete) -> ui.table:
         ''')
         table.add_slot('body-cell-operation', r'''
             <q-td auto-width key="operation" :props="props" class="item-left">
-                <q-btn size="sm" flat round dense icon="img:/static/images/delete_mini.png"
+                <q-btn size="sm" flat round dense icon="edit"
+                    @click="() => $parent.$emit('show_edit', props.row)"
+                />
+                &nbsp;
+                <q-btn size="sm" flat round dense icon="delete_outline"
                     @click="() => $parent.$emit('show_delete', props.row)"
                 />
             </q-td>
         ''')
+        table.on('show_edit', show_edit)
         table.on('show_delete', show_delete)
     return table    
 
@@ -236,7 +301,7 @@ def show_payment_record_table(datas, show_delete) -> ui.table:
 # @description: 显示业务记录表格
 # @param {list} datas 数据列表
 #
-def show_service_record_table(datas, show_delete) -> ui.table:
+def show_service_record_table(datas, show_edit, show_delete) -> ui.table:
     table_columns = [
         {'name': 'id', 'label': 'id', 'field': 'id', 'width': '0%', 'align': 'center'},
         {'name': 'sn', 'label': '序号', 'field': 'sn', 'width': '5%', 'align': 'center'},
@@ -251,6 +316,7 @@ def show_service_record_table(datas, show_delete) -> ui.table:
         {'name': 'invoice_gap_money', 'label': '发票差额', 'field': 'invoice_gap_money', 'width': '5%', 'align': 'center'},
         {'name': 'payment_gap_money', 'label': '付款差额', 'field': 'payment_gap_money', 'width': '5%', 'align': 'center'},
         {'name': 'latest_payment_time', 'label': '最近付款时间', 'field': 'latest_payment_time', 'width': '10%', 'align': 'center'},
+        {'name': 'latest_invoice_time', 'label': '最近开票时间', 'field': 'latest_invoice_time', 'width': '10%', 'align': 'center'},
         {'name': 'status', 'label': '状态', 'field': 'status', 'width': '5%', 'align': 'center'},
         {'name': 'create_time', 'label': '创建时间', 'field': 'create_time', 'width': '10%', 'align': 'center'},
         {'name': 'operation', 'label': '操作', 'field': 'operation', 'width': '5%', 'align': 'center'}
@@ -280,6 +346,7 @@ def show_service_record_table(datas, show_delete) -> ui.table:
                     \'invoice_gap_money\', \
                     \'payment_gap_money\', \
                     \'latest_payment_time\', \
+                    \'latest_invoice_time\', \
                     \'status\', \
                     \'create_time\', \
                     \'operation\']"')
@@ -289,7 +356,7 @@ def show_service_record_table(datas, show_delete) -> ui.table:
                 <template v-if="props.row.is_contract == 0">
                     无
                 </template>
-                <template v-if="props.row.status == 1">
+                <template v-if="props.row.is_contract == 1">
                     有
                 </template>
             </q-td>
@@ -315,10 +382,15 @@ def show_service_record_table(datas, show_delete) -> ui.table:
         ''')
         table.add_slot('body-cell-operation', r'''
             <q-td auto-width key="operation" :props="props" class="item-left">
-                <q-btn size="sm" flat round dense icon="img:/static/images/delete_mini.png"
+                <q-btn size="sm" flat round dense icon="edit"
+                    @click="() => $parent.$emit('show_edit', props.row)"
+                />
+                &nbsp;
+                <q-btn size="sm" flat round dense icon="delete_outline"
                     @click="() => $parent.$emit('show_delete', props.row)"
                 />
             </q-td>
         ''')
+        table.on('show_edit', show_edit)
         table.on('show_delete', show_delete)
     return table    

@@ -16,8 +16,10 @@ class CompanyDao:
     invoice_limit: int
     has_invoiced: float
     tax_no: str
+    type: int # 1: 内部公司, 2: 外部公司
+    extends: dict[str, Any]
     
-    def __init__(self, id=0, name="", brief_name='', address="", contacts="", phone="", email="", invoice_limit=0, has_invoiced=0.0, tax_no=''):
+    def __init__(self, id=0, name="", brief_name='', address="", contacts="", phone="", email="", invoice_limit=0, has_invoiced=0.0, type = 1, tax_no=''):
         self.id = str(id)
         self.name = name
         self.brief_name = brief_name
@@ -28,6 +30,8 @@ class CompanyDao:
         self.invoice_limit = invoice_limit
         self.has_invoiced = has_invoiced
         self.tax_no = tax_no
+        self.type = 1
+        self.extends = {}
 
     def from_db(self, data: dict[str, Any]) -> None:
         if '_id' in data:
@@ -43,6 +47,8 @@ class CompanyDao:
         self.invoice_limit = data.get('invoice_limit', 10)
         self.has_invoiced = round(data.get('has_invoiced', 0.0), 2)
         self.tax_no = data.get('tax_no', "")
+        self.type = data.get('type', 1)
+        self.extends = data.get('extends', {})
         
 
     def to_db(self) -> dict[str, Any]:

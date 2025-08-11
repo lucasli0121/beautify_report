@@ -51,7 +51,7 @@ class MongoImpl(DbBaseImpl):
     :param data: 信息字典
     :return: 成功返回True，否则返回False
     """
-    def add(self, table: Collection, data: dict[str, Any]) -> bool:
+    def add(self, table: Collection, data: dict[str, Any]) -> tuple[bool, str|None]:
         try:
             if table is None:
                 self.logger.error("table not found in MongoDB.")
@@ -59,10 +59,10 @@ class MongoImpl(DbBaseImpl):
             if 'id' in data:
                 del data['id']
             ret = table.insert_one(data)
-            return ret.acknowledged  # 确认插入操作已被确认
+            return ret.acknowledged, ret.inserted_id  # 确认插入操作已被确认
         except Exception as e:
             self.logger.error(f"添加信息失败: {e}")
-            return False
+            return False, None
         
     """ 
     更新到数据库
@@ -77,10 +77,14 @@ class MongoImpl(DbBaseImpl):
                 return False
             if len(condition) == 0:
                 condition = {'_id': ObjectId(data.get('id', ''))}  # 如果没有条件，使用id作为默认条件
+            else:
+                if 'id' in condition:
+                    condition['_id'] = ObjectId(condition['id'])
+                    del condition['id']
             if 'id' in data:
                 del data['id']
             ret = table.update_one(condition, {'$set': data})
-            return ret.modified_count > 0  # 返回是否有记录被修改
+            return ret.matched_count > 0  # 返回是否有记录被修改
         except Exception as e:
             self.logger.error(f"更新信息失败: {e}")
             return False

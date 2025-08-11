@@ -15,12 +15,13 @@ class ServiceRecordDao:
     invoice_money: float # 已开票金额
     payment_money: float # 已付款金额
     latest_payment_time: str # 最近付款时间
+    latest_invoice_time: str # 最近开票时间
     status: int # 状态 0: 未完成, 1: 无合同 2: 待付款 3:待开票 4:完成
     create_time: str
     
     def __init__(self, id: str = '', from_company_id: str = "", to_company_id: str = "", contract_money: float = 0.0,
                  contract_name: str = "", contract_content: str = '', is_contract: int = 0, invoice_money: float = 0.0,
-                 payment_money: float = 0.0, latest_payment_time: str = "", status: int = 0, create_time: str = "") -> None:
+                 payment_money: float = 0.0, latest_payment_time: str = "", latest_invoice_time: str = "", status: int = 0, create_time: str = "") -> None:
         self.id = id
         self.from_company_id = from_company_id
         self.to_company_id = to_company_id
@@ -31,6 +32,7 @@ class ServiceRecordDao:
         self.invoice_money = invoice_money
         self.payment_money = payment_money
         self.latest_payment_time = latest_payment_time if latest_payment_time else datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.latest_invoice_time = latest_invoice_time if latest_invoice_time else datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self.status = status
         self.create_time = create_time if create_time else datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -46,6 +48,7 @@ class ServiceRecordDao:
         self.invoice_money = float(data.get('invoice_money', 0.0))
         self.payment_money = float(data.get('payment_money', 0.0))
         self.latest_payment_time = str(data.get('latest_payment_time', datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+        self.latest_invoice_time = str(data.get('latest_invoice_time', datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
         self.status = int(data.get('status', 0))
         self.create_time = str(data.get('create_time', datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
 

@@ -68,7 +68,7 @@ def show_payment_record_page():
                 .style('background-color: #65B6FF !important')
             
     table_rows: list[dict] = []
-    app.storage.client['payment_record_table'] = tables.show_payment_record_table(table_rows, delete_one)
+    app.storage.client['payment_record_table'] = tables.show_payment_record_table(table_rows, show_edit, delete_one)
     on_search()
 
 def on_search() -> None:
@@ -110,30 +110,55 @@ def on_search() -> None:
                 sn += 1
         app.storage.client['payment_record_table'].update()
 
+
+def show_edit(e: events.GenericEventArguments) -> None:
+    id = e.args['id']
+    if id is None or len(id) == 0:
+        ui.notify('付款记录ID不能为空')
+        return
+    result, payment_dao = g.my_db.query_payment_record_by_id(id)
+    if not result or payment_dao is None:
+        ui.notify('查询付款记录失败')
+        return
+    modify_or_add_payment(payment_dao, is_add=False)
+
 #
 # @description: 付款
 # @param None
 # @return: None
 #             
 def add_payment():
+    dao = PaymentRecordDao()
+    modify_or_add_payment(dao)
+
+
+def modify_or_add_payment(dao: PaymentRecordDao, is_add = True) -> None:
     result, company_info = g.query_company_name_company()
     if result is False:
         ui.notify('查询公司信息失败')
         return
     options = list(company_info.keys())  # 获取所有公司名称
-    dao = PaymentRecordDao()
-    contract_name_dict = {}
+    contract_name_dict: dict[str, ServiceRecordDao] = {}
     select_service_dao: ServiceRecordDao | None = None
+    contract_name_select = None
+    old_payment_money = dao.payment_money
+    # 如果是修改开票记录，先查询合同信息
+    if not is_add:
+        result, contract_name_dict = g.query_service_name_dict(from_company_id=dao.from_company_id, to_company_id=dao.to_company_id)
+        if result and contract_name_dict:
+            for _, service_dao in contract_name_dict.items():
+                if service_dao.id == dao.contract_id:
+                    select_service_dao = service_dao
+                    break
     def change_contract_name():
-        global contract_name_dict
         result, contract_name_dict = g.query_service_name_dict(from_company_id=dao.from_company_id, to_company_id=dao.to_company_id)
         if result is False or contract_name_dict is None or len(contract_name_dict) == 0:
-            contract_name_select.options = []
-            contract_name_select.update()
+            if contract_name_select is not None:
+                contract_name_select.set_options([])
             return
         contract_options = list(contract_name_dict.keys())
-        contract_name_select.options = contract_options
-        contract_name_select.update()
+        if contract_name_select is not None:
+            contract_name_select.set_options(contract_options)
     with ui.dialog().props('persistent') as dialog, ui.card().classes('w-1/2') \
         .style('background-color: #FFFFFF !important; border-radius: 10px;'):
         ui.label('付款').classes('w-full text-[20px] text-[#333333] font-medium')
@@ -144,7 +169,22 @@ def add_payment():
                     dao.from_company_id = company_info[value].id
                     if dao.to_company_id is not None and dao.to_company_id != "":
                         change_contract_name()
-            inputs.selection_w60(options, None, need_input=True, on_change=on_from_change)
+            from_company_select = inputs.selection_w60(options, None, need_input=True, on_change=on_from_change)
+            def add_from_company():
+                def on_complete(new_company: CompanyDao):
+                    company_info[new_company.name] = new_company
+                    options.append(new_company.name)
+                    from_company_select.set_options(options)
+                    to_company_select.set_options(options)
+                    from_company_select.set_value(new_company.name)
+                g.add_out_company(on_complete)
+            ui.button('增加公司', icon='add', on_click=add_from_company)
+            if not is_add:
+                if dao.from_company_id is not None and dao.from_company_id != "":
+                    for company_name, company_dao in company_info.items():
+                        if company_dao.id == dao.from_company_id:
+                            from_company_select.set_value(company_name)
+                            break
         with ui.row().classes('w-full place-content-start items-center'):
             ui.label('受款方').classes('w-[20%] text-[16px] text-[#333333] font-medium')
             def on_to_change(value):
@@ -152,11 +192,25 @@ def add_payment():
                     dao.to_company_id = company_info[value].id
                     if dao.from_company_id is not None and dao.from_company_id != "":
                         change_contract_name()
-            inputs.selection_w60(options, None, need_input=True, on_change=on_to_change)
+            to_company_select = inputs.selection_w60(options, None, need_input=True, on_change=on_to_change)
+            def add_to_company():
+                def on_complete(new_company: CompanyDao):
+                    company_info[new_company.name] = new_company
+                    options.append(new_company.name)
+                    from_company_select.set_options(options)
+                    to_company_select.set_options(options)
+                    to_company_select.set_value(new_company.name)
+                g.add_out_company(on_complete)
+            ui.button('增加公司', icon='add', on_click=add_to_company)
+            if not is_add:
+                if dao.to_company_id is not None and dao.to_company_id != "":
+                    for company_name, company_dao in company_info.items():
+                        if company_dao.id == dao.to_company_id:
+                            to_company_select.set_value(company_name)
+                            break
         with ui.row().classes('w-full place-content-start items-center'):
             ui.label('合同名称').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
             def on_contract_change(value):
-                global contract_name_dict, select_service_dao
                 if value in contract_name_dict:
                     dao.contract_id = contract_name_dict[value].id
                     select_service_dao = contract_name_dict[value]
@@ -166,10 +220,15 @@ def add_payment():
                     gap_money = dao.should_invoice_money - select_service_dao.invoice_money
                     dao.remain_invoice_money = 0 if gap_money < 0 else gap_money
             contract_name_select = inputs.selection_w60([], None, need_input=True, on_change=on_contract_change)
+            if not is_add:
+                if len(contract_name_dict) > 0:
+                    contract_options = list(contract_name_dict.keys())
+                    contract_name_select.set_options(contract_options)
+                    if select_service_dao is not None:
+                        contract_name_select.set_value(select_service_dao.contract_name)
         with ui.row().classes('w-full place-content-start items-center'):
             ui.label('付款金额').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
             def on_payment_change(e: events.ValueChangeEventArguments) -> None:
-                global select_service_dao
                 value = e.value
                 if value is None or value == '':
                     dao.payment_money = 0
@@ -192,6 +251,7 @@ def add_payment():
             ui.input(placeholder='请输入付款总额', value=str(dao.payment_money)) \
                 .props('rounded-md outlined dense') \
                 .classes('w-[30%] self-center item-center ') \
+                .bind_value_from(dao, 'payment_money') \
                 .on_value_change(on_payment_change)
             payment_money_label = ui.label('').classes('w-[40%] text-[14px] text-red font-small self-center')
         with ui.row().classes('w-full place-content-start items-center'):
@@ -209,21 +269,38 @@ def add_payment():
                 .classes('w-[120px] text-[16px] text-[#888888] font-[400]') \
                 .style('background-color: #FFFFFF !important;border-radius: 10px;border: 1px solid #888888;')
             def on_create():
-                global select_service_dao
-                if dao.from_company_id == '' or dao.to_company_id == "" or dao.contract_id == '' or dao.payment_money == 0:
+                if dao.from_company_id == '' or dao.to_company_id == "" or dao.payment_money == 0:
                     ui.notify('付款方，受款方,合同，付款额不能为空')
                     return
-                dao.create_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                if select_service_dao is not None:
-                    select_service_dao.payment_money += dao.payment_money
-                    if select_service_dao.payment_money == select_service_dao.contract_money:
-                        dao.status = 1
+                if is_add:
+                    dao.create_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    if select_service_dao is not None:
+                        select_service_dao.payment_money += dao.payment_money
+                        if select_service_dao.payment_money == select_service_dao.contract_money:
+                            dao.status = 1
+                        else:
+                            dao.status = 0
+                    result, _ = g.my_db.add_payment_record(dao.to_db())
+                    if result:
+                        g.update_contract_payment_money(dao.contract_id, dao.payment_money)
+                        ui.notify('添加成功')
+                        on_search()
                     else:
-                        dao.status = 0
-                if g.my_db.add_payment_record(dao.to_db()):
-                    g.update_contract_payment_money(dao.contract_id, dao.payment_money)
-                    ui.notify('添加成功')
-                    on_search()
+                        ui.notify('添加失败')
+                else:
+                    if select_service_dao is not None:
+                        select_service_dao.payment_money += dao.payment_money - old_payment_money
+                        if select_service_dao.payment_money == select_service_dao.contract_money:
+                            dao.status = 1
+                        else:
+                            dao.status = 0
+                    result = g.my_db.update_payment_record(dao.to_db(), {'id': dao.id})
+                    if result:
+                        g.update_contract_payment_money(dao.contract_id, dao.payment_money - old_payment_money)
+                        ui.notify('修改成功')
+                        on_search()
+                    else:
+                        ui.notify('修改失败')
                 dialog.close()
             ui.button('确定', color=None, on_click=on_create) \
                 .props('flat') \

@@ -34,11 +34,11 @@ class MongoInvoiceRecordImpl():
     :param data: 开票记录信息字典
     :return: 成功返回True，否则返回False
     """
-    def add(self, data: dict[str, Any]) -> bool:
+    def add(self, data: dict[str, Any]) -> tuple[bool, str|None]:
         tbl_name = self.invoice_record_tbl()
         if tbl_name is None:
             self.logger.error("invoice table not found in MongoDB.")
-            return False
+            return False, None
         return self.mongo_impl.add(tbl_name, data)
         
     """ 
@@ -87,6 +87,8 @@ class MongoInvoiceRecordImpl():
         tbl_name = self.invoice_record_tbl()
         if tbl_name is None:
             self.logger.error("Company table not found in MongoDB.")
+            return False, None
+        if id is None or len(id) == 0:
             return False, None
         query = {'_id': ObjectId(id)}
         result, value = self.mongo_impl.query_by_condition(tbl_name, query)
