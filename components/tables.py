@@ -119,7 +119,9 @@ def show_open_invoice_table(datas, show_edit, show_delete) -> ui.table:
         {'name': 'invoice_money', 'label': '开票额', 'field': 'invoice_money', 'width': '10%', 'align': 'center'},
         {'name': 'added_tax', 'label': '增值税额', 'field': 'added_tax', 'width': '10%', 'align': 'center'},
         {'name': 'contract_content', 'label': '合同内容', 'field': 'contract_content', 'width': '10%', 'align': 'center'},
-        {'name': 'create_time', 'label': '开票时间', 'field': 'create_time', 'width': '10%', 'align': 'center'},
+        {'name': 'status', 'label': '状态', 'field': 'status', 'width': '10%', 'align': 'center'},
+        {'name': 'create_time', 'label': '创建时间', 'field': 'create_time', 'width': '10%', 'align': 'center'},
+        {'name': 'invoice_time', 'label': '开票时间', 'field': 'invoice_time', 'width': '10%', 'align': 'center'},
         {'name': 'operation', 'label': '操作', 'field': 'operation', 'width': '10%', 'align': 'center'}
     ]
     with ui.table(
@@ -145,7 +147,9 @@ def show_open_invoice_table(datas, show_edit, show_delete) -> ui.table:
                     \'invoice_money\', \
                     \'added_tax\', \
                     \'contract_content\', \
+                    \'status\', \
                     \'create_time\', \
+                    \'invoice_time\', \
                     \'operation\']"')
 
         table.add_slot('body-cell-invoice_type', r'''
@@ -155,6 +159,35 @@ def show_open_invoice_table(datas, show_edit, show_delete) -> ui.table:
                 </template>
                 <template v-if="props.row.invoice_type == 1">
                     专票
+                </template>
+            </q-td>
+        ''')
+        table.add_slot('body-cell-tax_rate', r'''
+            <q-td auto-width key="tax_rate" :props="props">  
+                <template v-if="props.row.tax_rate == 0.01">
+                    1%
+                </template>
+                <template v-if="props.row.tax_rate == 0.03">
+                    3%
+                </template>
+                <template v-if="props.row.tax_rate == 0.06">
+                    6%
+                </template>
+                <template v-if="props.row.tax_rate == 0.09">
+                    9%
+                </template>
+                <template v-if="props.row.tax_rate == 0.13">
+                    13%
+                </template>
+            </q-td>
+        ''')
+        table.add_slot('body-cell-status', r'''
+            <q-td auto-width key="status" :props="props">  
+                <template v-if="props.row.status == 0">
+                    未开票
+                </template>
+                <template v-if="props.row.status == 1">
+                    已开票
                 </template>
             </q-td>
         ''')

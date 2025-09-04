@@ -37,7 +37,7 @@ def query_company_name_company() -> tuple[bool, dict[str, CompanyDao]]:
         for item in list_values:
             company = CompanyDao()
             company.from_db(item)
-            company_info[company.name] = company
+            company_info[company.brief_name] = company
     return True, company_info
 
 def add_out_company(onComplete) -> None:
@@ -80,8 +80,8 @@ def add_out_company(onComplete) -> None:
                 .classes('w-[120px] text-[16px] text-[#888888] font-[400]') \
                 .style('background-color: #FFFFFF !important;border-radius: 10px;border: 1px solid #888888;')
             def on_create_company():
-                if company_dao.name == "" or company_dao.address == "" or company_dao.tax_no == "":
-                    ui.notify('公司名称,地址,税号不能为空')
+                if company_dao.name == "" or company_dao.brief_name == "" or company_dao.address == "" :
+                    ui.notify('公司名称,简称,地址不能为空')
                     return
                 company_dao.type = 2 # 外部公司
                 data = company_dao.to_db()
