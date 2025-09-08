@@ -55,7 +55,7 @@ class MongoCompanyImpl():
         query: dict[str, Any] = {}
         query['name'] = {'$regex': name, '$options': 'i'}
         query['brief_name'] = {'$regex': brief_name, '$options': 'i'}
-        return self.mongo_impl.query_by_condition(tbl_name, query)
+        return self.mongo_impl.query_by_condition(tbl_name, query, None)
         
     """ 
     更新公司信息到数据库
@@ -88,7 +88,7 @@ class MongoCompanyImpl():
             query['address'] = {'$regex': address, '$options': 'i'}
         if contacts or len(contacts) > 0:
             query['contacts'] = {'$regex': contacts, '$options': 'i'}
-        return self.mongo_impl.query_by_condition(tbl_name, query)
+        return self.mongo_impl.query_by_condition(tbl_name, query, {'brief_name': 1})
     
     """
     查询内部公司信息 type 不等于 2
@@ -114,7 +114,7 @@ class MongoCompanyImpl():
             condition['contacts'] = {'$regex': contacts, '$options': 'i'}
         # 只查询公司类型不是2的记录
         condition['type'] = {'$ne': 2}
-        return self.mongo_impl.query_by_condition(tbl_name, condition)
+        return self.mongo_impl.query_by_condition(tbl_name, condition, {'name': 1})
     
     """
     function:
@@ -229,7 +229,7 @@ class MongoCompanyImpl():
             self.logger.error("Company bank account table not found in MongoDB.")
             return False, None
         query = {'_id': ObjectId(id)}
-        result, value = self.mongo_impl.query_by_condition(tbl_name, query)
+        result, value = self.mongo_impl.query_by_condition(tbl_name, query, None)
         if not result or value is None:
             return False, None
         dao = CompanyBankAccountDao()

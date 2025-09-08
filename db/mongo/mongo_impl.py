@@ -94,15 +94,20 @@ class MongoImpl(DbBaseImpl):
     :param condition: 查询条件，例如 "id = 1"
     :return: 查询结果列表，每个元素是一个字典，包含公司信息
     """
-    def query_by_condition(self, table: Collection, condition: dict[str, Any]) -> tuple[bool, Any]:
+    def query_by_condition(self, table: Collection, condition: dict[str, Any], sort: dict[str, Any]|None ) -> tuple[bool, Any]:
         try:
             if table is None:
                 self.logger.error("table not found in MongoDB.")
                 return False, None
             
-            # 执行查询
-            results = list(table.find(condition))
-            return True, results if results else None
+            if sort is not None and len(sort) > 0:
+                # 执行排序查询
+                results = list(table.find(condition).collation({'locale':'zh', 'strength':1}).sort(sort))
+                return True, results if results else None
+            else:
+                # 执行查询
+                results = list(table.find(condition))
+                return True, results if results else None
         except Exception as e:
             self.logger.error(f"查询信息失败: {e}")
             return False, None

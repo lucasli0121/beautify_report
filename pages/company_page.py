@@ -66,7 +66,7 @@ def on_search() -> None:
         sn = 1
         for item in list_values:
             row_dict: dict[str, Any] = {}
-            row_dict['sn'] = str(sn)
+            row_dict['sn'] = sn
             company = CompanyDao()
             company.from_db(item)
             row_dict.update(company.to_db())

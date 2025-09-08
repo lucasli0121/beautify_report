@@ -76,7 +76,7 @@ class MongoInvoiceRecordImpl():
         if end_time or len(end_time) > 0:
             query['create_time'] = {'$lte': end_time}
         # 执行查询
-        return self.mongo_impl.query_by_condition(tbl_name, query)
+        return self.mongo_impl.query_by_condition(tbl_name, query, None)
     """
     function:
     description: 从服务器查询信息
@@ -91,7 +91,7 @@ class MongoInvoiceRecordImpl():
         if id is None or len(id) == 0:
             return False, None
         query = {'_id': ObjectId(id)}
-        result, value = self.mongo_impl.query_by_condition(tbl_name, query)
+        result, value = self.mongo_impl.query_by_condition(tbl_name, query, None)
         if not result or value is None:
             self.logger.error("No invoice record found with the given ID.")
             return False, None

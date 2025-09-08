@@ -83,6 +83,7 @@ def on_search() -> None:
                 invoice_record.from_db(item)
                 row_dict: dict[str, Any] = {}
                 row_dict['sn'] = sn
+                row_dict.update(invoice_record.to_db())
                 result, company_dao = g.my_db.query_company_by_id(invoice_record.from_company_id)
                 if result and company_dao is not None:
                     from_company_name = company_dao.brief_name
@@ -99,7 +100,9 @@ def on_search() -> None:
                     row_dict['contract_name'] = service_dao.contract_name
                 else:
                     row_dict['contract_name'] = '无'
-                row_dict.update(invoice_record.to_db())
+                row_dict['before_tax_money'] = '{:,.2f}'.format(invoice_record.before_tax_money)
+                row_dict['added_tax'] = '{:,.2f}'.format(invoice_record.added_tax)
+                row_dict['invoice_money'] = '{:,.2f}'.format(invoice_record.invoice_money)
                 app.storage.client['invoice_record_table'].add_row(row_dict)
                 sn += 1
         app.storage.client['invoice_record_table'].update()
@@ -145,6 +148,8 @@ def modify_or_add_invoice(dao: InvoiceRecordDao, is_add: bool = True):
     contract_content_input = None
     before_tax_label = None
     contract_name_select = None
+    add_tax_input = None
+    invoice_money_input = None
     # 
     # 定义内部函数 当合同名称改变后被调用
     #
@@ -161,7 +166,7 @@ def modify_or_add_invoice(dao: InvoiceRecordDao, is_add: bool = True):
     with ui.dialog().props('persistent') as dialog, ui.card().classes('w-1/2') \
         .style('background-color: #FFFFFF !important; border-radius: 10px;'):
         if is_add:
-            ui.label('开票').classes('w-full text-[20px] text-[#333333] font-medium')
+            ui.label('开票计划').classes('w-full text-[20px] text-[#333333] font-medium')
         else:
             ui.label('修改开票').classes('w-full text-[20px] text-[#333333] font-medium')
         with ui.row().classes('w-full mt-5 place-content-start items-center'):
@@ -251,9 +256,11 @@ def modify_or_add_invoice(dao: InvoiceRecordDao, is_add: bool = True):
                 elif value == '13%':
                     dao.tax_rate = 0.13
                 add_tax = round(dao.before_tax_money / (1 + dao.tax_rate) * dao.tax_rate, 2) if dao.tax_rate else 0
-                add_tax_input.set_value(add_tax)
+                if add_tax_input is not None:
+                    add_tax_input.set_value(add_tax)
                 invoice_money = round(dao.before_tax_money / (1 + dao.tax_rate), 2)
-                invoice_money_input.set_value(invoice_money)
+                if invoice_money_input is not None:
+                    invoice_money_input.set_value(invoice_money)
             tax_rate_select = inputs.selection_w40(['1%','3%','6%','9%','13%'], '3%', on_change=on_tax_rate_change)
             if is_add:
                 dao.tax_rate = 0.03  # 默认税率为0.03
@@ -290,29 +297,31 @@ def modify_or_add_invoice(dao: InvoiceRecordDao, is_add: bool = True):
                                 ui.notify(f'税前额不能大于未开票金额，未开票金额: {gap_invoice_money}')
                                 dao.before_tax_money = gap_invoice_money
                         add_tax = round(dao.before_tax_money / (1 + dao.tax_rate) * dao.tax_rate, 2) if dao.tax_rate else 0
-                        add_tax_input.set_value(add_tax)
+                        if add_tax_input is not None:
+                            add_tax_input.set_value(add_tax)
                         invoice_money = round(dao.before_tax_money / (1 + dao.tax_rate), 2)
-                        invoice_money_input.set_value(invoice_money)
+                        if invoice_money_input is not None:
+                            invoice_money_input.set_value(invoice_money)
                     except ValueError:
                         ui.notify('税前额必须是数字')
                         dao.before_tax_money = 0
-            ui.input(placeholder='请输入含税额', value=str(dao.before_tax_money)) \
-                .props('rounded-md outlined dense') \
+            before_tax_money_input = ui.input(placeholder='请输入含税额', value=str(dao.before_tax_money)) \
+                .props('type="number" step="0.01" rounded-md outlined dense') \
                 .classes('w-[30%] self-center item-center ') \
-                .bind_value_from(dao, 'before_tax_money') \
                 .on_value_change(on_before_tax_change)
+            before_tax_money_input.set_value(dao.before_tax_money)
             before_tax_label = ui.label('').classes('w-[40%] text-[14px] text-red font-small self-center')
         with ui.row().classes('w-full place-content-start items-center'):
             ui.label('增值税').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
             add_tax_input = ui.input(placeholder='请输入增值税', value = str(dao.added_tax)) \
-                .props('rounded-md outlined dense') \
+                .props('type="number" step="0.01" rounded-md outlined dense') \
                 .classes('w-[30%] self-center item-center ') \
                 .bind_value_from(dao, 'added_tax') \
                 .bind_value_to(dao, 'added_tax')
         with ui.row().classes('w-full place-content-start items-center'):
             ui.label('税前额').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
             invoice_money_input = ui.input(placeholder='请输入税前额', value=str(dao.invoice_money)) \
-                .props('rounded-md outlined dense') \
+                .props('type="number" step="0.01" rounded-md outlined dense') \
                 .classes('w-[30%] self-center item-center ') \
                 .bind_value_from(dao, 'invoice_money') \
                 .bind_value_to(dao, 'invoice_money')

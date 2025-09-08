@@ -93,6 +93,7 @@ def on_search() -> None:
                 dao.from_db(item)
                 row_dict: dict[str, Any] = {}
                 row_dict['sn'] = sn
+                row_dict.update(dao.to_db())
                 result, from_company_dao = g.my_db.query_company_by_id(dao.from_company_id)
                 if result and from_company_dao is not None:
                     row_dict['from_company_name'] = from_company_dao.name
@@ -106,7 +107,9 @@ def on_search() -> None:
                 gap_money = dao.payment_money - dao.invoice_money
                 row_dict['invoice_gap_money'] = 0 if gap_money < 0 else gap_money
                 row_dict['payment_gap_money'] = dao.contract_money - dao.payment_money
-                row_dict.update(dao.to_db())
+                row_dict['contract_money'] = '{:,.2f}'.format(dao.contract_money)
+                row_dict['invoice_money'] = '{:,.2f}'.format(dao.invoice_money)
+                row_dict['payment_money'] = '{:,.2f}'.format(dao.payment_money)
                 app.storage.client['service_record_table'].add_row(row_dict)
                 sn += 1
         app.storage.client['service_record_table'].update()

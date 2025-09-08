@@ -21,10 +21,16 @@ class InvoiceRecordDao:
     status: int # 0: 未开票, 1: 已开票
     create_time: str # 创建时间
     invoice_time: str # 开票时间
+    specifi: str # 规格
+    quantity: int # 数量
+    unit_price: float # 单价
+    remark: str # 备注
     
     def __init__(self, id:str = '',from_company_id: str = "", to_company_id: str = "", contract_id = '', invoice_type: int = 0, tax_rate: float = 0.0,
                  invoice_content: str = "", before_tax_money: float = 0.0, added_tax: float = 0.0,
-                 invoice_money: float = 0.0, contract_content: str = "", status: int = 0, create_time: str = "", invoice_time: str="") -> None:
+                 invoice_money: float = 0.0, contract_content: str = "", status: int = 0,
+                 create_time: str = "", invoice_time: str="",
+                 specifi: str = "", quantity: int = 0, unit_price: float = 0.0, remark: str = "") -> None:
         self.id = id
         self.from_company_id = from_company_id
         self.to_company_id = to_company_id
@@ -39,6 +45,10 @@ class InvoiceRecordDao:
         self.status = status
         self.create_time = create_time if create_time else datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self.invoice_time = invoice_time
+        self.specifi = specifi
+        self.quantity = quantity
+        self.unit_price = unit_price
+        self.remark = remark
 
     def from_db(self, data: dict[str, Any]) -> None:
         self.id = str(data.get('_id', ''))
@@ -55,6 +65,10 @@ class InvoiceRecordDao:
         self.status = int(data.get('status', 0))
         self.create_time = str(data.get('create_time', datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
         self.invoice_time = str(data.get('invoice_time', ''))
+        self.specifi = str(data.get('specifi', ''))
+        self.quantity = int(data.get('quantity', 0))
+        self.unit_price = float(data.get('unit_price', 0.0))
+        self.remark = str(data.get('remark', ''))
 
     def to_db(self) -> dict[str, Any]:
         return self.__dict__
