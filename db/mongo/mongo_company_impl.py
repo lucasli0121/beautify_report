@@ -138,6 +138,24 @@ class MongoCompanyImpl():
         except Exception as e:
             self.logger.error(f"查询公司信息失败: {e}")
             return False, None
+        
+    def query_company_by_brief_name(self, brief_name: str) -> tuple[bool, CompanyDao|None]:
+        try:
+            tbl_name = self.company_tbl()
+            if tbl_name is None:
+                self.logger.error("Company table not found in MongoDB.")
+                return False, None
+            query = {'brief_name': {'$eq': brief_name}}
+            result = tbl_name.find_one(query)
+            if result is None:
+                return False, None
+            company_dao = CompanyDao()
+            company_dao.from_db(result)
+            return True, company_dao
+        except Exception as e:
+            self.logger.error(f"查询公司信息失败: {e}")
+            return False, None
+        
     """
     function:
     description: 删除公司信息

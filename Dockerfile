@@ -39,6 +39,7 @@ RUN apt-get update && apt-get install -y \
     tzdata \
     mysql-client \
     libmysqlclient-dev \
+    poppler-utils \
     && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && echo 'Asia/Shanghai' > /etc/timezone \
     && apt-get clean && rm -rf /var/lib/apt/lists/*

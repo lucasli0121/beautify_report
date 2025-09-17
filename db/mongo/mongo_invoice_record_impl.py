@@ -76,7 +76,7 @@ class MongoInvoiceRecordImpl():
         if end_time or len(end_time) > 0:
             query['create_time'] = {'$lte': end_time}
         # 执行查询
-        return self.mongo_impl.query_by_condition(tbl_name, query, None)
+        return self.mongo_impl.query_by_condition(tbl_name, query, {'invoice_time': -1})
     """
     function:
     description: 从服务器查询信息

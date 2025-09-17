@@ -3,10 +3,12 @@ from datetime import datetime
 from nicegui import ui,events, app
 from components import inputs, tables, dialogs
 from typing import Any, Optional
+import pandas as pd
 from dao.company_dao import CompanyDao
 from dao.invoice_record_dao import InvoiceRecordDao
 from dao.service_record_dao import ServiceRecordDao
 from utils import global_vars as g
+from utils import upload_files as uf
 
 @dataclass
 class SearchCondition:
@@ -50,13 +52,16 @@ def show_invoice_record_page():
             inputs.date_input_w40('结束时间', on_search) \
                 .bind_value_to(search_condition, 'end_time')
         with ui.row().classes('w-full place-content-end items-center'):
-            ui.button('刷新', icon='img:/static/images/refresh@2x.png', on_click=on_search) \
+            ui.button('刷新', icon='refresh', on_click=on_search) \
                 .classes('w-25 rounded-md text-white') \
                 .style('background-color: #6C96FB !important')
-            ui.button('删除', icon='img:/static/images/delete@2x.png', on_click=del_select) \
+            ui.button('删除', icon='delete', on_click=del_select) \
                 .classes('w-25 rounded-md text-red') \
                 .style('background-color: rgba(255,77,77,0.39) !important')
-            ui.button('开票计划', icon='img:/static/images/add_course@2x.png', on_click=add_invoice) \
+            ui.button('开票计划', icon='add_chart', on_click=add_invoice) \
+                .classes('w-25 rounded-md text-white') \
+                .style('background-color: #65B6FF !important')
+            ui.button('导入', icon='upload', on_click=import_excel) \
                 .classes('w-25 rounded-md text-white') \
                 .style('background-color: #65B6FF !important')
             
@@ -107,6 +112,52 @@ def on_search() -> None:
                 sn += 1
         app.storage.client['invoice_record_table'].update()
 
+
+def import_excel() -> None:
+    def handle_import_excel(d: dict) -> None:
+        if d is None or len(d) == 0:
+            ui.notify('导入的Excel文件不能为空')
+            return
+        for sheet_name, df in d.items():
+            if sheet_name != '开票记录':
+                continue
+            required_columns = ['开票方', '受票方', '类型', '开票额', '已开额']
+            for col in required_columns:
+                if col not in df.columns:
+                    ui.notify(f'导入的Excel文件缺少必要的列: {col}')
+                    return
+            success_count = 0
+            fail_count = 0
+            df = df.fillna('')  # 将NaN值替换为空字符串
+            for index, row in df.iterrows():
+                dao = InvoiceRecordDao()
+                dao.invoice_time = str(row['开票时间']).replace('/', '-').strip()
+                from_company_name = str(row['开票方']).strip()
+                to_company_name = str(row['受票方']).strip()
+                invoice_type_str = str(row['类型']).strip()
+                invoice_money_str = str(row['开票额']).strip()
+                has_invoice_money_str = str(row['已开额']).strip()
+                if from_company_name == '' or to_company_name == '':
+                    ui.notify(f'第 {index + 2} 行数据不完整，开票方和受票方不能为空，跳过该行')
+                    fail_count += 1
+                    continue
+                result, from_company_dao = g.my_db.query_company_by_brief_name(from_company_name)
+                if not result or from_company_dao is None:
+                    ui.notify(f'第 {index + 2} 行开票方 "{from_company_name}" 不存在，跳过该行')
+                    fail_count += 1
+                    continue
+                dao.from_company_id = from_company_dao.id
+                result, to_company_dao = g.my_db.query_company_by_brief_name(to_company_name)
+                if not result or to_company_dao is None:
+                    ui.notify(f'第 {index + 2} 行受票方 "{to_company_name}" 不存在，跳过该行')
+                    fail_count += 1
+                    continue
+                dao.to_company_id = to_company_dao.id
+                if invoice_type_str == '专票':
+                    dao.invoice_type = 1
+                else:
+                    dao.invoice_type = 0
+                
 def show_edit(e: events.GenericEventArguments) -> None:
     id = e.args['id']
     if id is None or len(id) == 0:
@@ -150,6 +201,7 @@ def modify_or_add_invoice(dao: InvoiceRecordDao, is_add: bool = True):
     contract_name_select = None
     add_tax_input = None
     invoice_money_input = None
+    before_tax_money_input = None
     # 
     # 定义内部函数 当合同名称改变后被调用
     #
@@ -163,187 +215,239 @@ def modify_or_add_invoice(dao: InvoiceRecordDao, is_add: bool = True):
         contract_options = list(contract_name_dict.keys())
         if contract_name_select is not None:
             contract_name_select.set_options(contract_options)
-    with ui.dialog().props('persistent') as dialog, ui.card().classes('w-1/2') \
+    with ui.dialog().props('persistent') as dialog, ui.card().style('width: 65%; max-width: 65%;') \
         .style('background-color: #FFFFFF !important; border-radius: 10px;'):
         if is_add:
             ui.label('开票计划').classes('w-full text-[20px] text-[#333333] font-medium')
         else:
             ui.label('修改开票').classes('w-full text-[20px] text-[#333333] font-medium')
-        with ui.row().classes('w-full mt-5 place-content-start items-center'):
-            ui.label('开票方').classes('w-[20%] text-[16px] text-[#333333] font-medium')
-            def on_from_change(value):
-                if value in company_info:
-                    dao.from_company_id = company_info[value].id
-                    if dao.to_company_id is not None and dao.to_company_id != "":
-                        change_contract_name()
-            from_company_select = inputs.selection_w60(options, None, need_input=True, on_change=on_from_change)
-            def add_from_company():
-                def on_complete(new_company: CompanyDao):
-                    company_info[new_company.brief_name] = new_company
-                    options.append(new_company.brief_name)
-                    from_company_select.set_options(options)
-                    to_company_select.set_options(options)
-                    from_company_select.set_value(new_company.brief_name)
-                g.add_out_company(on_complete)
-            ui.button('增加公司', icon='add', on_click=add_from_company)
-            if not is_add:
-                if dao.from_company_id is not None and dao.from_company_id != "":
-                    for company_name, company_dao in company_info.items():
-                        if company_dao.id == dao.from_company_id:
-                            from_company_select.set_value(company_name)
-                            break
-        with ui.row().classes('w-full place-content-start items-center'):
-            ui.label('受票方').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
-            def on_to_change(value):
-                if value in company_info:
-                    dao.to_company_id = company_info[value].id
+        with ui.row().classes('w-full mt-5 place-content-between items-center'):
+            with ui.row().classes('w-[49%] place-content-start items-center gap-1'):
+                ui.label('开票方').classes('w-[20%] text-[16px] text-[#333333] font-medium')
+                def on_from_change(value):
+                    if value in company_info:
+                        dao.from_company_id = company_info[value].id
+                        if dao.to_company_id is not None and dao.to_company_id != "":
+                            change_contract_name()
+                from_company_select = inputs.selection_w60(options, None, need_input=True, on_change=on_from_change)
+                def add_from_company():
+                    def on_complete(new_company: CompanyDao):
+                        company_info[new_company.brief_name] = new_company
+                        options.append(new_company.brief_name)
+                        from_company_select.set_options(options)
+                        to_company_select.set_options(options)
+                        from_company_select.set_value(new_company.brief_name)
+                    g.add_out_company(on_complete)
+                ui.button('增加公司', icon='add', on_click=add_from_company)
+                if not is_add:
                     if dao.from_company_id is not None and dao.from_company_id != "":
-                        change_contract_name()
-            to_company_select = inputs.selection_w60(options, None, need_input=True, on_change=on_to_change)
-            def add_to_company():
-                def on_complete(new_company: CompanyDao):
-                    company_info[new_company.brief_name] = new_company
-                    options.append(new_company.brief_name)
-                    from_company_select.set_options(options)
-                    to_company_select.set_options(options)
-                    to_company_select.set_value(new_company.brief_name)
-                g.add_out_company(on_complete)
-            ui.button('增加公司', icon='add', on_click=add_to_company)
-            if not is_add:
-                if dao.to_company_id is not None and dao.to_company_id != "":
-                    for company_name, company_dao in company_info.items():
-                        if company_dao.id == dao.to_company_id:
-                            to_company_select.set_value(company_name)
-                            break
-        with ui.row().classes('w-full place-content-start items-center'):
-            ui.label('合同名称').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
-            def on_contract_change(value):
-                global contract_name_dict, select_service_dao
-                if value in contract_name_dict:
-                    dao.contract_id = contract_name_dict[value].id
-                    select_service_dao = contract_name_dict[value]
-                    if contract_content_input is not None:
-                        contract_content_input.set_value(select_service_dao.contract_content if select_service_dao else '')
-                    if before_tax_label is not None:
-                        before_tax_label.set_text(f'税前额(未开票金额): {select_service_dao.payment_money - select_service_dao.invoice_money if select_service_dao else 0}')
-            contract_name_select = inputs.selection_w60([], None, need_input=True, on_change=on_contract_change)
-            if not is_add:
-                if contract_name_dict is not None:
-                    contract_options = list(contract_name_dict.keys())
-                    if contract_name_select is not None:
-                        contract_name_select.set_options(contract_options)
-                        if select_service_dao is not None:
-                            contract_name_select.set_value(select_service_dao.contract_name)
-        with ui.row().classes('w-full place-content-start items-center'):
-            ui.label('发票类型').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
-            invoice_type_select = inputs.selection_w40(['普票', '专票'], '普票', on_change=lambda value: setattr(dao, 'invoice_type', 0 if value == '普票' else 1))
-            if not is_add:
-                if dao.invoice_type == 0:
-                    invoice_type_select.set_value('普票')
-                else:
-                    invoice_type_select.set_value('专票')
-        with ui.row().classes('w-full place-content-start items-center'):
-            ui.label('税率').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
-            def on_tax_rate_change(value):
-                if value == '1%':
-                    dao.tax_rate = 0.01
-                elif value == '3%':
-                    dao.tax_rate = 0.03
-                elif value == '6%':
-                    dao.tax_rate = 0.06
-                elif value == '9%':
-                    dao.tax_rate = 0.09
-                elif value == '13%':
-                    dao.tax_rate = 0.13
-                add_tax = round(dao.before_tax_money / (1 + dao.tax_rate) * dao.tax_rate, 2) if dao.tax_rate else 0
-                if add_tax_input is not None:
-                    add_tax_input.set_value(add_tax)
-                invoice_money = round(dao.before_tax_money / (1 + dao.tax_rate), 2)
-                if invoice_money_input is not None:
-                    invoice_money_input.set_value(invoice_money)
-            tax_rate_select = inputs.selection_w40(['1%','3%','6%','9%','13%'], '3%', on_change=on_tax_rate_change)
-            if is_add:
-                dao.tax_rate = 0.03  # 默认税率为0.03
-            else:
-                if dao.tax_rate == 0.01:
-                    tax_rate_select.set_value('1%')
-                elif dao.tax_rate == 0.03:
-                    tax_rate_select.set_value('3%')
-                elif dao.tax_rate == 0.06:
-                    tax_rate_select.set_value('6%')
-                elif dao.tax_rate == 0.09:
-                    tax_rate_select.set_value('9%')
-                elif dao.tax_rate == 0.13:
-                    tax_rate_select.set_value('13%')
-        with ui.row().classes('w-full place-content-start items-center'):
-            ui.label('发票内容').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
-            ui.input(placeholder='请输入发票内容') \
-                .props('rounded-md outlined dense') \
-                .classes('w-[30%] self-center item-center ') \
-                .bind_value_from(dao, 'invoice_content') \
-                .bind_value_to(dao, 'invoice_content')
-        with ui.row().classes('w-full place-content-start items-center'):
-            ui.label('含税额').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
-            def on_before_tax_change(e: events.ValueChangeEventArguments) -> None:
-                value = e.value
-                if value is None or value == '':
-                    dao.before_tax_money = 0
-                else:
-                    try:
-                        dao.before_tax_money = float(value)
-                        if select_service_dao is not None:
-                            gap_invoice_money = select_service_dao.contract_money - select_service_dao.invoice_money
-                            if dao.before_tax_money > gap_invoice_money:
-                                ui.notify(f'税前额不能大于未开票金额，未开票金额: {gap_invoice_money}')
-                                dao.before_tax_money = gap_invoice_money
-                        add_tax = round(dao.before_tax_money / (1 + dao.tax_rate) * dao.tax_rate, 2) if dao.tax_rate else 0
-                        if add_tax_input is not None:
-                            add_tax_input.set_value(add_tax)
-                        invoice_money = round(dao.before_tax_money / (1 + dao.tax_rate), 2)
-                        if invoice_money_input is not None:
-                            invoice_money_input.set_value(invoice_money)
-                    except ValueError:
-                        ui.notify('税前额必须是数字')
+                        for company_name, company_dao in company_info.items():
+                            if company_dao.id == dao.from_company_id:
+                                from_company_select.set_value(company_name)
+                                break
+            with ui.row().classes('w-[49%] place-content-start items-center gap-1'):
+                ui.label('受票方').classes('w-[20%] text-[16px] text-[#333333] font-medium')
+                def on_to_change(value):
+                    if value in company_info:
+                        dao.to_company_id = company_info[value].id
+                        if dao.from_company_id is not None and dao.from_company_id != "":
+                            change_contract_name()
+                to_company_select = inputs.selection_w60(options, None, need_input=True, on_change=on_to_change)
+                def add_to_company():
+                    def on_complete(new_company: CompanyDao):
+                        company_info[new_company.brief_name] = new_company
+                        options.append(new_company.brief_name)
+                        from_company_select.set_options(options)
+                        to_company_select.set_options(options)
+                        to_company_select.set_value(new_company.brief_name)
+                    g.add_out_company(on_complete)
+                ui.button('增加公司', icon='add', on_click=add_to_company)
+                if not is_add:
+                    if dao.to_company_id is not None and dao.to_company_id != "":
+                        for company_name, company_dao in company_info.items():
+                            if company_dao.id == dao.to_company_id:
+                                to_company_select.set_value(company_name)
+                                break
+        with ui.row().classes('w-full place-content-between items-center'):
+            with ui.row().classes('w-[49%] place-content-start items-center gap-1'):
+                ui.label('合同名称').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
+                def on_contract_change(value):
+                    global contract_name_dict, select_service_dao
+                    if value in contract_name_dict:
+                        dao.contract_id = contract_name_dict[value].id
+                        select_service_dao = contract_name_dict[value]
+                        if contract_content_input is not None:
+                            contract_content_input.set_value(select_service_dao.contract_content if select_service_dao else '')
+                        if before_tax_label is not None:
+                            before_tax_label.set_text(f'税前额(未开票金额): {select_service_dao.payment_money - select_service_dao.invoice_money if select_service_dao else 0}')
+                contract_name_select = inputs.selection_w60([], None, need_input=True, on_change=on_contract_change)
+                if not is_add:
+                    if contract_name_dict is not None:
+                        contract_options = list(contract_name_dict.keys())
+                        if contract_name_select is not None:
+                            contract_name_select.set_options(contract_options)
+                            if select_service_dao is not None:
+                                contract_name_select.set_value(select_service_dao.contract_name)
+            with ui.row().classes('w-[49%] place-content-start items-center gap-1'):
+                ui.label('发票类型').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
+                invoice_type_select = inputs.selection_w40(['普票', '专票'], '普票', on_change=lambda value: setattr(dao, 'invoice_type', 0 if value == '普票' else 1))
+                if not is_add:
+                    if dao.invoice_type == 0:
+                        invoice_type_select.set_value('普票')
+                    else:
+                        invoice_type_select.set_value('专票')
+        with ui.row().classes('w-full place-content-between items-center'):
+            with ui.row().classes('w-[49%] place-content-start items-center gap-1'):
+                ui.label('发票内容').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
+                ui.input(placeholder='请输入发票内容') \
+                    .props('rounded-md outlined dense') \
+                    .classes('w-[30%] self-center item-center ') \
+                    .bind_value_from(dao, 'invoice_content') \
+                    .bind_value_to(dao, 'invoice_content')
+            with ui.row().classes('w-[49%] place-content-start items-center gap-1'):
+                ui.label('规格').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
+                ui.input(placeholder='请输入规格') \
+                    .props('rounded-md outlined dense') \
+                    .classes('w-[30%] self-center item-center ') \
+                    .bind_value_from(dao, 'specifi') \
+                    .bind_value_to(dao, 'specifi')
+        with ui.row().classes('w-full place-content-between items-center'):
+            with ui.row().classes('w-[49%] place-content-start items-center gap-1'):
+                ui.label('数量').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
+                def on_quantity_change(e: events.ValueChangeEventArguments) -> None:
+                    value = e.value
+                    if value is None or value == '':
+                        dao.quantity = 0
+                    else:
+                        try:
+                            dao.quantity = int(value)
+                            if before_tax_money_input is not None:
+                                before_tax_money_input.set_value(dao.quantity * dao.unit_price)
+                        except ValueError:
+                            ui.notify('数量必须是整数')
+                            dao.quantity = 0
+                ui.input(placeholder='请输入数量') \
+                    .props('type="number" step="1" rounded-md outlined dense') \
+                    .classes('w-[30%] self-center item-center ') \
+                    .on_value_change(on_quantity_change) \
+                    .set_value(dao.quantity)
+            with ui.row().classes('w-[49%] place-content-start items-center gap-1'):
+                ui.label('单价').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
+                def on_unit_price_change(e: events.ValueChangeEventArguments) -> None:
+                    value = e.value
+                    if value is None or value == '':
+                        dao.unit_price = 0.0
+                    else:
+                        try:
+                            dao.unit_price = float(value)
+                            if before_tax_money_input is not None:
+                                before_tax_money_input.set_value(dao.quantity * dao.unit_price)
+                        except ValueError:
+                            ui.notify('单价必须是数字')
+                            dao.unit_price = 0.0
+                ui.input(placeholder='请输入单价') \
+                    .props('type="number" step="0.01" rounded-md outlined dense') \
+                    .classes('w-[30%] self-center item-center ') \
+                    .on_value_change(on_unit_price_change) \
+                    .set_value(dao.unit_price)
+        with ui.row().classes('w-full place-content-between items-center'):
+            with ui.row().classes('w-[49%] place-content-start items-center gap-1'):
+                ui.label('含税额').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
+                def on_before_tax_change(e: events.ValueChangeEventArguments) -> None:
+                    value = e.value
+                    if value is None or value == '':
                         dao.before_tax_money = 0
-            before_tax_money_input = ui.input(placeholder='请输入含税额', value=str(dao.before_tax_money)) \
-                .props('type="number" step="0.01" rounded-md outlined dense') \
-                .classes('w-[30%] self-center item-center ') \
-                .on_value_change(on_before_tax_change)
-            before_tax_money_input.set_value(dao.before_tax_money)
-            before_tax_label = ui.label('').classes('w-[40%] text-[14px] text-red font-small self-center')
-        with ui.row().classes('w-full place-content-start items-center'):
-            ui.label('增值税').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
-            add_tax_input = ui.input(placeholder='请输入增值税', value = str(dao.added_tax)) \
-                .props('type="number" step="0.01" rounded-md outlined dense') \
-                .classes('w-[30%] self-center item-center ') \
-                .bind_value_from(dao, 'added_tax') \
-                .bind_value_to(dao, 'added_tax')
-        with ui.row().classes('w-full place-content-start items-center'):
-            ui.label('税前额').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
-            invoice_money_input = ui.input(placeholder='请输入税前额', value=str(dao.invoice_money)) \
-                .props('type="number" step="0.01" rounded-md outlined dense') \
-                .classes('w-[30%] self-center item-center ') \
-                .bind_value_from(dao, 'invoice_money') \
-                .bind_value_to(dao, 'invoice_money')
-        with ui.row().classes('w-full place-content-start items-center'):
-            ui.label('合同内容').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
-            contract_content_input = ui.input(placeholder='请输入合同内容', value=dao.contract_content) \
-                .props('rounded-md outlined dense') \
-                .classes('w-[30%] self-center item-center ') \
-                .bind_value_from(dao, 'contract_content') \
-                .bind_value_to(dao, 'contract_content')
-        with ui.row().classes('w-full place-content-start items-center'):
-            ui.label('状态').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
-            status_select = inputs.selection_w40(['未开票','已开票'], '未开票', on_change=lambda value: setattr(dao, 'status', 0 if value == '未开票' else 1))
-            if is_add:
-                dao.status = 0  # 默认状态为未开票
-            else:
-                if dao.status == 0:
-                    status_select.set_value('未开票')
+                    else:
+                        try:
+                            dao.before_tax_money = float(value)
+                            if select_service_dao is not None:
+                                gap_invoice_money = select_service_dao.contract_money - select_service_dao.invoice_money
+                                if dao.before_tax_money > gap_invoice_money:
+                                    ui.notify(f'税前额不能大于未开票金额，未开票金额: {gap_invoice_money}')
+                                    dao.before_tax_money = gap_invoice_money
+                            add_tax = round(dao.before_tax_money / (1 + dao.tax_rate) * dao.tax_rate, 2) if dao.tax_rate else 0
+                            if add_tax_input is not None:
+                                add_tax_input.set_value(add_tax)
+                            invoice_money = round(dao.before_tax_money / (1 + dao.tax_rate), 2)
+                            if invoice_money_input is not None:
+                                invoice_money_input.set_value(invoice_money)
+                        except ValueError:
+                            ui.notify('税前额必须是数字')
+                            dao.before_tax_money = 0
+                before_tax_money_input = ui.input(placeholder='请输入含税额', value=str(dao.before_tax_money)) \
+                    .props('type="number" step="0.01" rounded-md outlined dense') \
+                    .classes('w-[30%] self-center item-center ') \
+                    .on_value_change(on_before_tax_change)
+                before_tax_money_input.set_value(dao.before_tax_money)
+                before_tax_label = ui.label('').classes('w-[40%] text-[14px] text-red font-small self-center')
+            with ui.row().classes('w-[49%] place-content-start items-center gap-1'):
+                ui.label('税率').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
+                def on_tax_rate_change(value):
+                    if value == '1%':
+                        dao.tax_rate = 0.01
+                    elif value == '3%':
+                        dao.tax_rate = 0.03
+                    elif value == '6%':
+                        dao.tax_rate = 0.06
+                    elif value == '9%':
+                        dao.tax_rate = 0.09
+                    elif value == '13%':
+                        dao.tax_rate = 0.13
+                    add_tax = round(dao.before_tax_money / (1 + dao.tax_rate) * dao.tax_rate, 2) if dao.tax_rate else 0
+                    if add_tax_input is not None:
+                        add_tax_input.set_value(add_tax)
+                    invoice_money = round(dao.before_tax_money / (1 + dao.tax_rate), 2)
+                    if invoice_money_input is not None:
+                        invoice_money_input.set_value(invoice_money)
+                tax_rate_select = inputs.selection_w40(['1%','3%','6%','9%','13%'], '3%', on_change=on_tax_rate_change)
+                if is_add:
+                    dao.tax_rate = 0.03  # 默认税率为0.03
                 else:
-                    status_select.set_value('已开票')
+                    if dao.tax_rate == 0.01:
+                        tax_rate_select.set_value('1%')
+                    elif dao.tax_rate == 0.03:
+                        tax_rate_select.set_value('3%')
+                    elif dao.tax_rate == 0.06:
+                        tax_rate_select.set_value('6%')
+                    elif dao.tax_rate == 0.09:
+                        tax_rate_select.set_value('9%')
+                    elif dao.tax_rate == 0.13:
+                        tax_rate_select.set_value('13%')
+        with ui.row().classes('w-full place-content-between items-center'):
+            with ui.row().classes('w-[49%] place-content-start items-center gap-1'):
+                ui.label('增值税').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
+                add_tax_input = ui.input(placeholder='请输入增值税', value = str(dao.added_tax)) \
+                    .props('type="number" step="0.01" rounded-md outlined dense') \
+                    .classes('w-[30%] self-center item-center ') \
+                    .bind_value_from(dao, 'added_tax') \
+                    .bind_value_to(dao, 'added_tax')
+            with ui.row().classes('w-[49%] place-content-start items-center gap-1'):
+                ui.label('税前额').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
+                invoice_money_input = ui.input(placeholder='请输入税前额', value=str(dao.invoice_money)) \
+                    .props('type="number" step="0.01" rounded-md outlined dense') \
+                    .classes('w-[30%] self-center item-center ') \
+                    .bind_value_from(dao, 'invoice_money') \
+                    .bind_value_to(dao, 'invoice_money')
+        with ui.row().classes('w-full place-content-between items-center'):
+            with ui.row().classes('w-[49%] place-content-start items-center gap-1'):
+                ui.label('合同内容').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
+                contract_content_input = ui.input(placeholder='请输入合同内容', value=dao.contract_content) \
+                    .props('rounded-md outlined dense') \
+                    .classes('w-[30%] self-center item-center ') \
+                    .bind_value_from(dao, 'contract_content') \
+                    .bind_value_to(dao, 'contract_content')
+            with ui.row().classes('w-[49%] place-content-start items-center gap-1'):
+                ui.label('状态').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
+                status_select = inputs.selection_w40(['未开票','已开票'], '未开票', on_change=lambda value: setattr(dao, 'status', 0 if value == '未开票' else 1))
+                if is_add:
+                    dao.status = 0  # 默认状态为未开票
+                else:
+                    if dao.status == 0:
+                        status_select.set_value('未开票')
+                    else:
+                        status_select.set_value('已开票')
         if not is_add:
-            with ui.row().classes('w-full place-content-start items-center'):
+            with ui.row().classes('w-[49%] place-content-start items-center gap-1'):
                 ui.label('开票时间').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
                 inputs.date_input_w40('开票时间', lambda e: setattr(dao, 'invoice_time', e.value))
         with ui.row().classes('w-full place-content-end'):         

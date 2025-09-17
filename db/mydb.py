@@ -117,6 +117,15 @@ class MyDb:
         self.logger.error("No database implementation available for querying company by id.")
         return False, None
     
+    def query_company_by_brief_name(self, brief_name: str) -> tuple[bool, CompanyDao|None]:
+        if self.mysql is not None:
+            return False, None
+        else:
+            if self.mongo is not None:
+                return MongoCompanyImpl(self.mongo).query_company_by_brief_name(brief_name)
+        self.logger.error("No database implementation available for querying company by brief name.")
+        return False, None
+    
     def delete_company(self, id: str) -> bool:
         if self.mysql is not None:
             return MySqlCompanyImpl(self.mysql).delete_company(int(id))

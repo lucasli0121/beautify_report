@@ -109,6 +109,7 @@ def show_open_invoice_table(datas, show_edit, show_delete) -> ui.table:
     table_columns = [
         {'name': 'id', 'label': 'id', 'field': 'id', 'width': '1%', 'align': 'center'},
         {'name': 'sn', 'label': '序号', 'field': 'sn', 'width': '5%', 'align': 'center'},
+        {'name': 'invoice_time', 'label': '开票时间', 'field': 'invoice_time', 'width': '10%', 'align': 'center'},
         {'name': 'from_company_name', 'label': '开票方', 'field': 'from_company_name', 'width': '10%', 'align': 'center'},
         {'name': 'to_company_name', 'label': '受票方', 'field': 'to_company_name', 'width': '10%', 'align': 'center'},
         {'name': 'status', 'label': '状态', 'field': 'status', 'width': '10%', 'align': 'center'},
@@ -121,7 +122,6 @@ def show_open_invoice_table(datas, show_edit, show_delete) -> ui.table:
         {'name': 'invoice_money', 'label': '税前额', 'field': 'invoice_money', 'width': '10%', 'align': 'center'},
         {'name': 'contract_content', 'label': '合同内容', 'field': 'contract_content', 'width': '10%', 'align': 'center'},
         {'name': 'create_time', 'label': '创建时间', 'field': 'create_time', 'width': '10%', 'align': 'center'},
-        {'name': 'invoice_time', 'label': '开票时间', 'field': 'invoice_time', 'width': '10%', 'align': 'center'},
         {'name': 'operation', 'label': '操作', 'field': 'operation', 'width': '10%', 'align': 'center'}
     ]
     with ui.table(
