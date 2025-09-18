@@ -2,7 +2,7 @@
 Author: liguoqiang
 Date: 2025-03-15 09:47:54
 LastEditors: liguoqiang
-LastEditTime: 2025-03-15 23:10:29
+LastEditTime: 2025-09-18 20:28:52
 Description: 
 '''
 from nicegui import ui
@@ -121,6 +121,7 @@ def show_open_invoice_table(datas, show_edit, show_delete) -> ui.table:
         {'name': 'added_tax', 'label': '增值税', 'field': 'added_tax', 'width': '10%', 'align': 'center'},
         {'name': 'invoice_money', 'label': '税前额', 'field': 'invoice_money', 'width': '10%', 'align': 'center'},
         {'name': 'contract_content', 'label': '合同内容', 'field': 'contract_content', 'width': '10%', 'align': 'center'},
+        {'name': 'operator_flag', 'label': '操作模式', 'field': 'operator_flag', 'width': '10%', 'align': 'center'},
         {'name': 'create_time', 'label': '创建时间', 'field': 'create_time', 'width': '10%', 'align': 'center'},
         {'name': 'operation', 'label': '操作', 'field': 'operation', 'width': '10%', 'align': 'center'}
     ]
@@ -129,7 +130,7 @@ def show_open_invoice_table(datas, show_edit, show_delete) -> ui.table:
         rows=datas,
         selection='multiple',
         row_key='id',
-        pagination={'rowsPerPage': 10, 'sortBy': 'sn', 'page': 1}) \
+        pagination={'rowsPerPage': 0, 'sortBy': 'sn', 'page': 1}) \
             .props('table-header-style="color: white; font-size: 16px; background-color: #65B6FF;" flat no-shadow') \
             .classes('w-full mt-2 gap-0') \
             .style('border: 1px solid #ECECEC; border-radius: 10px 10px 0px 0px;') as table:
@@ -148,6 +149,7 @@ def show_open_invoice_table(datas, show_edit, show_delete) -> ui.table:
                     \'added_tax\', \
                     \'contract_content\', \
                     \'status\', \
+                    \'operator_flag\', \
                     \'create_time\', \
                     \'invoice_time\', \
                     \'operation\']"')
@@ -188,6 +190,16 @@ def show_open_invoice_table(datas, show_edit, show_delete) -> ui.table:
                 </template>
                 <template v-if="props.row.status == 1">
                     已开票
+                </template>
+            </q-td>
+        ''')
+        table.add_slot('body-cell-operator_flag', r'''
+            <q-td auto-width key="operator_flag" :props="props">  
+                <template v-if="props.row.operator_flag == 0">
+                    手工操作
+                </template>
+                <template v-if="props.row.operator_flag == 1">
+                    上传发票
                 </template>
             </q-td>
         ''')

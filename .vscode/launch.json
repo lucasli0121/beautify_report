@@ -6,7 +6,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/main.py",
             "console": "integratedTerminal",
-            "python": "/usr/bin/python3",
+            // "python": "/usr/bin/python3",
             "justMyCode": true
         },
         {

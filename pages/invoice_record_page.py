@@ -61,7 +61,7 @@ def show_invoice_record_page():
             ui.button('开票计划', icon='add_chart', on_click=add_invoice) \
                 .classes('w-25 rounded-md text-white') \
                 .style('background-color: #65B6FF !important')
-            ui.button('导入', icon='upload', on_click=import_excel) \
+            ui.button('上传发票', icon='upload', on_click=upload_invoice_pdf) \
                 .classes('w-25 rounded-md text-white') \
                 .style('background-color: #65B6FF !important')
             
@@ -112,51 +112,134 @@ def on_search() -> None:
                 sn += 1
         app.storage.client['invoice_record_table'].update()
 
-
-def import_excel() -> None:
-    def handle_import_excel(d: dict) -> None:
-        if d is None or len(d) == 0:
-            ui.notify('导入的Excel文件不能为空')
-            return
-        for sheet_name, df in d.items():
-            if sheet_name != '开票记录':
+def handle_import_pdf(d: dict) -> None:
+    if d is None or len(d) == 0:
+        ui.notify('导入的pdf文件不能为空')
+        return
+    for sheet_name, df in d.items():
+        if sheet_name != '开票记录':
+            continue
+        required_columns = ['开票方', '受票方', '类型', '开票额', '已开额']
+        for col in required_columns:
+            if col not in df.columns:
+                ui.notify(f'导入的Excel文件缺少必要的列: {col}')
+                return
+        success_count = 0
+        fail_count = 0
+        df = df.fillna('')  # 将NaN值替换为空字符串
+        for index, row in df.iterrows():
+            dao = InvoiceRecordDao()
+            dao.invoice_time = str(row['开票时间']).replace('/', '-').strip()
+            from_company_name = str(row['开票方']).strip()
+            to_company_name = str(row['受票方']).strip()
+            invoice_type_str = str(row['类型']).strip()
+            invoice_money_str = str(row['开票额']).strip()
+            has_invoice_money_str = str(row['已开额']).strip()
+            if from_company_name == '' or to_company_name == '':
+                ui.notify(f'第 {index + 2} 行数据不完整，开票方和受票方不能为空，跳过该行')
+                fail_count += 1
                 continue
-            required_columns = ['开票方', '受票方', '类型', '开票额', '已开额']
-            for col in required_columns:
-                if col not in df.columns:
-                    ui.notify(f'导入的Excel文件缺少必要的列: {col}')
-                    return
-            success_count = 0
-            fail_count = 0
-            df = df.fillna('')  # 将NaN值替换为空字符串
-            for index, row in df.iterrows():
-                dao = InvoiceRecordDao()
-                dao.invoice_time = str(row['开票时间']).replace('/', '-').strip()
-                from_company_name = str(row['开票方']).strip()
-                to_company_name = str(row['受票方']).strip()
-                invoice_type_str = str(row['类型']).strip()
-                invoice_money_str = str(row['开票额']).strip()
-                has_invoice_money_str = str(row['已开额']).strip()
-                if from_company_name == '' or to_company_name == '':
-                    ui.notify(f'第 {index + 2} 行数据不完整，开票方和受票方不能为空，跳过该行')
-                    fail_count += 1
-                    continue
-                result, from_company_dao = g.my_db.query_company_by_brief_name(from_company_name)
-                if not result or from_company_dao is None:
-                    ui.notify(f'第 {index + 2} 行开票方 "{from_company_name}" 不存在，跳过该行')
-                    fail_count += 1
-                    continue
-                dao.from_company_id = from_company_dao.id
-                result, to_company_dao = g.my_db.query_company_by_brief_name(to_company_name)
-                if not result or to_company_dao is None:
-                    ui.notify(f'第 {index + 2} 行受票方 "{to_company_name}" 不存在，跳过该行')
-                    fail_count += 1
-                    continue
-                dao.to_company_id = to_company_dao.id
-                if invoice_type_str == '专票':
-                    dao.invoice_type = 1
+            result, from_company_dao = g.my_db.query_company_by_brief_name(from_company_name)
+            if not result or from_company_dao is None:
+                ui.notify(f'第 {index + 2} 行开票方 "{from_company_name}" 不存在，跳过该行')
+                fail_count += 1
+                continue
+            dao.from_company_id = from_company_dao.id
+            result, to_company_dao = g.my_db.query_company_by_brief_name(to_company_name)
+            if not result or to_company_dao is None:
+                ui.notify(f'第 {index + 2} 行受票方 "{to_company_name}" 不存在，跳过该行')
+                fail_count += 1
+                continue
+            dao.to_company_id = to_company_dao.id
+            if invoice_type_str == '专票':
+                dao.invoice_type = 1
+            else:
+                dao.invoice_type = 0
+# @description: 上传发票PDF
+# @param None
+# @return: None
+
+def upload_invoice_pdf() -> None:
+    def upload_invoice_ocr(result: list) -> None:
+        if result is None or len(result) == 0:
+            ui.notify('未识别到发票信息')
+            return
+        dao = InvoiceRecordDao()
+        dao.invoice_content = result[0].get('发票内容', '')
+        dao.invoice_number = result[0].get('发票号码', '')
+        invoice_date_str = result[0].get('开票日期', '')
+        if invoice_date_str != '':
+            try:
+                if '年' in invoice_date_str:
+                    dt = datetime.strptime(invoice_date_str, '%Y年%m月%d日')
+                elif '-' in invoice_date_str:
+                    dt = datetime.strptime(invoice_date_str, '%Y-%m-%d')
                 else:
-                    dao.invoice_type = 0
+                    dt = datetime.strptime(invoice_date_str, '%Y/%m/%d')
+                dao.invoice_time = dt.strftime('%Y-%m-%d')
+            except ValueError:
+                dao.invoice_time = ''
+        before_tax_money = result[0].get('含税额', 0.0)
+        tax_money = result[0].get('税额', 0.0)
+        invoice_money = result[0].get('金额', 0.0)
+        tax_rate = result[0].get('税率', 0.0)
+        if tax_rate == '1%':
+            dao.tax_rate = 0.01
+        elif tax_rate == '3%':
+            dao.tax_rate = 0.03
+        elif tax_rate == '6%':
+            dao.tax_rate = 0.06
+        elif tax_rate == '9%':
+            dao.tax_rate = 0.09
+        elif tax_rate == '13%':
+            dao.tax_rate = 0.13
+        dao.before_tax_money = before_tax_money
+        dao.added_tax = tax_money
+        dao.invoice_money = invoice_money
+        from_company_name = result[0].get('购买方', '')
+        to_company_name = result[0].get('销售方', '')
+        if from_company_name == '' or to_company_name == '':
+            ui.notify('发票信息不完整，开票方和受票方不能为空')
+            return
+        res, from_company_list = g.my_db.query_all_company(from_company_name, '', '')
+        if res == False:
+            ui.notify(f'查询 "{from_company_name}" 失败')
+            return
+        if from_company_list is None or len(from_company_list) == 0:
+            ui.notify(f'发票开票方 "{from_company_name}" 不存在，请先添加该公司信息')
+            return
+        company_dao: CompanyDao = CompanyDao()
+        company_dao.from_db(from_company_list[0])
+        dao.from_company_id = company_dao.id
+        if to_company_name == '' or to_company_name == '':
+            ui.notify('发票信息不完整，开票方和受票方不能为空')
+            return
+        res, to_company_list = g.my_db.query_all_company(to_company_name, '', '')
+        if res == False:
+            ui.notify(f'查询 "{to_company_name}" 失败')
+            return
+        if to_company_list is None or len(to_company_list) == 0:
+            ui.notify(f'发票购买方 "{to_company_name}" 不存在，请先添加该公司信息')
+            return
+        company_dao.from_db(to_company_list[0])
+        dao.to_company_id = company_dao.id
+        dao.quantity = result[0].get('数量', 0)
+        dao.specifi = result[0].get('规格', '')
+        dao.unit_price = result[0].get('单价', 0.0)
+        dao.remark = result[0].get('备注', '')
+        dao.operator_flag = 1 # 上传发票
+        dao.status = 1 # 已开票
+        res, record_list = g.my_db.query_invoice_record_by_time(dao.from_company_id, dao.to_company_id, dao.invoice_content, dao.invoice_time)
+        if res and record_list is not None and len(record_list) > 0:
+            ui.notify(f'发票 "{dao.invoice_number}" 已存在，不能重复上传')
+            return
+        res, _ = g.my_db.add_invoice_record(dao.to_db())
+        if not res:
+            ui.notify('保存发票信息失败')
+            return
+        ui.notify('保存发票信息成功')
+    uf.open_ocr_invoice_dialog(upload_invoice_ocr)
+    
                 
 def show_edit(e: events.GenericEventArguments) -> None:
     id = e.args['id']

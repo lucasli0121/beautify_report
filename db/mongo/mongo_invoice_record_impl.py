@@ -2,7 +2,7 @@
 Author: liguoqiang
 Date: 2021-08-06 14:10:41
 LastEditors: liguoqiang
-LastEditTime: 2024-06-06 21:00:51
+LastEditTime: 2025-09-18 19:35:46
 Description: 
 '''
 # coding="utf8"
@@ -77,6 +77,29 @@ class MongoInvoiceRecordImpl():
             query['create_time'] = {'$lte': end_time}
         # 执行查询
         return self.mongo_impl.query_by_condition(tbl_name, query, {'invoice_time': -1})
+    
+    """
+    查询开票记录信息
+    :param condition: 查询条件，例如 "id = 1"
+    :return: 查询结果列表，每个元素是一个字典，包含公司信息
+    """
+    def query_by_time(self, from_company_id: str, to_company_id: str, invoice_content: str, invoice_time: str) -> tuple[bool, Any|None]:
+        tbl_name = self.invoice_record_tbl()
+        if tbl_name is None:
+            self.logger.error("invoice table not found in MongoDB.")
+            return False, None
+        query = {}
+        if from_company_id or len(from_company_id) > 0:
+            query['from_company_id'] = {'$eq': from_company_id}
+        if to_company_id or len(to_company_id) > 0:
+            query['to_company_id'] = {'$eq': to_company_id}
+        # if invoice_content or len(invoice_content) > 0:
+        #     query['invoice_content'] = {'$regex': invoice_content, '$options': 'i'}
+        if invoice_time or len(invoice_time) > 0:
+            query['invoice_time'] = {'$eq': invoice_time}
+        # 执行查询
+        return self.mongo_impl.query_by_condition(tbl_name, query, {'invoice_time': -1})
+    
     """
     function:
     description: 从服务器查询信息

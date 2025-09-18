@@ -1,3 +1,10 @@
+'''
+Author: liguoqiang
+Date: 2025-06-01 12:06:35
+LastEditors: liguoqiang
+LastEditTime: 2025-09-18 16:03:44
+Description: 
+'''
 from dataclasses import dataclass
 from datetime import datetime
 import json
@@ -8,6 +15,7 @@ from api import api_manager
 @dataclass
 class InvoiceRecordDao:
     id: str  # 发票记录ID
+    invoice_number: str  # 发票号码
     from_company_id: str
     to_company_id: str
     contract_id: str  # 合同ID
@@ -25,13 +33,15 @@ class InvoiceRecordDao:
     quantity: int # 数量
     unit_price: float # 单价
     remark: str # 备注
+    operator_flag: int # 操作标志 0: 手工操作, 1: 上传发票
     
-    def __init__(self, id:str = '',from_company_id: str = "", to_company_id: str = "", contract_id = '', invoice_type: int = 0, tax_rate: float = 0.0,
+    def __init__(self, id:str = '', invoice_number = '', from_company_id: str = "", to_company_id: str = "", contract_id = '', invoice_type: int = 0, tax_rate: float = 0.0,
                  invoice_content: str = "", before_tax_money: float = 0.0, added_tax: float = 0.0,
                  invoice_money: float = 0.0, contract_content: str = "", status: int = 0,
                  create_time: str = "", invoice_time: str="",
                  specifi: str = "", quantity: int = 0, unit_price: float = 0.0, remark: str = "") -> None:
         self.id = id
+        self.invoice_number = invoice_number
         self.from_company_id = from_company_id
         self.to_company_id = to_company_id
         self.contract_id = contract_id
@@ -52,6 +62,7 @@ class InvoiceRecordDao:
 
     def from_db(self, data: dict[str, Any]) -> None:
         self.id = str(data.get('_id', ''))
+        self.invoice_number = str(data.get('invoice_number', ''))
         self.from_company_id = str(data.get('from_company_id', ''))
         self.to_company_id = str(data.get('to_company_id', ''))
         self.contract_id = str(data.get('contract_id', ''))
@@ -69,6 +80,7 @@ class InvoiceRecordDao:
         self.quantity = int(data.get('quantity', 0))
         self.unit_price = float(data.get('unit_price', 0.0))
         self.remark = str(data.get('remark', ''))
+        self.operator_flag = int(data.get('operator_flag', 0))
 
     def to_db(self) -> dict[str, Any]:
         return self.__dict__

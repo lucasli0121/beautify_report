@@ -2,7 +2,7 @@
 Author: liguoqiang
 Date: 2021-08-06 14:10:41
 LastEditors: liguoqiang
-LastEditTime: 2024-06-06 21:00:51
+LastEditTime: 2025-09-18 17:00:23
 Description: 
 '''
 # coding="utf8"
@@ -82,8 +82,10 @@ class MongoCompanyImpl():
             return False, None
         query: dict[str, Any] = {}
         if name or len(name) > 0:
-            query['name'] = {'$regex': name, '$options': 'i'}
-            query['brief_name'] = {'$regex': name, '$options': 'i'}
+            query['$or'] = [
+                {'name': {'$regex': name, '$options': 'i'}},
+                {'brief_name': {'$regex': name, '$options': 'i'}}
+            ]
         if address or len(address) > 0:
             query['address'] = {'$regex': address, '$options': 'i'}
         if contacts or len(contacts) > 0:

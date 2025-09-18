@@ -2,7 +2,7 @@
 Author: liguoqiang
 Date: 2021-08-06 14:10:41
 LastEditors: liguoqiang
-LastEditTime: 2024-07-21 11:25:15
+LastEditTime: 2025-09-18 15:52:07
 Description: mydb 类，数据库代理类，根据配置文件选择数据库实现类
     包括mysql, mongo
 '''
@@ -232,6 +232,15 @@ class MyDb:
                 return MongoInvoiceRecordImpl(self.mongo).update(d, condition)
         self.logger.error("No database implementation available for updating invoice record.")
         return False
+    def query_invoice_record_by_time(self, from_company_id: str, to_company_id: str, invoice_content: str, invoice_time: str) -> tuple[bool, Any|None]:
+        if self.mysql is not None:
+            return False, None
+        else:
+            if self.mongo is not None:
+                return MongoInvoiceRecordImpl(self.mongo).query_by_time(from_company_id, to_company_id, invoice_content, invoice_time)
+        self.logger.error("No database implementation available for querying invoice record.")
+        return False, None
+    
     def query_all_invoice_record(self, from_company_id: str, to_company_id: str, invoice_content: str, begin_time: str, end_time: str) -> tuple[bool, Any|None]:
         if self.mysql is not None:
             return False, None
