@@ -40,6 +40,8 @@ RUN apt-get update && apt-get install -y \
     mysql-client \
     libmysqlclient-dev \
     poppler-utils \
+    libgl1 \
+    libglib2.0-0 \
     && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && echo 'Asia/Shanghai' > /etc/timezone \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
