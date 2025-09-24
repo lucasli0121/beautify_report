@@ -10,6 +10,7 @@ from nicegui import ui
 import pandas as pd
 import re
 import io
+import paddle
 from paddleocr import PaddleOCR
 from pdf2image import convert_from_bytes
 
@@ -171,8 +172,12 @@ def recognize_invoice_pdf(pdf_content):
     # 1. PDF 转图片
     pages = convert_from_bytes(pdf_content, dpi=300)
 
+    paddle.device.set_device('cpu')
+    paddle.set_flags({'FLAGS_use_mkldnn': True})  # 开启 MKLDNN
     # 2. 初始化 OCR
-    ocr = PaddleOCR(use_angle_cls=True, lang="ch")
+    ocr = PaddleOCR(
+        use_angle_cls=True, 
+        lang="ch")
 
     all_fields = []
 
@@ -182,19 +187,23 @@ def recognize_invoice_pdf(pdf_content):
         img_path = f"page_{i+1}.jpg"
         page.save(img_path, "JPEG")
 
-        results = ocr.predict(img_path)
-        texts  = results[0]['rec_texts']
-        scores = results[0]['rec_scores']
-        boxes  = results[0]['dt_polys']
+        try:
+            results = ocr.predict(img_path)
+            texts  = results[0]['rec_texts']
+            scores = results[0]['rec_scores']
+            boxes  = results[0]['dt_polys']
 
-        print("OCR 结果：")
-        for text, score, box in zip(texts, scores, boxes):
-            print(f"文字: {text}, 置信度: {score:.3f}, 坐标: {box}")
+            print("OCR 结果：")
+            for text, score, box in zip(texts, scores, boxes):
+                print(f"文字: {text}, 置信度: {score:.3f}, 坐标: {box}")
 
-        fields = extract_invoice_fields(texts, scores, boxes)
-        print("\n提取字段：", fields)
+            fields = extract_invoice_fields(texts, scores, boxes)
+            print("\n提取字段：", fields)
 
-        all_fields.append(fields)
+            all_fields.append(fields)
+        except Exception as e:
+            print(f"第 {i+1} 页 OCR 识别失败: {e}")
+            all_fields.append({})
 
     return all_fields
 
@@ -204,7 +213,7 @@ def open_ocr_invoice_dialog(handle_ocr_callback: Callable):
     import_invoice_ocr_callback = handle_ocr_callback
     with ui.dialog().props('persistent') as dialog, ui.card().classes('w-1/3 h-1/3') \
         .style('background-color: #FFFFFF !important; border-radius: 10px;'):
-        with ui.row().classes('size-full mt-5 place-content-between'):
+        with ui.row().classes('w-full h-[60%] mt-5 place-content-between'):
             def handle_upload_invoice_ocr(event):
                 # event.content 是文件的二进制内容
                 file_content = io.BytesIO(event.content.read())
@@ -243,5 +252,7 @@ def open_ocr_invoice_dialog(handle_ocr_callback: Callable):
                         </div>
                     </template>
                 ''')
+        with ui.row().classes('w-full h-[30%] place-content-center'):
+            ui.button('关闭', on_click=lambda: dialog.close()).classes('w-1/3')
 
     dialog.open()
