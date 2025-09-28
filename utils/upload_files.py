@@ -10,6 +10,8 @@ from nicegui import ui
 import pandas as pd
 import re
 import io
+import os
+import numpy as np
 import paddle
 from paddleocr import PaddleOCR
 from pdf2image import convert_from_bytes
@@ -18,6 +20,14 @@ from typing import Optional
 
 import_invoice_ocr_callback: Optional[Callable] = None
 
+os.environ["MKL_NUM_THREADS"] = "1"
+
+paddle.device.set_device('cpu')
+paddle.set_flags({'FLAGS_use_mkldnn': False})  # 关闭 MKLDNN
+# 2. 初始化 OCR
+ocr = PaddleOCR(
+    use_angle_cls=True, 
+    lang="ch")
 
 def extract_invoice_fields(texts: list, scores, boxes: list):
     """从 OCR 文本中提取发票关键字段"""
@@ -43,21 +53,21 @@ def extract_invoice_fields(texts: list, scores, boxes: list):
         # 发票代码（10-12位数字）
         match = re.search(r"名称[:：]?\s*([\u4e00-\u9fa5A-Za-z0-9\s\-_（）()]+)", t)
         if match:
-            if boxes[idx][0][0] < 100:  # x 坐标小于 100
+            if boxes[idx][0][0] <= 30:  # x 坐标小于 30
                 result["购买方"] = match.group(1)
-            elif boxes[idx][0][0] > 1200:  # x 坐标大于 1200
+            elif boxes[idx][0][0] > 290:  # x 坐标大于 1200
                 result["销售方"] = match.group(1)
 
         match = re.search(r"项目名称", t)
         if match:
-            x = boxes[idx][0][0] - 180  # 向左偏移 180
-            y = boxes[idx][0][1] + 40 # 向下偏移 40
+            x = 0
+            y = boxes[idx][0][1] + 8 # 向下偏移 5
             name = ""
             for j, b in enumerate(boxes):
-                if b[0][0] >= x and b[0][0] < (x + 300) and b[0][1] > y and b[0][1] < (y + 100):
+                if b[0][0] >= x and b[0][0] <= (x + 100) and b[0][1] >= y and b[0][1] <= (y + 20):
                     if name == "":
                         name = texts[j]
-                        y = y + 40  # 继续向下偏移 40
+                        y = b[0][1] + 10  # 继续向下偏移 40
                     else:
                         name = name + texts[j]
                         break
@@ -65,80 +75,82 @@ def extract_invoice_fields(texts: list, scores, boxes: list):
 
         match = re.search(r"数量", t)
         if match:
-            x = boxes[idx][0][0] - 180  # 向左偏移 180
-            y = boxes[idx][0][1] + 40 # 向下偏移 40
+            x = boxes[idx][0][0] - 50  # 向左偏移 50
+            y = boxes[idx][0][1] + 10 # 向下偏移 10
             for j, b in enumerate(boxes):
-                if b[0][0] >= x and b[0][0] < (x + 300) and b[0][1] > y and b[0][1] < (y + 100):
-                    result["数量"] = float(texts[j])
+                if b[0][0] >= x and b[0][0] <= (x + 100) and b[0][1] >= y and b[0][1] <= (y + 10):
+                    result["数量"] = float(texts[j].replace(' ', ''))
                     break
         match = re.search(r"单价", t)
         if match:
-            x = boxes[idx][0][0] - 180  # 向左偏移 180
-            y = boxes[idx][0][1] + 40 # 向下偏移 40
+            x = boxes[idx][0][0] - 60  # 向左偏移 60
+            y = boxes[idx][0][1] + 10 # 向下偏移 10
             for j, b in enumerate(boxes):
-                if b[0][0] >= x and b[0][0] < (x + 300) and b[0][1] > y and b[0][1] < (y + 100):
-                    result["单价"] = float(texts[j])
+                if b[0][0] >= x and b[0][0] < (x + 100) and b[0][1] >= y and b[0][1] < (y + 20):
+                    result["单价"] = float(texts[j].replace(' ', ''))
                     break
 
         match = re.search(r"金额", t)
         if match:
-            money_x = boxes[idx][0][0] - 180  # 向左偏移 150
-            y = boxes[idx][0][1] + 40 # 向下偏移 50
+            money_x = boxes[idx][0][0] - 60  # 向左偏移 150
+            y = boxes[idx][0][1] + 10 # 向下偏移 50
             for j, b in enumerate(boxes):
-                if b[0][0] >= money_x and b[0][0] < (money_x + 300) and b[0][1] > y and b[0][1] < (y + 100):
-                    result["金额"] = float(texts[j])
+                if b[0][0] >= money_x and b[0][0] < (money_x + 100) and b[0][1] >= y and b[0][1] < (y + 20):
+                    result["金额"] = float(texts[j].replace(' ', ''))
                     break
 
-        match = re.search(r"税率/征收率", t)
+        match = re.search(r"(\d+?%)", t)
         if match:
-            x = boxes[idx][0][0]
-            y = boxes[idx][0][1] + 40 # 向下偏移 50
-            for j, b in enumerate(boxes):
-                if b[0][0] >= x and b[0][0] < (x + 300) and b[0][1] > y and b[0][1] < (y + 100):
-                    result["税率"] = texts[j]
-                    break
+            result["税率"] = match.group(1)
+            # x = boxes[idx][0][0]
+            # y = boxes[idx][0][1] + 40 # 向下偏移 50
+            # for j, b in enumerate(boxes):
+            #     if b[0][0] >= x and b[0][0] < (x + 300) and b[0][1] > y and b[0][1] < (y + 100):
+            #         result["税率"] = texts[j]
+            #         break
         match = re.search(r"税额", t)
         if match:
-            tax_money_x = boxes[idx][0][0] - 180  # 向左偏移 150
-            y = boxes[idx][0][1] + 40 # 向下偏移 50
+            tax_money_x = boxes[idx][0][0] - 50  # 向左偏移 150
+            y = boxes[idx][0][1] + 10 # 向下偏移 50
             for j, b in enumerate(boxes):
-                if b[0][0] >= tax_money_x and b[0][0] < (tax_money_x + 300) and b[0][1] > y and b[0][1] < (y + 100):
-                    result["税额"] = texts[j]
+                if b[0][0] >= tax_money_x and b[0][0] < (tax_money_x + 100) and b[0][1] >= y and b[0][1] < (y + 20):
+                    result["税额"] = float(texts[j].replace(' ', ''))
                     break
 
-        match = re.match(r"合计", t)
+        match = re.match(r"合|计|合计", t)
         if match:
             if money_x == 0:
                 match = re.search(r"金额", t)
                 if match:
-                    money_x = boxes[idx][0][0] - 180  # 向左偏移 150
+                    money_x = boxes[idx][0][0] - 50  # 向左偏移 50
             x = money_x
-            y = boxes[idx][0][1] - 30
+            y = boxes[idx][0][1] - 10
             for j, b in enumerate(boxes):
-                if b[0][0] >= x and b[0][0] < (x + 300) and b[0][1] > y and b[0][1] < (y + 100):
-                    money_txt = texts[j][1:] if texts[j].startswith('￥') else texts[j]
-                    money = float(money_txt.replace(',', ''))
+                if b[0][0] >= x and b[0][0] < (x + 100) and b[0][1] >= y and b[0][1] < (y + 20):
+                    money_txt = texts[j][1:] if texts[j].startswith('¥') else texts[j]
+                    money = float(money_txt.replace(',', '').replace(' ', ''))
                     if money != result["金额"]:
                         result["金额"] = money
-                if b[0][0] >= tax_money_x and b[0][0] < (tax_money_x + 300) and b[0][1] > y and b[0][1] < (y + 100):
-                    money_txt = texts[j][1:] if texts[j].startswith('￥') else texts[j]
-                    money = float(money_txt.replace(',', ''))
+                if b[0][0] >= tax_money_x and b[0][0] < (tax_money_x + 100) and b[0][1] >= y and b[0][1] < (y + 20):
+                    money_txt = texts[j][1:] if texts[j].startswith('¥') else texts[j]
+                    money = float(money_txt.replace(',', '').replace(' ', ''))
                     if money != result["税额"]:
                         result["税额"] = money
                     break
 
         match = re.search(r"小写[)）]", t)
         if match:
-            amount_pattern = r"(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?"
-            match = re.search(r"(小写)[)）]￥?\s*(" + amount_pattern + ")", t)
+            # amount_pattern = r"(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?"
+            amount_pattern = r"\d+(?:\.\d{1,2})?"
+            match = re.search(r"小写[)）]¥\s*(" + amount_pattern + ")", t)
             if match:
-                result["含税额"] = float(match.group(2))
+                result["含税额"] = float(match.group(1))
             else:
-                x = boxes[idx][0][0] + 100  # 向右偏移 100
-                y = boxes[idx][0][1] - 15
+                x = boxes[idx][0][0] + 30  # 向右偏移 100
+                y = boxes[idx][0][1] - 10
                 for j, b in enumerate(boxes):
-                    if b[0][0] >= x and b[0][0] < (x + 300) and b[0][1] >= y and b[0][1] < (y + 50):
-                        result["含税额"] = float(texts[j][1:])
+                    if b[0][0] >= x and b[0][0] < (x + 100) and b[0][1] >= y and b[0][1] < (y + 30):
+                        result["含税额"] = float(texts[j][1:].replace(',', '').replace(' ', ''))
                         break
 
         # 发票号码（8位数字）
@@ -151,59 +163,55 @@ def extract_invoice_fields(texts: list, scores, boxes: list):
         if match:
             result["开票日期"] = match.group(1)
         
-        match = re.search(r"备注", t)
+        match = re.search(r"备|注|备注", t)
         if match:
-            x = boxes[idx][0][0] + 30  # 向右偏移 100
-            y = boxes[idx][0][1] - 120
+            x = boxes[idx][0][0] + 10  # 向右偏移 100
+            y = boxes[idx][0][1] - 20
             remark = ""
             for j, b in enumerate(boxes):
-                if b[0][0] >= x and b[0][0] < (x + 600) and b[0][1] >= y and b[0][1] < (y + 150):
+                if b[0][0] >= x and b[0][0] < (x + 200) and b[0][1] >= y and b[0][1] < (y + 50):
                     if remark == "":
                         remark = texts[j]
-                        x = b[0][0] + 100  # 继续向下偏移 40
+                        x = b[0][0] + 30  # 继续向下偏移 40
                     else:
                         remark = remark + texts[j]
                         break
-            result["备注"] = remark
+            if result["备注"] == '':
+                result["备注"] = remark
+
+    if isinstance(result["含税额"], (int, float)) and isinstance(result["金额"], (int, float)) and result["含税额"] > 0 and result["金额"] > 0:
+        result["税额"] = round(float(result["含税额"] - result["金额"]), 2)
 
     return result
 
 def recognize_invoice_pdf(pdf_content):
     # 1. PDF 转图片
-    pages = convert_from_bytes(pdf_content, dpi=300)
-
-    paddle.device.set_device('cpu')
-    paddle.set_flags({'FLAGS_use_mkldnn': True})  # 开启 MKLDNN
-    # 2. 初始化 OCR
-    ocr = PaddleOCR(
-        use_angle_cls=True, 
-        lang="ch")
+    pages = convert_from_bytes(pdf_content, dpi=200)
 
     all_fields = []
 
     # 3. 逐页识别
     for i, page in enumerate(pages):
         print(f"\n===== 第 {i+1} 页 =====")
-        img_path = f"page_{i+1}.jpg"
-        page.save(img_path, "JPEG")
+        # img_path = f"page_{i+1}.jpg"
+        # page.save(img_path, "JPEG")
 
-        try:
-            results = ocr.predict(img_path)
-            texts  = results[0]['rec_texts']
-            scores = results[0]['rec_scores']
-            boxes  = results[0]['dt_polys']
+        page = page.resize((page.width // 3, page.height // 3))
+        img = np.array(page)
 
-            print("OCR 结果：")
-            for text, score, box in zip(texts, scores, boxes):
-                print(f"文字: {text}, 置信度: {score:.3f}, 坐标: {box}")
+        results = ocr.predict(img)
+        texts  = results[0]['rec_texts']
+        scores = results[0]['rec_scores']
+        boxes  = results[0]['dt_polys']
 
-            fields = extract_invoice_fields(texts, scores, boxes)
-            print("\n提取字段：", fields)
+        print("OCR 结果：")
+        for text, score, box in zip(texts, scores, boxes):
+            print(f"文字: {text}, 置信度: {score:.3f}, 坐标: {box}")
 
-            all_fields.append(fields)
-        except Exception as e:
-            print(f"第 {i+1} 页 OCR 识别失败: {e}")
-            all_fields.append({})
+        fields = extract_invoice_fields(texts, scores, boxes)
+        print("\n提取字段：", fields)
+
+        all_fields.append(fields)
 
     return all_fields
 
@@ -221,37 +229,9 @@ def open_ocr_invoice_dialog(handle_ocr_callback: Callable):
                 if handle_ocr_callback is not None:
                     handle_ocr_callback(results)
                 dialog.close()
-            with ui.upload(label="请选择批量上传文件", on_upload=handle_upload_invoice_ocr) \
+            ui.upload(label="请选择批量上传文件", on_upload=handle_upload_invoice_ocr) \
                 .props('flat accept=".pdf"') \
-                .classes('size-full') as upload:
-                upload.add_slot('header="scope"', r'''
-                    <template #header="scope">
-                        <div class="row no-wrap items-center q-pa-sm q-gutter-xs">
-                        <q-btn v-if="scope.queuedFiles.length > 0" icon="clear" @click="scope.removeQueuedFiles" round dense flat >
-                            <q-tooltip>Clear All</q-tooltip>
-                        </q-btn>
-                        <q-btn v-if="scope.uploadedFiles.length > 0" icon="done_all" @click="scope.removeUploadedFiles" round dense flat >
-                            <q-tooltip>Remove Uploaded Files</q-tooltip>
-                        </q-btn>
-                        <q-spinner v-if="scope.isUploading" class="q-uploader__spinner" />
-                        <div class="col">
-                            <div class="q-uploader__title">Upload your files</div>
-                            <div class="q-uploader__subtitle">{{ scope.uploadSizeLabel }} / {{ scope.uploadProgressLabel }}</div>
-                        </div>
-                        <q-btn v-if="scope.canAddFiles" type="a" icon="add_box" @click="scope.pickFiles" round dense flat>
-                            <q-uploader-add-trigger />
-                            <q-tooltip>Pick Files</q-tooltip>
-                        </q-btn>
-                        <q-btn v-if="scope.canUpload" icon="cloud_upload" @click="scope.upload" round dense flat >
-                            <q-tooltip>Upload Files</q-tooltip>
-                        </q-btn>
-
-                        <q-btn v-if="scope.isUploading" icon="clear" @click="scope.abort" round dense flat >
-                            <q-tooltip>Abort Upload</q-tooltip>
-                        </q-btn>
-                        </div>
-                    </template>
-                ''')
+                .classes('size-full')
         with ui.row().classes('w-full h-[30%] place-content-center'):
             ui.button('关闭', on_click=lambda: dialog.close()).classes('w-1/3')
 

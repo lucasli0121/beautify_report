@@ -13,6 +13,10 @@
     // 采用现有的镜像
     // 这个镜像是通过 直接使用DockerFile编译的
     "image": "beautifyreport:latest",
+    "runArgs": [
+        "--memory=8g",
+        "--memory-swap=8g"
+    ]        
     "customizations": {
         "vscode": {
             "extensions": [
