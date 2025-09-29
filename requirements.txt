@@ -1,6 +1,6 @@
 nicegui >= 2.0
 fastapi >= 0.63.0
-numpy >= 1.20.1
+numpy >= 1.23
 simpy >= 4.0.1
 pyzmq >= 26.0.0
 contextlib2 >= 0.6.0
@@ -13,7 +13,7 @@ pywinauto
 webdriver_manager
 pdfkit
 imgkit
-types-pytz
+types-pytz>=2025.2.0
 mysql>=0.0.3
 types-mysqlclient==2.2.0.20250516
 redis>=4.5.4

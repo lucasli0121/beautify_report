@@ -2,7 +2,7 @@
 Author: liguoqiang
 Date: 2025-04-15 21:00:10
 LastEditors: liguoqiang
-LastEditTime: 2025-09-18 20:04:40
+LastEditTime: 2025-09-29 10:37:43
 Description: 
 '''
 from typing import Callable
@@ -17,10 +17,14 @@ from paddleocr import PaddleOCR
 from pdf2image import convert_from_bytes
 
 from typing import Optional
+import matplotlib
+matplotlib.use('Agg')  # 使用非交互式后端
 
 import_invoice_ocr_callback: Optional[Callable] = None
 
 os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
+os.environ["OMP_NUM_THREADS"] = "1"
 
 paddle.device.set_device('cpu')
 paddle.set_flags({'FLAGS_use_mkldnn': False})  # 关闭 MKLDNN
