@@ -2,7 +2,7 @@
 Author: liguoqiang
 Date: 2025-04-15 21:00:10
 LastEditors: liguoqiang
-LastEditTime: 2025-09-29 10:37:43
+LastEditTime: 2025-09-30 16:51:15
 Description: 
 '''
 from typing import Callable
@@ -15,7 +15,8 @@ import numpy as np
 import paddle
 from paddleocr import PaddleOCR
 from pdf2image import convert_from_bytes
-
+import logging
+from paddleocr import logger
 from typing import Optional
 import matplotlib
 matplotlib.use('Agg')  # 使用非交互式后端
@@ -25,6 +26,9 @@ import_invoice_ocr_callback: Optional[Callable] = None
 os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["NUMEXPR_NUM_THREADS"] = "1"
 os.environ["OMP_NUM_THREADS"] = "1"
+
+fh = logging.FileHandler("paddleocr.log")
+logger.addHandler(fh)
 
 paddle.device.set_device('cpu')
 paddle.set_flags({'FLAGS_use_mkldnn': False})  # 关闭 MKLDNN
@@ -57,9 +61,9 @@ def extract_invoice_fields(texts: list, scores, boxes: list):
         # 发票代码（10-12位数字）
         match = re.search(r"名称[:：]?\s*([\u4e00-\u9fa5A-Za-z0-9\s\-_（）()]+)", t)
         if match:
-            if boxes[idx][0][0] <= 30:  # x 坐标小于 30
+            if boxes[idx][0][0] <= 50:  # x 坐标小于 50
                 result["购买方"] = match.group(1)
-            elif boxes[idx][0][0] > 290:  # x 坐标大于 1200
+            elif boxes[idx][0][0] >= 300:  # x 坐标大于 300
                 result["销售方"] = match.group(1)
 
         match = re.search(r"项目名称", t)
@@ -68,10 +72,10 @@ def extract_invoice_fields(texts: list, scores, boxes: list):
             y = boxes[idx][0][1] + 8 # 向下偏移 5
             name = ""
             for j, b in enumerate(boxes):
-                if b[0][0] >= x and b[0][0] <= (x + 100) and b[0][1] >= y and b[0][1] <= (y + 20):
+                if b[0][0] >= x and b[0][0] <= (x + 50) and b[0][1] >= y and b[0][1] <= (y + 30):
                     if name == "":
                         name = texts[j]
-                        y = b[0][1] + 10  # 继续向下偏移 40
+                        y = b[0][1] + 15  # 继续向下偏移 15
                     else:
                         name = name + texts[j]
                         break
@@ -82,24 +86,24 @@ def extract_invoice_fields(texts: list, scores, boxes: list):
             x = boxes[idx][0][0] - 50  # 向左偏移 50
             y = boxes[idx][0][1] + 10 # 向下偏移 10
             for j, b in enumerate(boxes):
-                if b[0][0] >= x and b[0][0] <= (x + 100) and b[0][1] >= y and b[0][1] <= (y + 10):
-                    result["数量"] = float(texts[j].replace(' ', ''))
+                if b[0][0] >= x and b[0][0] <= (x + 100) and b[0][1] >= y and b[0][1] <= (y + 30):
+                    result["数量"] = float(texts[j].replace(' ', '').replace(',', '.'))
                     break
         match = re.search(r"单价", t)
         if match:
-            x = boxes[idx][0][0] - 60  # 向左偏移 60
+            x = boxes[idx][0][0] - 50  # 向左偏移 50
             y = boxes[idx][0][1] + 10 # 向下偏移 10
             for j, b in enumerate(boxes):
-                if b[0][0] >= x and b[0][0] < (x + 100) and b[0][1] >= y and b[0][1] < (y + 20):
-                    result["单价"] = float(texts[j].replace(' ', ''))
+                if b[0][0] >= x and b[0][0] < (x + 100) and b[0][1] >= y and b[0][1] < (y + 30):
+                    result["单价"] = float(texts[j].replace(' ', '').replace(',', '.'))
                     break
 
         match = re.search(r"金额", t)
         if match:
-            money_x = boxes[idx][0][0] - 60  # 向左偏移 150
+            money_x = boxes[idx][0][0] - 50  # 向左偏移 50
             y = boxes[idx][0][1] + 10 # 向下偏移 50
             for j, b in enumerate(boxes):
-                if b[0][0] >= money_x and b[0][0] < (money_x + 100) and b[0][1] >= y and b[0][1] < (y + 20):
+                if b[0][0] >= money_x and b[0][0] < (money_x + 100) and b[0][1] >= y and b[0][1] < (y + 30):
                     result["金额"] = float(texts[j].replace(' ', ''))
                     break
 
@@ -117,7 +121,7 @@ def extract_invoice_fields(texts: list, scores, boxes: list):
             tax_money_x = boxes[idx][0][0] - 50  # 向左偏移 150
             y = boxes[idx][0][1] + 10 # 向下偏移 50
             for j, b in enumerate(boxes):
-                if b[0][0] >= tax_money_x and b[0][0] < (tax_money_x + 100) and b[0][1] >= y and b[0][1] < (y + 20):
+                if b[0][0] >= tax_money_x and b[0][0] < (tax_money_x + 100) and b[0][1] >= y and b[0][1] < (y + 30):
                     result["税额"] = float(texts[j].replace(' ', ''))
                     break
 
@@ -129,14 +133,16 @@ def extract_invoice_fields(texts: list, scores, boxes: list):
                     money_x = boxes[idx][0][0] - 50  # 向左偏移 50
             x = money_x
             y = boxes[idx][0][1] - 10
+            if tax_money_x == 0:
+                tax_money_x = 720
             for j, b in enumerate(boxes):
-                if b[0][0] >= x and b[0][0] < (x + 100) and b[0][1] >= y and b[0][1] < (y + 20):
-                    money_txt = texts[j][1:] if texts[j].startswith('¥') else texts[j]
+                if b[0][0] >= x and b[0][0] < (x + 100) and b[0][1] >= y and b[0][1] < (y + 30):
+                    money_txt = texts[j][1:]
                     money = float(money_txt.replace(',', '').replace(' ', ''))
                     if money != result["金额"]:
                         result["金额"] = money
-                if b[0][0] >= tax_money_x and b[0][0] < (tax_money_x + 100) and b[0][1] >= y and b[0][1] < (y + 20):
-                    money_txt = texts[j][1:] if texts[j].startswith('¥') else texts[j]
+                if b[0][0] >= tax_money_x and b[0][0] < (tax_money_x + 100) and b[0][1] >= y and b[0][1] < (y + 30):
+                    money_txt = texts[j][1:]
                     money = float(money_txt.replace(',', '').replace(' ', ''))
                     if money != result["税额"]:
                         result["税额"] = money
@@ -146,7 +152,7 @@ def extract_invoice_fields(texts: list, scores, boxes: list):
         if match:
             # amount_pattern = r"(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?"
             amount_pattern = r"\d+(?:\.\d{1,2})?"
-            match = re.search(r"小写[)）]¥\s*(" + amount_pattern + ")", t)
+            match = re.search(r"小写[)）].\s*(" + amount_pattern + ")", t)
             if match:
                 result["含税额"] = float(match.group(1))
             else:
@@ -170,7 +176,7 @@ def extract_invoice_fields(texts: list, scores, boxes: list):
         match = re.search(r"备|注|备注", t)
         if match:
             x = boxes[idx][0][0] + 10  # 向右偏移 100
-            y = boxes[idx][0][1] - 20
+            y = boxes[idx][0][1] - 50
             remark = ""
             for j, b in enumerate(boxes):
                 if b[0][0] >= x and b[0][0] < (x + 200) and b[0][1] >= y and b[0][1] < (y + 50):
@@ -185,6 +191,19 @@ def extract_invoice_fields(texts: list, scores, boxes: list):
 
     if isinstance(result["含税额"], (int, float)) and isinstance(result["金额"], (int, float)) and result["含税额"] > 0 and result["金额"] > 0:
         result["税额"] = round(float(result["含税额"] - result["金额"]), 2)
+    if result["备注"] == '':
+        x = 30
+        y = 420
+        remark = ""
+        for j, b in enumerate(boxes):
+            if b[0][0] >= x and b[0][0] < (x + 100) and b[0][1] >= y and b[0][1] <= (y + 30):
+                if remark == "":
+                    remark = texts[j]
+                    x = b[0][0] + 50  # 继续向右偏移 50
+                else:
+                    remark = remark + texts[j]
+                    break
+        result["备注"] = remark
 
     return result
 
@@ -200,7 +219,7 @@ def recognize_invoice_pdf(pdf_content):
         # img_path = f"page_{i+1}.jpg"
         # page.save(img_path, "JPEG")
 
-        page = page.resize((page.width // 3, page.height // 3))
+        page = page.resize((page.width // 2, page.height // 2))
         img = np.array(page)
 
         results = ocr.predict(img)
