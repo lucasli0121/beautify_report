@@ -257,6 +257,14 @@ class MyDb:
                 return MongoInvoiceRecordImpl(self.mongo).query_by_id(id)
         self.logger.error("No database implementation available for querying invoice record by id.")
         return False, None
+    def query_invoice_record_by_number(self, invoice_number: str) -> tuple[bool, Any|None]:
+        if self.mysql is not None:
+            return False, None
+        else:
+            if self.mongo is not None:
+                return MongoInvoiceRecordImpl(self.mongo).query_by_number(invoice_number)
+        self.logger.error("No database implementation available for querying invoice record by number.")
+        return False, None
     def delete_invoice_record(self, id: str) -> bool:
         if self.mysql is not None:
             return False

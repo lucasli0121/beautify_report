@@ -26,9 +26,11 @@ class InvoiceRecordDao:
     added_tax: float # 增值税
     invoice_money: float # 开票金额
     contract_content: str # 合同内容
-    status: int # 0: 未开票, 1: 已开票
+    status: int # 0: 未开票, 1: 已开票 2: 已作废 3: 已红冲
     create_time: str # 创建时间
     invoice_time: str # 开票时间
+    is_red: int # 是否红字发票 0: 否, 1: 是
+    blue_invoice_number: str # 蓝字发票号码
     specifi: str # 规格
     quantity: int # 数量
     unit_price: float # 单价
@@ -55,6 +57,8 @@ class InvoiceRecordDao:
         self.status = status
         self.create_time = create_time if create_time else datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self.invoice_time = invoice_time
+        self.is_red = 0
+        self.blue_invoice_number = ""
         self.specifi = specifi
         self.quantity = quantity
         self.unit_price = unit_price
@@ -81,6 +85,8 @@ class InvoiceRecordDao:
         self.unit_price = float(data.get('unit_price', 0.0))
         self.remark = str(data.get('remark', ''))
         self.operator_flag = int(data.get('operator_flag', 0))
+        self.is_red = int(data.get('is_red', 0))
+        self.blue_invoice_number = str(data.get('blue_invoice_number', ''))
 
     def to_db(self) -> dict[str, Any]:
         return self.__dict__

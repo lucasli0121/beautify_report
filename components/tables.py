@@ -123,6 +123,7 @@ def show_open_invoice_table(datas, show_edit, show_delete) -> ui.table:
         {'name': 'contract_content', 'label': '合同内容', 'field': 'contract_content', 'width': '10%', 'align': 'center'},
         {'name': 'operator_flag', 'label': '操作模式', 'field': 'operator_flag', 'width': '10%', 'align': 'center'},
         {'name': 'create_time', 'label': '创建时间', 'field': 'create_time', 'width': '10%', 'align': 'center'},
+        {'name': 'remark', 'label': '备注', 'field': 'remark', 'width': '10%', 'align': 'center'},
         {'name': 'operation', 'label': '操作', 'field': 'operation', 'width': '10%', 'align': 'center'}
     ]
     with ui.table(
@@ -152,6 +153,7 @@ def show_open_invoice_table(datas, show_edit, show_delete) -> ui.table:
                     \'operator_flag\', \
                     \'create_time\', \
                     \'invoice_time\', \
+                    \'remark\', \
                     \'operation\']"')
 
         table.add_slot('body-cell-invoice_type', r'''
@@ -190,6 +192,12 @@ def show_open_invoice_table(datas, show_edit, show_delete) -> ui.table:
                 </template>
                 <template v-if="props.row.status == 1">
                     已开票
+                </template>
+                <template v-if="props.row.status == 2">
+                    已作废
+                </template>
+                <template v-if="props.row.status == 3">
+                    已冲红
                 </template>
             </q-td>
         ''')

@@ -100,6 +100,16 @@ class MongoInvoiceRecordImpl():
         # 执行查询
         return self.mongo_impl.query_by_condition(tbl_name, query, {'invoice_time': -1})
     
+    def query_by_number(self, invoice_number: str) -> tuple[bool, Any|None]:
+        tbl_name = self.invoice_record_tbl()
+        if tbl_name is None:
+            self.logger.error("invoice table not found in MongoDB.")
+            return False, None
+        query = {}
+        if invoice_number or len(invoice_number) > 0:
+            query['invoice_number'] = {'$eq': invoice_number}
+        # 执行查询
+        return self.mongo_impl.query_by_condition(tbl_name, query, {'invoice_time': -1})
     """
     function:
     description: 从服务器查询信息

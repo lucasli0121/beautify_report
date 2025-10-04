@@ -196,6 +196,8 @@ def upload_invoice_pdf() -> None:
         dao.before_tax_money = before_tax_money
         dao.added_tax = tax_money
         dao.invoice_money = invoice_money
+        dao.is_red = 1 if result[0].get('红字发票', False) else 0
+        dao.blue_invoice_number = result[0].get('蓝字发票号码', '') if dao.is_red == 1 else ''
         from_company_name = result[0].get('购买方', '')
         to_company_name = result[0].get('销售方', '')
         if from_company_name == '' or to_company_name == '':
@@ -229,6 +231,8 @@ def upload_invoice_pdf() -> None:
         dao.remark = result[0].get('备注', '')
         dao.operator_flag = 1 # 上传发票
         dao.status = 1 # 已开票
+        if dao.is_red == 1:
+            dao.status = 3 # 已红冲
         res, record_list = g.my_db.query_invoice_record_by_time(dao.from_company_id, dao.to_company_id, dao.invoice_content, dao.invoice_time)
         if res and record_list is not None and len(record_list) > 0:
             ui.notify(f'发票 "{dao.invoice_number}" 已存在，不能重复上传')
@@ -237,6 +241,15 @@ def upload_invoice_pdf() -> None:
         if not res:
             ui.notify('保存发票信息失败')
             return
+        if dao.is_red == 1:
+            res, record_list = g.my_db.query_invoice_record_by_number(dao.blue_invoice_number)
+            if res and record_list is not None and len(record_list) > 0:
+                blue_dao = InvoiceRecordDao()
+                blue_dao.from_db(record_list[0])
+                blue_dao.status = 2 # 已作废
+                if not g.my_db.update_invoice_record(blue_dao.to_db(), {'id': blue_dao.id}):
+                    ui.notify('更新蓝字发票状态失败')
+                    return
         ui.notify('保存发票信息成功')
     uf.open_ocr_invoice_dialog(upload_invoice_ocr)
     
