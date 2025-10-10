@@ -2,8 +2,10 @@ from dataclasses import dataclass
 from datetime import datetime
 from nicegui import ui,events, app
 from components import inputs, tables, dialogs
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 import pandas as pd
+import io
+import os
 from dao.company_dao import CompanyDao
 from dao.invoice_record_dao import InvoiceRecordDao
 from dao.service_record_dao import ServiceRecordDao
@@ -155,84 +157,94 @@ def handle_import_pdf(d: dict) -> None:
                 dao.invoice_type = 1
             else:
                 dao.invoice_type = 0
+
+def parse_upload_result_to_dao(result: list) -> Optional[InvoiceRecordDao]:
+    if result is None or len(result) == 0:
+        ui.notify('未识别到发票信息')
+        return None
+    dao = InvoiceRecordDao()
+    dao.invoice_content = result[0].get('发票内容', '')
+    dao.invoice_number = result[0].get('发票号码', '')
+    invoice_date_str = result[0].get('开票日期', '')
+    if invoice_date_str != '':
+        try:
+            if '年' in invoice_date_str:
+                dt = datetime.strptime(invoice_date_str, '%Y年%m月%d日')
+            elif '-' in invoice_date_str:
+                dt = datetime.strptime(invoice_date_str, '%Y-%m-%d')
+            else:
+                dt = datetime.strptime(invoice_date_str, '%Y/%m/%d')
+            dao.invoice_time = dt.strftime('%Y-%m-%d')
+        except ValueError:
+            dao.invoice_time = ''
+    before_tax_money = result[0].get('含税额', 0.0)
+    tax_money = result[0].get('税额', 0.0)
+    invoice_money = result[0].get('金额', 0.0)
+    tax_rate = result[0].get('税率', 0.0)
+    if tax_rate == '1%':
+        dao.tax_rate = 0.01
+    elif tax_rate == '3%':
+        dao.tax_rate = 0.03
+    elif tax_rate == '6%':
+        dao.tax_rate = 0.06
+    elif tax_rate == '9%':
+        dao.tax_rate = 0.09
+    elif tax_rate == '13%':
+        dao.tax_rate = 0.13
+    dao.before_tax_money = before_tax_money
+    dao.added_tax = tax_money
+    dao.invoice_money = invoice_money
+    dao.is_red = 1 if result[0].get('红字发票', False) else 0
+    dao.blue_invoice_number = result[0].get('蓝字发票号码', '') if dao.is_red == 1 else ''
+    from_company_name = result[0].get('购买方', '')
+    to_company_name = result[0].get('销售方', '')
+    if from_company_name == '' or to_company_name == '':
+        ui.notify('发票信息不完整，开票方和受票方不能为空')
+        return None
+    res, from_company_list = g.my_db.query_all_company(from_company_name, '', '')
+    if not res:
+        ui.notify(f'查询 "{from_company_name}" 失败')
+        return None
+    if from_company_list is None or len(from_company_list) == 0:
+        ui.notify(f'发票开票方 "{from_company_name}" 不存在，请先添加该公司信息')
+        return None
+    company_dao: CompanyDao = CompanyDao()
+    company_dao.from_db(from_company_list[0])
+    dao.from_company_id = company_dao.id
+    if to_company_name == '' or to_company_name == '':
+        ui.notify('发票信息不完整，开票方和受票方不能为空')
+        return None
+    res, to_company_list = g.my_db.query_all_company(to_company_name, '', '')
+    if not res:
+        ui.notify(f'查询 "{to_company_name}" 失败')
+        return None
+    if to_company_list is None or len(to_company_list) == 0:
+        ui.notify(f'发票购买方 "{to_company_name}" 不存在，请先添加该公司信息')
+        return None
+    company_dao.from_db(to_company_list[0])
+    dao.to_company_id = company_dao.id
+    dao.quantity = result[0].get('数量', 0)
+    dao.specifi = result[0].get('规格', '')
+    dao.unit_price = result[0].get('单价', 0.0)
+    dao.remark = result[0].get('备注', '')
+    dao.operator_flag = 1 # 上传发票
+    dao.status = 1 # 已开票
+    if dao.is_red == 1:
+        dao.status = 3 # 已红冲
+    return dao
+
+def read_pdf_from_upload(handle_upload: Callable) -> None:
+    def upload_invoice_ocr(result: list) -> None:
+        dao = parse_upload_result_to_dao(result)
+        if handle_upload is not None and dao is not None:
+            handle_upload(dao)
+    uf.open_ocr_invoice_dialog(upload_invoice_ocr)
 # @description: 上传发票PDF
 # @param None
 # @return: None
 
 def upload_invoice_pdf() -> None:
-    def upload_invoice_ocr(result: list) -> None:
-        if result is None or len(result) == 0:
-            ui.notify('未识别到发票信息')
-            return
-        dao = InvoiceRecordDao()
-        dao.invoice_content = result[0].get('发票内容', '')
-        dao.invoice_number = result[0].get('发票号码', '')
-        invoice_date_str = result[0].get('开票日期', '')
-        if invoice_date_str != '':
-            try:
-                if '年' in invoice_date_str:
-                    dt = datetime.strptime(invoice_date_str, '%Y年%m月%d日')
-                elif '-' in invoice_date_str:
-                    dt = datetime.strptime(invoice_date_str, '%Y-%m-%d')
-                else:
-                    dt = datetime.strptime(invoice_date_str, '%Y/%m/%d')
-                dao.invoice_time = dt.strftime('%Y-%m-%d')
-            except ValueError:
-                dao.invoice_time = ''
-        before_tax_money = result[0].get('含税额', 0.0)
-        tax_money = result[0].get('税额', 0.0)
-        invoice_money = result[0].get('金额', 0.0)
-        tax_rate = result[0].get('税率', 0.0)
-        if tax_rate == '1%':
-            dao.tax_rate = 0.01
-        elif tax_rate == '3%':
-            dao.tax_rate = 0.03
-        elif tax_rate == '6%':
-            dao.tax_rate = 0.06
-        elif tax_rate == '9%':
-            dao.tax_rate = 0.09
-        elif tax_rate == '13%':
-            dao.tax_rate = 0.13
-        dao.before_tax_money = before_tax_money
-        dao.added_tax = tax_money
-        dao.invoice_money = invoice_money
-        dao.is_red = 1 if result[0].get('红字发票', False) else 0
-        dao.blue_invoice_number = result[0].get('蓝字发票号码', '') if dao.is_red == 1 else ''
-        from_company_name = result[0].get('购买方', '')
-        to_company_name = result[0].get('销售方', '')
-        if from_company_name == '' or to_company_name == '':
-            ui.notify('发票信息不完整，开票方和受票方不能为空')
-            return
-        res, from_company_list = g.my_db.query_all_company(from_company_name, '', '')
-        if res == False:
-            ui.notify(f'查询 "{from_company_name}" 失败')
-            return
-        if from_company_list is None or len(from_company_list) == 0:
-            ui.notify(f'发票开票方 "{from_company_name}" 不存在，请先添加该公司信息')
-            return
-        company_dao: CompanyDao = CompanyDao()
-        company_dao.from_db(from_company_list[0])
-        dao.from_company_id = company_dao.id
-        if to_company_name == '' or to_company_name == '':
-            ui.notify('发票信息不完整，开票方和受票方不能为空')
-            return
-        res, to_company_list = g.my_db.query_all_company(to_company_name, '', '')
-        if res == False:
-            ui.notify(f'查询 "{to_company_name}" 失败')
-            return
-        if to_company_list is None or len(to_company_list) == 0:
-            ui.notify(f'发票购买方 "{to_company_name}" 不存在，请先添加该公司信息')
-            return
-        company_dao.from_db(to_company_list[0])
-        dao.to_company_id = company_dao.id
-        dao.quantity = result[0].get('数量', 0)
-        dao.specifi = result[0].get('规格', '')
-        dao.unit_price = result[0].get('单价', 0.0)
-        dao.remark = result[0].get('备注', '')
-        dao.operator_flag = 1 # 上传发票
-        dao.status = 1 # 已开票
-        if dao.is_red == 1:
-            dao.status = 3 # 已红冲
+    def handle_upload(dao: InvoiceRecordDao) -> None:
         res, record_list = g.my_db.query_invoice_record_by_time(dao.from_company_id, dao.to_company_id, dao.invoice_content, dao.invoice_time)
         if res and record_list is not None and len(record_list) > 0:
             ui.notify(f'发票 "{dao.invoice_number}" 已存在，不能重复上传')
@@ -251,7 +263,8 @@ def upload_invoice_pdf() -> None:
                     ui.notify('更新蓝字发票状态失败')
                     return
         ui.notify('保存发票信息成功')
-    uf.open_ocr_invoice_dialog(upload_invoice_ocr)
+    read_pdf_from_upload(handle_upload)
+    
     
                 
 def show_edit(e: events.GenericEventArguments) -> None:
@@ -318,6 +331,36 @@ def modify_or_add_invoice(dao: InvoiceRecordDao, is_add: bool = True):
         else:
             ui.label('修改开票').classes('w-full text-[20px] text-[#333333] font-medium')
         with ui.row().classes('w-full mt-5 place-content-between items-center'):
+            if not is_add:
+                with ui.row().classes('w-full place-content-between'):
+                    def handle_upload_invoice_ocr(event):
+                        # event.content 是文件的二进制内容
+                        file_content = io.BytesIO(event.content.read())
+                        results = uf.recognize_invoice_pdf(file_content.read())
+                        upload_dao = parse_upload_result_to_dao(results)
+                        if upload_dao is not None:
+                            # if dao.from_company_id != upload_dao.from_company_id or dao.to_company_id != upload_dao.to_company_id:
+                            #     ui.notify('上传发票的开票方或受票方与当前编辑的发票不符，上传失败')
+                            #     return
+                            dao.specifi = upload_dao.specifi
+                            dao.quantity = upload_dao.quantity
+                            dao.unit_price = upload_dao.unit_price
+                            dao.tax_rate = upload_dao.tax_rate
+                            dao.invoice_number = upload_dao.invoice_number
+                            dao.invoice_time = upload_dao.invoice_time
+                            dao.is_red = upload_dao.is_red
+                            dao.blue_invoice_number = upload_dao.blue_invoice_number
+                            dao.invoice_content = upload_dao.invoice_content
+                            dao.before_tax_money = upload_dao.before_tax_money
+                            dao.invoice_money = upload_dao.invoice_money
+                            dao.added_tax = upload_dao.added_tax
+                            dao.remark = upload_dao.remark
+                            dao.status = upload_dao.status
+                            if before_tax_money_input is not None:
+                                before_tax_money_input.set_value(dao.before_tax_money)
+                    ui.upload(label="请选择批量上传文件", on_upload=handle_upload_invoice_ocr) \
+                        .props('flat accept=".pdf"') \
+                        .classes('size-full')
             with ui.row().classes('w-[49%] place-content-start items-center gap-1'):
                 ui.label('开票方').classes('w-[20%] text-[16px] text-[#333333] font-medium')
                 def on_from_change(value):
@@ -545,7 +588,8 @@ def modify_or_add_invoice(dao: InvoiceRecordDao, is_add: bool = True):
         if not is_add:
             with ui.row().classes('w-[49%] place-content-start items-center gap-1'):
                 ui.label('开票时间').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
-                inputs.date_input_w40('开票时间', lambda e: setattr(dao, 'invoice_time', e.value))
+                date_input = inputs.date_input_w40('开票时间', lambda e: setattr(dao, 'invoice_time', e.value))
+                date_input.bind_value_from(dao, 'invoice_time')
         with ui.row().classes('w-full place-content-end'):         
             ui.button('取消', color=None, on_click=dialog.close) \
                 .props('flat') \
