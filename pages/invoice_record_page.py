@@ -21,6 +21,8 @@ class SearchCondition:
     invoice_content: str = ""
     begin_time: str = ""
     end_time: str = ""
+    invoice_number: str = ""
+    status: int = -1 # -1: 全部, 0: 未开票, 1: 已开票, 2: 已作废, 3: 已红冲
 search_condition = SearchCondition()
 
 def show_invoice_record_page():
@@ -32,7 +34,7 @@ def show_invoice_record_page():
     
     with ui.column().classes('w-full px-[20px] py-[10px] mt-0 items-center gap-2') \
         .style('background-color: #FFFFFF !important; border-radius: 10px;'):
-        with ui.row().classes('w-full place-content-start items-center'):
+        with ui.row().classes('w-full place-content-start items-center gap-1'):
             with ui.row().classes('w-[25%] place-content-start items-center'):
                 ui.label('开票方').classes('w-[20%] text-[16px] text-[#333333] font-medium')
                 def on_from_change(value):
@@ -53,19 +55,40 @@ def show_invoice_record_page():
                 .bind_value_to(search_condition, 'begin_time')
             inputs.date_input_w40('结束时间', on_search) \
                 .bind_value_to(search_condition, 'end_time')
-        with ui.row().classes('w-full place-content-end items-center'):
-            ui.button('刷新', icon='refresh', on_click=on_search) \
-                .classes('w-25 rounded-md text-white') \
-                .style('background-color: #6C96FB !important')
-            ui.button('删除', icon='delete', on_click=del_select) \
-                .classes('w-25 rounded-md text-red') \
-                .style('background-color: rgba(255,77,77,0.39) !important')
-            ui.button('开票计划', icon='add_chart', on_click=add_invoice) \
-                .classes('w-25 rounded-md text-white') \
-                .style('background-color: #65B6FF !important')
-            ui.button('上传发票', icon='upload', on_click=upload_invoice_pdf) \
-                .classes('w-25 rounded-md text-white') \
-                .style('background-color: #65B6FF !important')
+        with ui.row().classes('w-full place-content-start items-center gap-1'):
+            with ui.row().classes('w-[25%] place-content-start items-center'):
+                ui.label('状态').classes('w-[20%] text-[16px] text-[#333333] font-medium')
+                def on_status_change(value):
+                    if value == '全部':
+                        search_condition.status = -1
+                    elif value == '未开票':
+                        search_condition.status = 0
+                    elif value == '已开票':
+                        search_condition.status = 1
+                    elif value == '已作废':
+                        search_condition.status = 2
+                    elif value == '已红冲':
+                        search_condition.status = 3
+                    on_search()
+                inputs.selection_w60(['全部', '未开票', '已开票', '已作废', '已红冲'], '全部', need_input=False, on_change=on_status_change)
+            with ui.row().classes('w-[25%] place-content-start items-center'):
+                inputs.input_search_w60('发票号码', on_search).bind_value_to(search_condition, 'invoice_number')
+            with ui.row().classes('w-[49%] place-content-start items-center gap-1'):
+                ui.button('刷新', icon='refresh', on_click=on_search) \
+                    .classes('w-25 rounded-md text-white') \
+                    .style('background-color: #6C96FB !important')
+                ui.button('删除', icon='delete', on_click=del_select) \
+                    .classes('w-25 rounded-md text-red') \
+                    .style('background-color: rgba(255,77,77,0.39) !important')
+                ui.button('开票计划', icon='add_chart', on_click=add_invoice) \
+                    .classes('w-25 rounded-md text-white') \
+                    .style('background-color: #65B6FF !important')
+                ui.button('导出', icon='file_download', on_click=export_invoice_to_excel) \
+                    .classes('w-25 rounded-md text-white') \
+                    .style('background-color: #65B6FF !important')
+                ui.button('上传发票', icon='upload', on_click=upload_invoice_pdf) \
+                    .classes('w-25 rounded-md text-white') \
+                    .style('background-color: #65B6FF !important')
             
     table_rows: list[dict] = []
     app.storage.client['invoice_record_table'] = tables.show_open_invoice_table(table_rows, show_edit, delete_one)
@@ -76,6 +99,8 @@ def on_search() -> None:
         search_condition.invoice_from_id,
         search_condition.invoice_to_id,
         search_condition.invoice_content,
+        search_condition.invoice_number,
+        search_condition.status,
         search_condition.begin_time,
         search_condition.end_time,)
     if result is False:
@@ -239,6 +264,7 @@ def read_pdf_from_upload(handle_upload: Callable) -> None:
         if handle_upload is not None and dao is not None:
             handle_upload(dao)
     uf.open_ocr_invoice_dialog(upload_invoice_ocr)
+
 # @description: 上传发票PDF
 # @param None
 # @return: None
@@ -265,7 +291,63 @@ def upload_invoice_pdf() -> None:
         ui.notify('保存发票信息成功')
     read_pdf_from_upload(handle_upload)
     
-    
+# @description: 导出选中发票记录
+# @param None
+# @return: None    
+def export_invoice_to_excel() -> None:
+    if search_condition.invoice_from_name == '':
+        ui.notify('请先选择开票方')
+        return
+    if 'invoice_record_table' not in app.storage.client:
+        ui.notify('请先查询开票记录')
+        return
+    selection = app.storage.client['invoice_record_table'].selected
+    if not selection:
+        ui.notify('请选择要导出的开票记录')
+        return
+    ids = [item['id'] for item in selection]
+    if not ids:
+        ui.notify('没有选中任何开票记录')
+        return
+    file_name = f"./static/{search_condition.invoice_from_name}-开票计划.xlsx"
+    df1 = pd.DataFrame()
+    for id in ids:
+        res, record_dao = g.my_db.query_invoice_record_by_id(id)
+        if not res or record_dao is None:
+            continue
+        res, to_dao = g.my_db.query_company_by_id(record_dao.to_company_id)
+        if not res or to_dao is None:
+            continue
+        res, results = g.my_db.query_invoice_title_all(company_id = to_dao.id)
+        title_phone: str = ''
+        title_bank_account: str = ''
+        title_bank_name: str = ''
+        if res and results is not None:
+            title_dao = results[0]
+            title_phone = title_dao.contact_phone
+            title_bank_account = title_dao.bank_account
+            title_bank_name = title_dao.bank_name
+        df2 = pd.DataFrame([['公司名称', to_dao.name], \
+                    ['税号', to_dao.tax_no], \
+                    ['地址电话', f'{to_dao.address} {title_phone}'], \
+                    ['开户银行及账号', f'{title_bank_name} {title_bank_account}']])
+        df1 = pd.concat([df1, df2], ignore_index=True)
+        df3 = pd.DataFrame([['项目名称', '发票类型', '规格', '数量', '单价', '含税额', '税率', '税额', '金额'], \
+                    [record_dao.invoice_content, \
+                    '专票' if record_dao.invoice_type == 1 else '普票', \
+                    record_dao.specifi, \
+                    record_dao.quantity, \
+                    record_dao.unit_price, \
+                    record_dao.before_tax_money, \
+                    f'{record_dao.tax_rate*100:.0f}%', \
+                    record_dao.added_tax, \
+                    record_dao.invoice_money]])
+        df1 = pd.concat([df1, df3], ignore_index=True)
+        df4 = pd.DataFrame([[None, None], [None, None]])
+        df1 = pd.concat([df1, df4], ignore_index=True)
+    df1.to_excel(file_name, index=False)
+    ui.download.file(file_name)
+
                 
 def show_edit(e: events.GenericEventArguments) -> None:
     id = e.args['id']

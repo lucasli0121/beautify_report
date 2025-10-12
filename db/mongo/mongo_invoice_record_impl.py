@@ -59,7 +59,7 @@ class MongoInvoiceRecordImpl():
     :param condition: 查询条件，例如 "id = 1"
     :return: 查询结果列表，每个元素是一个字典，包含公司信息
     """
-    def query_all(self, from_company_id: str, to_company_id: str, invoice_content: str, begin_time: str, end_time: str) -> tuple[bool, Any|None]:
+    def query_all(self, from_company_id: str, to_company_id: str, invoice_content: str, invoice_number: str, status: int, begin_time: str, end_time: str) -> tuple[bool, Any|None]:
         tbl_name = self.invoice_record_tbl()
         if tbl_name is None:
             self.logger.error("invoice table not found in MongoDB.")
@@ -71,6 +71,10 @@ class MongoInvoiceRecordImpl():
             query['to_company_id'] = {'$eq': to_company_id}
         if invoice_content or len(invoice_content) > 0:
             query['invoice_content'] = {'$regex': invoice_content, '$options': 'i'}
+        if invoice_number or len(invoice_number) > 0:
+            query['invoice_number'] = {'$eq': invoice_number}
+        if status >= 0:
+            query['status'] = {'$eq': status}
         if begin_time or len(begin_time) > 0:
             query['create_time'] = {'$gte': begin_time}
         if end_time or len(end_time) > 0:

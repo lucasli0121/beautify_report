@@ -241,12 +241,12 @@ class MyDb:
         self.logger.error("No database implementation available for querying invoice record.")
         return False, None
     
-    def query_all_invoice_record(self, from_company_id: str, to_company_id: str, invoice_content: str, begin_time: str, end_time: str) -> tuple[bool, Any|None]:
+    def query_all_invoice_record(self, from_company_id: str, to_company_id: str, invoice_content: str, invoice_number: str, status: int, begin_time: str, end_time: str) -> tuple[bool, Any|None]:
         if self.mysql is not None:
             return False, None
         else:
             if self.mongo is not None:
-                return MongoInvoiceRecordImpl(self.mongo).query_all(from_company_id, to_company_id, invoice_content, begin_time, end_time)
+                return MongoInvoiceRecordImpl(self.mongo).query_all(from_company_id, to_company_id, invoice_content, invoice_number, status, begin_time, end_time)
         self.logger.error("No database implementation available for querying invoice record.")
         return False, None
     def query_invoice_record_by_id(self, id: str) -> tuple[bool, Any|None]:
