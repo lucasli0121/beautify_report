@@ -6,6 +6,7 @@ from typing import Any, Callable, Optional
 import pandas as pd
 import io
 import os
+from openpyxl.utils import get_column_letter
 from dao.company_dao import CompanyDao
 from dao.invoice_record_dao import InvoiceRecordDao
 from dao.service_record_dao import ServiceRecordDao
@@ -341,8 +342,8 @@ def export_invoice_to_excel() -> None:
                     [record_dao.invoice_content, \
                     '专票' if record_dao.invoice_type == 1 else '普票', \
                     record_dao.specifi, \
-                    record_dao.quantity, \
-                    record_dao.unit_price, \
+                    None if record_dao.status == 0 and record_dao.quantity == 0 else record_dao.quantity, \
+                    None if record_dao.status == 0 and record_dao.unit_price == 0 else record_dao.unit_price, \
                     record_dao.before_tax_money, \
                     f'{record_dao.tax_rate*100:.0f}%', \
                     record_dao.added_tax, \
@@ -350,7 +351,18 @@ def export_invoice_to_excel() -> None:
         df1 = pd.concat([df1, df3], ignore_index=True)
         df4 = pd.DataFrame([[None, None], [None, None]])
         df1 = pd.concat([df1, df4], ignore_index=True)
-    df1.to_excel(file_name, index=False)
+    with pd.ExcelWriter(file_name, engine='openpyxl') as writer:
+        df1.to_excel(writer, index=False, sheet_name='开票计划')
+        worksheet = writer.sheets['开票计划']
+        # 自动调整每列宽度
+        for i, col in enumerate(df1.columns):
+            column_letter = get_column_letter(i + 1)
+            values = df1[col].astype(str).replace(['nan', 'None'], '')
+            max_len = max(
+                values.map(len).max(),   # 所有行的最大长度
+                len(str(col))            # 列标题长度
+            ) + 5  # 额外空格，美观用
+            worksheet.column_dimensions[column_letter].width = max_len
     ui.download.file(file_name)
 
                 
