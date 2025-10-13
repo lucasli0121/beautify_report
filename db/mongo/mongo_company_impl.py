@@ -75,7 +75,7 @@ class MongoCompanyImpl():
     :param condition: 查询条件，例如 "id = 1"
     :return: 查询结果列表，每个元素是一个字典，包含公司信息
     """
-    def query_all_company(self, name: str, address: str, contacts: str) -> tuple[bool, None|list[Any]]:
+    def query_all_company(self, name: str, address: str, contacts: str, company_type: str) -> tuple[bool, None|list[Any]]:
         tbl_name = self.company_tbl()
         if tbl_name is None:
             self.logger.error("Company table not found in MongoDB.")
@@ -90,6 +90,8 @@ class MongoCompanyImpl():
             query['address'] = {'$regex': address, '$options': 'i'}
         if contacts or len(contacts) > 0:
             query['contacts'] = {'$regex': contacts, '$options': 'i'}
+        if company_type or len(company_type) > 0:
+            query['company_type'] = {'$regex': company_type, '$options': 'i'}
         return self.mongo_impl.query_by_condition(tbl_name, query, {'brief_name': 1})
     
     """
@@ -97,7 +99,7 @@ class MongoCompanyImpl():
     :param condition: 查询条件，例如 "id = 1"
     :return: 查询结果列表，每个元素是一个字典，包含公司信息
     """
-    def query_inner_company(self, name: str, address: str, contacts: str) -> tuple[bool, None|list[Any]]:
+    def query_inner_company(self, name: str, address: str, contacts: str, company_type: str) -> tuple[bool, None|list[Any]]:
         """
         查询内部公司信息
         :return: 成功返回True和公司信息字典，否则返回False和空字典
@@ -114,6 +116,8 @@ class MongoCompanyImpl():
             condition['address'] = {'$regex': address, '$options': 'i'}
         if contacts or len(contacts) > 0:
             condition['contacts'] = {'$regex': contacts, '$options': 'i'}
+        if company_type or len(company_type) > 0:
+            condition['company_type'] = {'$regex': company_type, '$options': 'i'}
         # 只查询公司类型不是2的记录
         condition['type'] = {'$ne': 2}
         return self.mongo_impl.query_by_condition(tbl_name, condition, {'name': 1})

@@ -29,7 +29,7 @@ def unsubscribe_attr_topic(mac: str):
 
 
 def query_company_name_company() -> tuple[bool, dict[str, CompanyDao]]:
-    result, list_values = my_db.query_all_company('','','')
+    result, list_values = my_db.query_all_company('','','','')
     if result is False:
         return False, {}
     company_info = {}

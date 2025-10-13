@@ -91,20 +91,20 @@ class MyDb:
         self.logger.error("No database implementation available for updating company.")
         return False
     
-    def query_all_company(self, name: str, address: str, contacts: str) -> tuple[bool, None|list[Any]]:
+    def query_all_company(self, name: str, address: str, contacts: str, company_type: str) -> tuple[bool, None|list[Any]]:
         if self.mysql is not None:
             return MySqlCompanyImpl(self.mysql).query_all_company(name, address, contacts)
         else:
             if self.mongo is not None:
-                return MongoCompanyImpl(self.mongo).query_all_company(name, address, contacts)
+                return MongoCompanyImpl(self.mongo).query_all_company(name, address, contacts, company_type)
         self.logger.error("No database implementation available for querying company.")
         return False, None
-    def query_inner_company(self, name: str, address: str, contacts: str) -> tuple[bool, None|list[Any]]:
+    def query_inner_company(self, name: str, address: str, contacts: str, company_type: str) -> tuple[bool, None|list[Any]]:
         if self.mysql is not None:
             return MySqlCompanyImpl(self.mysql).query_all_company(name, address, contacts)
         else:
             if self.mongo is not None:
-                return MongoCompanyImpl(self.mongo).query_inner_company(name, address, contacts)
+                return MongoCompanyImpl(self.mongo).query_inner_company(name, address, contacts, company_type)
         self.logger.error("No database implementation available for querying company.")
         return False, None
     

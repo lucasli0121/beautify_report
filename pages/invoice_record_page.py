@@ -7,7 +7,7 @@ import pandas as pd
 import io
 import os
 from openpyxl.utils import get_column_letter
-from dao.company_dao import CompanyDao
+from dao.company_dao import CompanyDao, CompanyType
 from dao.invoice_record_dao import InvoiceRecordDao
 from dao.service_record_dao import ServiceRecordDao
 from utils import global_vars as g
@@ -232,7 +232,7 @@ def parse_upload_result_to_dao(result: list) -> Optional[InvoiceRecordDao]:
     if from_company_name == '' or to_company_name == '':
         ui.notify('发票信息不完整，开票方和受票方不能为空')
         return None
-    res, from_company_list = g.my_db.query_all_company(from_company_name, '', '')
+    res, from_company_list = g.my_db.query_all_company(from_company_name, '', '', '')
     if not res:
         ui.notify(f'查询 "{from_company_name}" 失败')
         return None
@@ -245,7 +245,7 @@ def parse_upload_result_to_dao(result: list) -> Optional[InvoiceRecordDao]:
     if to_company_name == '' or to_company_name == '':
         ui.notify('发票信息不完整，开票方和受票方不能为空')
         return None
-    res, to_company_list = g.my_db.query_all_company(to_company_name, '', '')
+    res, to_company_list = g.my_db.query_all_company(to_company_name, '', '', '')
     if not res:
         ui.notify(f'查询 "{to_company_name}" 失败')
         return None
@@ -336,11 +336,11 @@ def export_invoice_to_excel() -> None:
         df2 = pd.DataFrame([['公司名称', to_dao.name], \
                     ['税号', to_dao.tax_no], \
                     ['地址电话', f'{to_dao.address} {title_phone}'], \
-                    ['开户银行及账号', f'{title_bank_name} {title_bank_account}']])
+                    ['开户银行及账号', f'{title_bank_name} {title_bank_account}'], \
+                    ['发票类型', '专票' if record_dao.invoice_type == 1 else '普票']])
         df1 = pd.concat([df1, df2], ignore_index=True)
-        df3 = pd.DataFrame([['项目名称', '发票类型', '规格', '数量', '单价', '含税额', '税率', '税额', '金额'], \
+        df3 = pd.DataFrame([['项目名称', '规格', '数量', '单价', '含税额', '税率', '税额', '金额'], \
                     [record_dao.invoice_content, \
-                    '专票' if record_dao.invoice_type == 1 else '普票', \
                     record_dao.specifi, \
                     None if record_dao.status == 0 and record_dao.quantity == 0 else record_dao.quantity, \
                     None if record_dao.status == 0 and record_dao.unit_price == 0 else record_dao.unit_price, \
@@ -465,6 +465,18 @@ def modify_or_add_invoice(dao: InvoiceRecordDao, is_add: bool = True):
                 def on_from_change(value):
                     if value in company_info:
                         dao.from_company_id = company_info[value].id
+                        if is_add:
+                            company_type = company_info[value].company_type
+                            if company_type == CompanyType.GENERAL.value:
+                                if invoice_type_select is not None:
+                                    invoice_type_select.value = '专票'
+                                if tax_rate_select is not None:
+                                    tax_rate_select.set_value('6%')
+                            else:
+                                if invoice_type_select is not None:
+                                    invoice_type_select.value = '普票'
+                                if tax_rate_select is not None:
+                                    tax_rate_select.set_value('1%')
                         if dao.to_company_id is not None and dao.to_company_id != "":
                             change_contract_name()
                 from_company_select = inputs.selection_w60(options, None, need_input=True, on_change=on_from_change)

@@ -13,6 +13,7 @@ def show_company_table(datas, show_edit, show_delete) -> ui.table:
         {'name': 'sn', 'label': '序号', 'field': 'sn', 'width': '5%', 'align': 'center'},
         {'name': 'name', 'label': '名称', 'field': 'name', 'width': '10%', 'align': 'center'},
         {'name': 'brief_name', 'label': '简称', 'field': 'brief_name', 'width': '5%', 'align': 'center'},
+        {'name': 'company_type', 'label': '公司类型', 'field': 'company_type', 'width': '5%', 'align': 'center'},
         {'name': 'address', 'label': '地址', 'field': 'address', 'width': '15%', 'align': 'center'},
         {'name': 'contacts', 'label': '联系人', 'field': 'contacts', 'width': '10%', 'align': 'center'},
         {'name': 'phone', 'label': '电话', 'field': 'phone', 'width': '10%', 'align': 'center'},
@@ -40,7 +41,7 @@ def show_company_table(datas, show_edit, show_delete) -> ui.table:
         #     </q-tr>
         # ''')
         table.props('v-model:selected="selected"')
-        table.props('visible-columns="[\'sn\', \'name\', \'brief_name\', \'address\', \'contacts\', \'phone\', \'email\', \'invoice_limit\', \'has_invoiced\', \'tax_no\', \'extends\', \'operation\']"')
+        table.props('visible-columns="[\'sn\', \'name\', \'brief_name\', \'company_type\', \'address\', \'contacts\', \'phone\', \'email\', \'invoice_limit\', \'has_invoiced\', \'tax_no\', \'extends\', \'operation\']"')
         
         table.add_slot('body-cell-operation', r'''
             <q-td auto-width key="operation" :props="props" class="item-left">
@@ -51,6 +52,16 @@ def show_company_table(datas, show_edit, show_delete) -> ui.table:
                 <q-btn size="sm" flat round dense icon="delete_outline"
                     @click="() => $parent.$emit('show_delete', props.row)"
                 />
+            </q-td>
+        ''')
+        table.add_slot('body-cell-company_type', r'''
+            <q-td auto-width key="company_type" :props="props" class="item-left">
+                <template v-if="props.row.company_type == 'general'">
+                    一般纳税人
+                </template>
+                <template v-if="props.row.company_type == 'small'">
+                    小规模
+                </template>
             </q-td>
         ''')
         table.on('show_delete', show_delete)
@@ -97,6 +108,7 @@ def show_invoice_title_table(datas, show_edit, show_delete) -> ui.table:
                 />
             </q-td>
         ''')
+        
         table.on('show_edit', show_edit)
         table.on('show_delete', show_delete)
     return table

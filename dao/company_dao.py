@@ -1,8 +1,13 @@
 from dataclasses import dataclass
 import logging
 from typing import Any
+from enum import Enum
 
 logger = logging.getLogger(__name__)
+
+class CompanyType(Enum):
+    GENERAL = 'general'  # 一般纳税人
+    SMALL = 'small'      # 小规模纳税人
 
 @dataclass
 class CompanyDao:
@@ -16,6 +21,7 @@ class CompanyDao:
     invoice_limit: int
     has_invoiced: float
     tax_no: str
+    company_type: str # general: 一般纳税人, small: 小规模纳税人
     type: int # 1: 内部公司, 2: 外部公司
     extends: dict[str, Any]
     
@@ -30,6 +36,7 @@ class CompanyDao:
         self.invoice_limit = invoice_limit
         self.has_invoiced = has_invoiced
         self.tax_no = tax_no
+        self.company_type = CompanyType.GENERAL.value
         self.type = 1
         self.extends = {}
 
@@ -47,6 +54,7 @@ class CompanyDao:
         self.invoice_limit = data.get('invoice_limit', 10)
         self.has_invoiced = round(data.get('has_invoiced', 0.0), 2)
         self.tax_no = data.get('tax_no', "")
+        self.company_type = data.get('company_type', CompanyType.GENERAL.value)
         self.type = data.get('type', 1)
         self.extends = data.get('extends', {})
         
