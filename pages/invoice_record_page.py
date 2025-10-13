@@ -42,6 +42,8 @@ def show_invoice_record_page():
                         search_condition.invoice_from_id = company_info[value].id
                         search_condition.invoice_from_name = value
                 inputs.selection_w60(options, None, need_input=True, on_change=on_from_change)
+                search_condition.invoice_from_id = ''
+                search_condition.invoice_from_name = ''
             with ui.row().classes('w-[25%] place-content-start items-center'):
                 ui.label('受票方').classes('w-[20%] text-[16px] text-[#333333] font-medium')
                 def on_to_change(value):
@@ -49,6 +51,8 @@ def show_invoice_record_page():
                         search_condition.invoice_to_id = company_info[value].id
                         search_condition.invoice_to_name = value
                 inputs.selection_w60(options, None, need_input=True, on_change=on_to_change)
+                search_condition.invoice_to_id = ''
+                search_condition.invoice_to_name = ''
             inputs.input_search_w40('发票内容', on_search) \
                 .bind_value_to(search_condition, 'invoice_content')
             inputs.date_input_w40('开始时间', on_search) \
@@ -71,6 +75,7 @@ def show_invoice_record_page():
                         search_condition.status = 3
                     on_search()
                 inputs.selection_w60(['全部', '未开票', '已开票', '已作废', '已红冲'], '全部', need_input=False, on_change=on_status_change)
+                search_condition.status = -1
             with ui.row().classes('w-[25%] place-content-start items-center'):
                 inputs.input_search_w60('发票号码', on_search).bind_value_to(search_condition, 'invoice_number')
             with ui.row().classes('w-[49%] place-content-start items-center gap-1'):
