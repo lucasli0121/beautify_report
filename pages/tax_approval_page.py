@@ -165,7 +165,7 @@ def upload_approval_pdf() -> None:
             if not res:
                 ui.notify('保存凭证信息失败')
                 return
-        ui.notify('保存发票信息成功')
+        ui.notify('保存凭证信息成功')
         on_search()
     read_pdf_from_upload(handle_upload)
 #
