@@ -239,6 +239,69 @@ def show_open_invoice_table(datas, show_edit, show_delete) -> ui.table:
     return table
 
 #
+# @description: 显示完税证明的表格
+# @param {list} datas 数据列表
+#
+def show_tax_approval_table(datas, show_edit, show_delete) -> ui.table:
+    table_columns = [
+        {'name': 'operation', 'label': '操作', 'field': 'operation', 'width': '10%', 'align': 'center'},
+        {'name': 'sn', 'label': '序号', 'field': 'sn', 'width': '5%', 'align': 'center'},
+        {'name': 'create_time', 'label': '填表时间', 'field': 'create_time', 'width': '10%', 'align': 'center'},
+        {'name': 'company_name', 'label': '纳税人', 'field': 'company_name', 'width': '10%', 'align': 'center'},
+        {'name': 'approval_no', 'label': '完税编号', 'field': 'approval_no', 'width': '10%', 'align': 'center'},
+        {'name': 'tax_authority', 'label': '税务机关', 'field': 'tax_authority', 'width': '5%', 'align': 'center'},
+        {'name': 'ori_voucher_number', 'label': '原始凭证号码', 'field': 'ori_voucher_number', 'width': '5%', 'align': 'center'},
+        {'name': 'tax_type', 'label': '税种', 'field': 'tax_type', 'width': '10%', 'align': 'center'},
+        {'name': 'item_name', 'label': '品目名称', 'field': 'item_name', 'width': '5%', 'align': 'center'},
+        {'name': 'tax_period', 'label': '税款所属日期', 'field': 'tax_period', 'width': '10%', 'align': 'center'},
+        {'name': 'entry_date', 'label': '入库日期', 'field': 'entry_date', 'width': '10%', 'align': 'center'},
+        {'name': 'paid_in_money', 'label': '实缴金额', 'field': 'paid_in_money', 'width': '10%', 'align': 'center'},
+        {'name': 'total_money', 'label': '总金额', 'field': 'total_money', 'width': '10%', 'align': 'center'},
+        {'name': 'remark', 'label': '备注', 'field': 'remark', 'width': '10%', 'align': 'center'}
+    ]
+    with ui.table(
+        columns=table_columns,
+        rows=datas,
+        selection='multiple',
+        row_key='id',
+        pagination={'rowsPerPage': 0, 'sortBy': 'sn', 'page': 1}) \
+            .props('table-header-style="color: white; font-size: 16px; background-color: #65B6FF;" flat no-shadow') \
+            .classes('w-full mt-2 gap-0') \
+            .style('border: 1px solid #ECECEC; border-radius: 10px 10px 0px 0px;') as table:
+        
+        table.props('v-model:selected="selected"')
+        table.props('visible-columns="[ \
+                    \'sn\', \
+                    \'create_time\', \
+                    \'company_name\', \
+                    \'approval_no\', \
+                    \'tax_authority\', \
+                    \'ori_voucher_number\', \
+                    \'tax_type\', \
+                    \'item_name\', \
+                    \'tax_period\', \
+                    \'entry_date\', \
+                    \'paid_in_money\', \
+                    \'total_money\', \
+                    \'remark\', \
+                    \'operation\']"')
+
+        table.add_slot('body-cell-operation', r'''
+            <q-td auto-width key="operation" :props="props" class="item-left">
+                <q-btn size="sm" flat round dense icon="edit"
+                    @click="() => $parent.$emit('show_edit', props.row)"
+                />
+                &nbsp;
+                <q-btn size="sm" flat round dense icon="delete_outline"
+                    @click="() => $parent.$emit('show_delete', props.row)"
+                />
+            </q-td>
+        ''')
+        table.on('show_edit', show_edit)
+        table.on('show_delete', show_delete)
+    return table
+
+#
 # @description: 显示公司银行账户表格
 # @param {list} datas 数据列表
 # @param {function} show_delete 删除操作的回调函数

@@ -17,6 +17,7 @@ from pages.brief_report_page import show_brief_report_page
 from pages.company_bank_account_page import show_company_bank_account_page
 from pages.payment_record_page import show_payment_record_page
 from pages.service_record_page import show_service_record_page
+from pages.tax_approval_page import show_tax_approval_page
 import navigation
 
 @ui.page('/')
@@ -106,6 +107,7 @@ def show_tabs() -> ui.tab_panels:
             bank_account = ui.tab(strings.get('bank_account'), icon='account_balance').props('icon-left').classes('w-full h-[80px]')
             service_record = ui.tab(strings.get('service_record'), icon='work_outline').props('icon-left').classes('w-full h-[80px]')
             invoiced_record = ui.tab(strings.get('invoiced_record'), icon='receipt').props('icon-left').classes('w-full h-[80px]')
+            tax_approval = ui.tab(strings.get('tax_certificate'), icon='verified').props('icon-left').classes('w-full h-[80px]')
             payment_record = ui.tab(strings.get('payment_record'), icon='payment').props('icon-left').classes('w-full h-[80px]')
             paytax_record = ui.tab(strings.get('paytax_record'), icon='paid').props('icon-left').classes('w-full h-[80px]')
             brief_report = ui.tab(strings.get('brief_report'), icon='bar_chart').props('icon-left').classes('w-full h-[80px]')
@@ -128,6 +130,8 @@ def show_tabs() -> ui.tab_panels:
             show_service_record_page()
         with ui.tab_panel(invoiced_record).classes('gap-0').style('margin: 0 !important; padding: 0 !important; background-color: #F4F9FD !important;'):
             show_invoice_record_page()
+        with ui.tab_panel(tax_approval).classes('gap-0').style('margin: 0 !important; padding: 0 !important; background-color: #F4F9FD !important;'):
+            show_tax_approval_page()
         with ui.tab_panel(payment_record).classes('gap-0').style('margin: 0 !important; padding: 0 !important; background-color: #F4F9FD !important;'):
             show_payment_record_page()
         with ui.tab_panel(paytax_record).classes('gap-0').style('margin: 0 !important; padding: 0 !important; background-color: #F4F9FD !important;'):

@@ -78,7 +78,10 @@ class MongoInvoiceRecordImpl():
         if begin_time or len(begin_time) > 0:
             query['create_time'] = {'$gte': begin_time}
         if end_time or len(end_time) > 0:
-            query['create_time'] = {'$lte': end_time}
+            if 'create_time' in query:
+                query['create_time']['$lte'] = end_time
+            else:
+                query['create_time'] = {'$lte': end_time}
         # 执行查询
         return self.mongo_impl.query_by_condition(tbl_name, query, {'invoice_time': -1})
     

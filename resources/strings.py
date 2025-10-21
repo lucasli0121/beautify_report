@@ -30,6 +30,7 @@ string_resources = {
     'invoice_title': "发票抬头",
     'invoiced_record': "开票记录",
     'payment_record': "付款记录",
+    'tax_certificate': "完税证明",
     'paytax_record': "税务记录",
     'service_record': '业务管理'
 }

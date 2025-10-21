@@ -19,9 +19,11 @@ from db.mongo.mongo_company_impl import MongoCompanyImpl
 from db.mongo.mongo_invoice_record_impl import MongoInvoiceRecordImpl
 from db.mongo.mongo_payment_record_impl import MongoPaymentRecordImpl
 from db.mongo.mongo_service_record_impl import MongoServiceRecordImpl
+from db.mongo.mongo_tax_approval_impl import MongoTaxApprovalImpl
 from db.mysql.mysql_company_impl import MySqlCompanyImpl
 from dao.company_dao import CompanyDao
 from dao.company_bank_account_dao import CompanyBankAccountDao
+from dao.tax_approval_dao import TaxApprovalDao
 
 class MyDb:
     def __init__(self):
@@ -353,4 +355,97 @@ class MyDb:
             if self.mongo is not None:
                 return MongoServiceRecordImpl(self.mongo).delete(id)
         self.logger.error("No database implementation available for deleting service record.")
+        return False
+    
+    ############################################################################################################
+    # 完税证明相关接口 
+    ############################################################################################################
+    """
+    function: add_tax_approval
+    description: 添加完税证明信息到数据库
+    :param {*} self
+    :param data: 完税证明信息字典
+    :return: 成功返回True，否则返回False    
+    """    
+    def add_tax_approval(self, data: dict[str, Any]) -> tuple[bool, str|None]:
+        if self.mysql is not None:
+            return False, None
+        else:
+            if self.mongo is not None:
+                return MongoTaxApprovalImpl(self.mongo).add(data)
+        self.logger.error("No database implementation available for adding tax approval.")
+        return False, None 
+    """ 
+    更新完税证明信息到数据库
+    :param {*} self
+    :param data: 完税证明字典
+    :param condition: 更新条件，例如 "id = 1"
+    :return: 成功返回True，否则返回False
+    """
+    def update_tax_approval(self, data: dict[str, Any], condition: dict[str, Any]) -> bool:
+        if self.mysql is not None:
+            return False
+        else:
+            if self.mongo is not None:
+                return MongoTaxApprovalImpl(self.mongo).update(data, condition)
+        self.logger.error("No database implementation available for updating tax approval.")
+        return False
+    """
+    查询完税证明信息
+    :param {*} self
+    :param condition: 查询条件，例如 "id = 1"
+    :return: 查询结果列表，每个元素是一个字典，包含公司信息
+    """
+    def query_all_tax_approval(self, company_id: str, approval_no: str, ori_voucher_number: str, begin_time: str, end_time: str) -> tuple[bool, Any|None]:
+        if self.mysql is not None:
+            return False, None
+        else:
+            if self.mongo is not None:
+                return MongoTaxApprovalImpl(self.mongo).query_all(company_id, approval_no, ori_voucher_number, begin_time, end_time)
+        self.logger.error("No database implementation available for querying tax approval.")
+        return False, None
+    """
+    function:
+    description: 从服务器查询信息
+    :param {*} self
+    :param id: 完税证明ID
+    :return: {*}
+    """
+    def query_tax_approval_by_id(self, id: str) -> tuple[bool, TaxApprovalDao|None]:
+        if self.mysql is not None:
+            return False, None
+        else:
+            if self.mongo is not None:
+                return MongoTaxApprovalImpl(self.mongo).query_by_id(id)
+        self.logger.error("No database implementation available for querying tax approval by id.")
+        return False, None
+    """
+    function:
+    description: 从服务器查询信息
+    :param {*} self
+    :param id: 完税证明No
+    :return: {*}
+    """
+    def query_tax_approval_by_no(self, no: str) -> tuple[bool, TaxApprovalDao|None]:
+        if self.mysql is not None:
+            return False, None
+        else:
+            if self.mongo is not None:
+                return MongoTaxApprovalImpl(self.mongo).query_by_approval_no(no)
+        self.logger.error("No database implementation available for querying tax approval by id.")
+        return False, None
+    """
+    function:
+    description: 删除完税证明信息
+    :param {*} self
+    :param id: 完税证明ID
+    :return: {*}
+    """
+    def delete_tax_approval(self, id: str) -> bool:
+        if self.mysql is not None:
+            return False
+        else:
+            if self.mongo is not None:
+                return MongoTaxApprovalImpl(self.mongo).delete(id)
+        self.logger.error("No database implementation available for deleting tax approval.")
         return False

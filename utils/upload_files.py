@@ -230,6 +230,196 @@ def extract_invoice_fields(texts: list, scores, boxes: list):
 
     return result
 
+'''
+    解析完税凭证字段
+'''
+def extract_certificate_fields(texts: list, scores, boxes: list) -> dict:
+    """从 OCR 文本中提取关键字段"""
+    result = {
+        "No": '',
+        "日期": '',
+        "税务机关": '',
+        "识别号": '',
+        "名称": '',
+        "原凭证号": [],
+        "税种": [],
+        "品目名称": [],
+        "税款所属日期": [],
+        "入库日期": [],
+        "实缴金额": [],
+        "总金额": 0,
+        "备注": ''
+    }
+
+    total_money_y = 0
+    for idx, t in enumerate(texts):
+        # No号码
+        match = re.search(r"^No\.\s*([0-9]+)", t)
+        if match:
+            result["No"] = match.group(1)
+
+        match = re.search(r"填发日期", t)
+        if match:
+            x = boxes[idx][0][0] + 100
+            y = boxes[idx][0][1] - 5
+            year = None
+            month = None
+            day = None
+            for j, b in enumerate(boxes):
+                if b[0][0] >= x and b[0][0] < (x + 200) and b[0][1] >= y and b[0][1] < (y + 30):
+                    text = texts[j].replace(' ', '').replace('\n', '')
+                    match = re.search(r"([0-9]+)年", text)
+                    if match:
+                        year = match.group(1)
+                    match = re.search(r"([0-9]+)月", text)
+                    if match:
+                        month = match.group(1).zfill(2)
+                    match = re.search(r"([0-9]+)日", text)
+                    if match:
+                        day = match.group(1).zfill(2)
+                    x = b[0][0] + 100
+            if year and month and day:
+                result["日期"] = f"{year}年{month}月{day}日"
+
+        match = re.search(r"税务机关", t)
+        if match:
+            x = boxes[idx][0][0] + 100
+            y = boxes[idx][0][1] - 5
+            for j, b in enumerate(boxes):
+                if b[0][0] >= x and b[0][0] < (x + 200) and b[0][1] >= y and b[0][1] <= (y + 30):
+                    result["税务机关"] = texts[j]
+                    break
+        match = re.search(r"纳税人识别号", t)
+        if match:
+            x = boxes[idx][0][0] + 100
+            y = boxes[idx][0][1] - 5
+            for j, b in enumerate(boxes):
+                if b[0][0] >= x and b[0][0] < (x + 200) and b[0][1] >= y and b[0][1] <= (y + 30):
+                    result["识别号"] = texts[j]
+                    break
+        match = re.search(r"纳税人名称", t)
+        if match:
+            x = boxes[idx][0][0] + 100
+            y = boxes[idx][0][1] - 5
+            for j, b in enumerate(boxes):
+                if b[0][0] >= x and b[0][0] < (x + 200) and b[0][1] >= y and b[0][1] <= (y + 30):
+                    result["名称"] = texts[j]
+                    break
+        match = re.search(r"原凭证号", t)
+        if match:
+            x = boxes[idx][0][0] - 100
+            y = boxes[idx][0][1] + 50
+            original_voucher_numbers = []
+            for j, b in enumerate(boxes):
+                if b[0][0] >= x and b[0][0] < (x + 100) and b[0][1] >= y and b[0][1] <= (y + 100):
+                    original_voucher_numbers.append(texts[j])
+                    y = b[0][1] + 30  # 继续向下偏移 30
+                    if y >= 1100:
+                        break
+            result["原凭证号"].extend(original_voucher_numbers)
+        match = re.search(r"税种", t)
+        if match:
+            x = boxes[idx][0][0] - 100
+            y = boxes[idx][0][1] + 50
+            tax_types = []
+            for j, b in enumerate(boxes):
+                if b[0][0] >= x and b[0][0] < (x + 100) and b[0][1] >= y and b[0][1] <= (y + 100):
+                    tax_types.append(texts[j])
+                    y = b[0][1] + 30  # 继续向下偏移 30
+                    if y >= 1100:
+                        break
+            result["税种"].extend(tax_types)
+        match = re.search(r"品目名称", t)
+        if match:
+            x = boxes[idx][0][0] - 100
+            y = boxes[idx][0][1] + 50
+            item_names = []
+            for j, b in enumerate(boxes):
+                if b[0][0] >= x and b[0][0] < (x + 100) and b[0][1] >= y and b[0][1] <= (y + 100):
+                    item_names.append(texts[j])
+                    y = b[0][1] + 30  # 继续向下偏移 30
+                    if y >= 1100:
+                        break
+            result["品目名称"].extend(item_names)
+        match = re.search(r"税款所属时期", t)
+        if match:
+            x = boxes[idx][0][0] - 130
+            y = boxes[idx][0][1] + 50
+            name = ""
+            tax_dates = []
+            for j, b in enumerate(boxes):
+                if b[0][0] >= x and b[0][0] < (x + 200) and b[0][1] >= y and b[0][1] <= (y + 100):
+                    if name == "":
+                        name = texts[j]
+                    else:
+                        name = name + texts[j]
+                        tax_dates.append(name)
+                        name = ""
+                    y = b[0][1] + 30  # 继续向下偏移 30
+                    if y >= 1100:
+                        break
+            result["税款所属日期"].extend(tax_dates)
+        match = re.search(r"入[（(]退[)）]库日期", t)
+        if match:
+            x = boxes[idx][0][0] - 100
+            y = boxes[idx][0][1] + 50
+            inventory_dates = []
+            for j, b in enumerate(boxes):
+                if b[0][0] >= x and b[0][0] < (x + 200) and b[0][1] >= y and b[0][1] <= (y + 100):
+                    inventory_dates.append(texts[j])
+                    y = b[0][1] + 30  # 继续向下偏移 30
+                    if y >= 1100:
+                        break
+            result["入库日期"].extend(inventory_dates)
+
+        match = re.search(r"实缴[（(]退[)）]金额", t)
+        if match:
+            x = boxes[idx][0][0] - 100
+            y = boxes[idx][0][1] + 50
+            paid_amounts = []
+            for j, b in enumerate(boxes):
+                if b[0][0] >= x and b[0][0] < (x + 300) and b[0][1] >= y and b[0][1] <= (y + 100):
+                    paid_amounts.append(float(texts[j].replace(' ', '').replace(',', '')))
+                    y = b[0][1] + 50  # 继续向下偏移 30
+                    if y >= 1100:
+                        break
+            result["实缴金额"].extend(paid_amounts)
+        match = re.search(r"金额合计", t)
+        if match:
+            total_money_y = boxes[idx][0][1] - 50
+        match = re.search(r"[￥¥](\d+\s*\.\d{1,2})", t)
+        if match:
+            if total_money_y == 0:
+                total_money_y = 1150
+            if boxes[idx][0][1] >= total_money_y and boxes[idx][0][1] < (total_money_y + 100):
+                result["总金额"] = float(match.group(1).replace(' ', '').replace(',', ''))
+        match = re.search(r"备注[:：](.*)", t)
+        if match:
+            result["备注"] = match.group(1)
+            start_x = boxes[idx][0][0] - 50
+            start_y = boxes[idx][0][1] - 10
+            remark_boxes = boxes[idx+1:]
+            remart_texts = texts[idx+1:]
+            x = start_x + 200
+            y = start_y
+            for j, b in enumerate(remark_boxes):
+                if b[0][0] >= x and b[0][0] < (x + 500) and b[0][1] >= y and b[0][1] < (y + 50):
+                    result["备注"] = result["备注"] + remart_texts[j]
+                    x = x + 200
+                else:
+                    x = start_x
+                    y = y + 30
+                    if b[0][0] >= x and b[0][0] < (x + 500) and b[0][1] >= y and b[0][1] < (y + 50):
+                        result["备注"] = result["备注"] + remart_texts[j]
+                        x = x + 200
+                if x > 1900:
+                    x = start_x
+                    y = y + 30  # 继续向下偏移 30
+                if y >= 1400:
+                    break
+                
+    return result
+
 def recognize_invoice_pdf(pdf_content):
     # 1. PDF 转图片
     pages = convert_from_bytes(pdf_content, dpi=300)
@@ -282,3 +472,61 @@ def open_ocr_invoice_dialog(handle_ocr_callback: Callable):
             ui.button('关闭', on_click=lambda: dialog.close()).classes('w-1/3')
 
     dialog.open()
+
+'''
+    识别完税凭证 PDF
+'''
+def recognize_certificate_pdf(pdf_content):
+    # 1. PDF 转图片
+    pages = convert_from_bytes(pdf_content, dpi=300)
+
+    all_fields = []
+
+    # 3. 逐页识别
+    for i, page in enumerate(pages):
+        print(f"\n===== 第 {i+1} 页 =====")
+        # img_path = f"page_{i+1}.jpg"
+        # page.save(img_path, "JPEG")
+
+        page = page.resize((2*page.width // 3, 2*page.height // 3))
+        img = np.array(page)
+
+        results = ocr.predict(img)
+        texts  = results[0]['rec_texts']
+        scores = results[0]['rec_scores']
+        boxes  = results[0]['dt_polys']
+
+        print("OCR 结果：")
+        for text, score, box in zip(texts, scores, boxes):
+            print(f"文字: {text}, 置信度: {score:.3f}, 坐标: {box}")
+
+        fields = extract_certificate_fields(texts, scores, boxes)
+        print("\n提取字段：", fields)
+
+        all_fields.append(fields)
+
+    return all_fields
+
+'''
+    打开完税凭证 OCR 对话框
+'''
+def open_ocr_certificate_dialog(handle_ocr_callback: Callable):
+    global import_invoice_ocr_callback
+    import_invoice_ocr_callback = handle_ocr_callback
+    with ui.dialog().props('persistent') as dialog, ui.card().classes('w-1/3 h-1/3') \
+        .style('background-color: #FFFFFF !important; border-radius: 10px;'):
+        with ui.row().classes('w-full h-[60%] mt-5 place-content-between'):
+            def handle_upload_invoice_ocr(event):
+                # event.content 是文件的二进制内容
+                file_content = io.BytesIO(event.content.read())
+                results = recognize_certificate_pdf(file_content.read())
+                if handle_ocr_callback is not None:
+                    handle_ocr_callback(results)
+                dialog.close()
+            ui.upload(label="请选择批量上传文件", on_upload=handle_upload_invoice_ocr) \
+                .props('flat accept=".pdf"') \
+                .classes('size-full')
+        with ui.row().classes('w-full h-[30%] place-content-center'):
+            ui.button('关闭', on_click=lambda: dialog.close()).classes('w-1/3')
+
+    dialog.open()    
