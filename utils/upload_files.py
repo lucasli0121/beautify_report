@@ -544,7 +544,7 @@ def open_ocr_certificate_dialog(handle_ocr_callback: Callable):
                 .classes('size-full')
         with ui.row().classes('w-full place-content-center') as loading_row:
             ui.icon('autorenew').classes('animate-spin text-4xl text-blue-500')
-            ui.label("完税凭证识别仅支持 CPU 识别，识别速度较慢，请耐心等待...")
+            ui.label("识别仅支持 CPU 识别，识别速度较慢，请耐心等待...")
             loading_row.visible = False
         with ui.row().classes('w-full place-content-center'):
             ui.button('关闭', on_click=lambda: dialog.close()).classes('w-1/3')
