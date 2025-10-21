@@ -5,6 +5,7 @@ LastEditors: liguoqiang
 LastEditTime: 2025-09-30 16:51:15
 Description: 
 '''
+import asyncio
 from typing import Callable
 from nicegui import ui
 import pandas as pd
@@ -451,6 +452,8 @@ def recognize_invoice_pdf(pdf_content):
 
     return all_fields
 
+async def recognize_invoice_pdf_async(pdf_content):
+    return await asyncio.to_thread(recognize_invoice_pdf, pdf_content)
 
 def open_ocr_invoice_dialog(handle_ocr_callback: Callable):
     global import_invoice_ocr_callback
@@ -458,20 +461,28 @@ def open_ocr_invoice_dialog(handle_ocr_callback: Callable):
     with ui.dialog().props('persistent') as dialog, ui.card().classes('w-1/3 h-1/3') \
         .style('background-color: #FFFFFF !important; border-radius: 10px;'):
         with ui.row().classes('w-full h-[60%] mt-5 place-content-between'):
-            def handle_upload_invoice_ocr(event):
+            async def handle_upload_invoice_ocr(event):
                 # event.content 是文件的二进制内容
                 file_content = io.BytesIO(event.content.read())
-                results = recognize_invoice_pdf(file_content.read())
+                pdf_uploader.label = "正在识别，请稍候..."
+                loading_row.visible = True
+                ui.update()
+                results = await recognize_invoice_pdf_async(file_content.read())
                 if handle_ocr_callback is not None:
                     handle_ocr_callback(results)
                 dialog.close()
-            ui.upload(label="请选择批量上传文件", on_upload=handle_upload_invoice_ocr) \
+            pdf_uploader = ui.upload(label="请选择批量上传文件", on_upload=handle_upload_invoice_ocr) \
                 .props('flat accept=".pdf"') \
                 .classes('size-full')
+        with ui.row().classes('w-full place-content-center') as loading_row:
+            ui.icon('autorenew').classes('animate-spin text-4xl text-blue-500')
+            ui.label("识别仅支持 CPU 识别，识别速度较慢，请耐心等待...")
+            loading_row.visible = False
         with ui.row().classes('w-full h-[30%] place-content-center'):
             ui.button('关闭', on_click=lambda: dialog.close()).classes('w-1/3')
 
     dialog.open()
+
 
 '''
     识别完税凭证 PDF
@@ -507,6 +518,8 @@ def recognize_certificate_pdf(pdf_content):
 
     return all_fields
 
+async def recognize_certificate_pdf_async(pdf_content):
+    return await asyncio.to_thread(recognize_certificate_pdf, pdf_content)
 '''
     打开完税凭证 OCR 对话框
 '''
@@ -516,17 +529,24 @@ def open_ocr_certificate_dialog(handle_ocr_callback: Callable):
     with ui.dialog().props('persistent') as dialog, ui.card().classes('w-1/3 h-1/3') \
         .style('background-color: #FFFFFF !important; border-radius: 10px;'):
         with ui.row().classes('w-full h-[60%] mt-5 place-content-between'):
-            def handle_upload_invoice_ocr(event):
+            async def handle_upload_invoice_ocr(event):
                 # event.content 是文件的二进制内容
                 file_content = io.BytesIO(event.content.read())
-                results = recognize_certificate_pdf(file_content.read())
+                pdf_uploader.label = "正在识别，请稍候..."
+                loading_row.visible = True
+                ui.update()
+                results = await recognize_certificate_pdf_async(file_content.read())
                 if handle_ocr_callback is not None:
                     handle_ocr_callback(results)
                 dialog.close()
-            ui.upload(label="请选择批量上传文件", on_upload=handle_upload_invoice_ocr) \
+            pdf_uploader = ui.upload(label="请选择批量上传文件", on_upload=handle_upload_invoice_ocr) \
                 .props('flat accept=".pdf"') \
                 .classes('size-full')
-        with ui.row().classes('w-full h-[30%] place-content-center'):
+        with ui.row().classes('w-full place-content-center') as loading_row:
+            ui.icon('autorenew').classes('animate-spin text-4xl text-blue-500')
+            ui.label("完税凭证识别仅支持 CPU 识别，识别速度较慢，请耐心等待...")
+            loading_row.visible = False
+        with ui.row().classes('w-full place-content-center'):
             ui.button('关闭', on_click=lambda: dialog.close()).classes('w-1/3')
 
     dialog.open()    

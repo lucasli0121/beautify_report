@@ -16,7 +16,6 @@ import logging.config
 import yaml
 from pages import main_page, login_page
 
-
 def init_logger():
     cfg_path = 'cfg/log.yaml'
     if not os.path.exists("log"):
