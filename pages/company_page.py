@@ -48,7 +48,7 @@ def show_company_page() -> None:
                 else:
                     search_condition.company_type = ''
                 on_search()
-            inputs.selection_w40(['全部','一般纳税人','小规模纳税人'], '全部', on_change=on_company_type_change)
+            inputs.selection_w40(['全部','一般纳税人','小规模纳税人'], '全部', False, on_change=on_company_type_change)
             search_condition.company_type = ''
         with ui.row().classes('w-[30%] place-content-start items-center gap-1'):
             ui.button('刷新', icon='img:/static/images/refresh@2x.png', on_click=on_search) \

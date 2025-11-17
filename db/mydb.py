@@ -12,8 +12,10 @@ from datetime import datetime
 from typing import Any
 from configparser import ConfigParser, NoSectionError
 import logging
+from dao.recognize_info_dao import RecognizeInfoDao
 from db.mongo.mongo_impl import MongoImpl
 from db.mongo.mongo_invoice_title_impl import MongoInvoiceTitleImpl
+from db.mongo.mongo_recognize_info_impl import MongoRecognizeInfoImpl
 from db.mysql.mysql_db import MySqlImpl
 from db.mongo.mongo_company_impl import MongoCompanyImpl
 from db.mongo.mongo_invoice_record_impl import MongoInvoiceRecordImpl
@@ -448,4 +450,55 @@ class MyDb:
             if self.mongo is not None:
                 return MongoTaxApprovalImpl(self.mongo).delete(id)
         self.logger.error("No database implementation available for deleting tax approval.")
+        return False
+    
+    def add_recognize_info(self, d: dict[str, Any]) -> tuple[bool, str|None]:
+        if self.mysql is not None:
+            return False, None
+        else:
+            if self.mongo is not None:
+                return MongoRecognizeInfoImpl(self.mongo).add(d)
+        self.logger.error("No database implementation available for adding recognize info.")
+        return False, None
+    
+    def update_recognize_info(self, d: dict[str, Any], condition: dict[str, Any]) -> bool:
+        if self.mysql is not None:
+            return False
+        else:
+            if self.mongo is not None:
+                return MongoRecognizeInfoImpl(self.mongo).update(d, condition)
+        self.logger.error("No database implementation available for updating recognize info.")
+        return False
+    def query_all_recognize_info(self, type:int) -> tuple[bool, Any|None]:
+        if self.mysql is not None:
+            return False, None
+        else:
+            if self.mongo is not None:
+                return MongoRecognizeInfoImpl(self.mongo).query_all(type)
+        self.logger.error("No database implementation available for querying recognize info.")
+        return False, None
+    def query_recognize_info_by_id(self, id: str) -> tuple[bool, RecognizeInfoDao|None]:
+        if self.mysql is not None:
+            return False, None
+        else:
+            if self.mongo is not None:
+                return MongoRecognizeInfoImpl(self.mongo).query_by_id(id)
+        self.logger.error("No database implementation available for querying recognize info by id.")
+        return False, None
+    
+    def query_recognizing_list_by_type(self, type: int) -> tuple[bool, Any|None]:
+        if self.mysql is not None:
+            return False, None
+        else:
+            if self.mongo is not None:
+                return MongoRecognizeInfoImpl(self.mongo).query_recognizing_list_by_type(type)
+        self.logger.error("No database implementation available for querying recognizing info.")
+        return False, None
+    def delete_recognize_info(self, id: str) -> bool:
+        if self.mysql is not None:
+            return False
+        else:
+            if self.mongo is not None:
+                return MongoRecognizeInfoImpl(self.mongo).delete(id)
+        self.logger.error("No database implementation available for deleting recognize info.")
         return False

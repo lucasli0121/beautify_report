@@ -1,3 +1,10 @@
+'''
+Author: liguoqiang
+Date: 2025-06-01 12:06:35
+LastEditors: liguoqiang
+LastEditTime: 2025-11-11 13:55:45
+Description: 
+'''
 import os
 from typing import Optional
 from nicegui import ui,app
@@ -6,7 +13,7 @@ from components import inputs
 
 passwords = {'admin': 'admin', 'user': 'user'}
 
-@ui.page('/login')
+# @ui.page('/login')
 def login() -> Optional[RedirectResponse]:
 
     ui.add_css('''

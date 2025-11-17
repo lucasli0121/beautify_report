@@ -7,22 +7,10 @@
             "program": "${workspaceFolder}/main.py",
             "console": "integratedTerminal",
             // "python": "/usr/bin/python3",
-            "justMyCode": true
+            "justMyCode": true,
+            "stopOnEntry": false,
+            "env": {"PYTHONUNBUFFERED": "1"}
         },
-        {
-            "name": "Docker: Python - General",
-            "type": "docker",
-            "request": "launch",
-            "preLaunchTask": "docker-run: debug",
-            "python": {
-                "pathMappings": [
-                    {
-                        "localRoot": "${workspaceFolder}",
-                        "remoteRoot": "/smart_school_web"
-                    }
-                ],
-                "projectType": "general"
-            }
-        }
+        
     ]
 }

@@ -54,7 +54,7 @@ def show_service_record_page():
                     search_condition.status = 4
                 else:
                     search_condition.status = -1
-            inputs.selection_w40(['所有', '无合同', '待付款', '待开票', '完成'], None, on_change=on_status_change)
+            inputs.selection_w40(['所有', '无合同', '待付款', '待开票', '完成'], None, False, on_change=on_status_change)
             inputs.date_input_w40('开始时间', on_search) \
                 .bind_value_to(search_condition, 'begin_time')
             inputs.date_input_w40('结束时间', on_search) \
@@ -209,7 +209,7 @@ def modify_or_new_service(dao: ServiceRecordDao, is_add: bool = True) -> None:
                 .bind_value_to(dao, 'contract_money')
         with ui.row().classes('w-full place-content-start items-center'):
             ui.label('是否有合同').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
-            contract_select = inputs.selection_w40(['无', '有'], '无', on_change=lambda value: setattr(dao, 'is_contract', 0 if value == '无' else 1))
+            contract_select = inputs.selection_w40(['无', '有'], '无', False, on_change=lambda value: setattr(dao, 'is_contract', 0 if value == '无' else 1))
             if is_add:
                 dao.is_contract = 0  # 默认无合同
             else:
@@ -246,7 +246,7 @@ def modify_or_new_service(dao: ServiceRecordDao, is_add: bool = True) -> None:
                     dao.status = 4
                 else:
                     dao.status = -1
-            status_select = inputs.selection_w40(['无', '无合同', '待付款', '待开票', '完成'], None, on_change=on_status_change)
+            status_select = inputs.selection_w40(['无', '无合同', '待付款', '待开票', '完成'], None, False, on_change=on_status_change)
             if is_add:
                 dao.status = 0  # 默认状态为无
             else:

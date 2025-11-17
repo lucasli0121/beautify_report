@@ -51,7 +51,7 @@ def show_payment_record_page():
                     search_condition.status = 2
                 else:
                     search_condition.status = -1
-            inputs.selection_w40(['未完成', '完成', '取消'], None, on_change=on_status_change)
+            inputs.selection_w40(['未完成', '完成', '取消'], None, False, on_change=on_status_change)
             inputs.date_input_w40('开始时间', on_search) \
                 .bind_value_to(search_condition, 'begin_time')
             inputs.date_input_w40('结束时间', on_search) \

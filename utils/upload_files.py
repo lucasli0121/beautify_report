@@ -6,8 +6,11 @@ LastEditTime: 2025-09-30 16:51:15
 Description: 
 '''
 import asyncio
+from datetime import datetime
+import random
+import string
 from typing import Callable
-from nicegui import ui
+from nicegui import ui, events
 import pandas as pd
 import re
 import io
@@ -20,6 +23,10 @@ import logging
 from paddleocr import logger
 from typing import Optional
 import matplotlib
+from utils import global_vars as g
+
+from dao.recognize_info_dao import RecognizeInfoDao, RecognizeResult, RecognizeType
+from grpc_protoc.invoice_recognize_client import recognize_certificate, recognize_invoice
 matplotlib.use('Agg')  # 使用非交互式后端
 
 import_invoice_ocr_callback: Optional[Callable] = None
@@ -28,9 +35,9 @@ os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["NUMEXPR_NUM_THREADS"] = "1"
 os.environ["OMP_NUM_THREADS"] = "1"
 
+
 fh = logging.FileHandler("paddleocr.log")
 logger.addHandler(fh)
-
 paddle.device.set_device('cpu')
 paddle.set_flags({'FLAGS_use_mkldnn': False})  # 关闭 MKLDNN
 # 2. 初始化 OCR
@@ -455,22 +462,56 @@ def recognize_invoice_pdf(pdf_content):
 async def recognize_invoice_pdf_async(pdf_content):
     return await asyncio.to_thread(recognize_invoice_pdf, pdf_content)
 
-def open_ocr_invoice_dialog(handle_ocr_callback: Callable):
-    global import_invoice_ocr_callback
-    import_invoice_ocr_callback = handle_ocr_callback
+'''
+    打开发票 OCR 对话框
+'''
+def open_ocr_invoice_dialog(handle_ocr_start_callback: Callable, handle_ocr_end_callback: Callable):
     with ui.dialog().props('persistent') as dialog, ui.card().classes('w-1/3 h-1/3') \
         .style('background-color: #FFFFFF !important; border-radius: 10px;'):
         with ui.row().classes('w-full h-[60%] mt-5 place-content-between'):
-            async def handle_upload_invoice_ocr(event):
-                # event.content 是文件的二进制内容
-                file_content = io.BytesIO(event.content.read())
-                pdf_uploader.label = "正在识别，请稍候..."
-                loading_row.visible = True
-                ui.update()
-                results = await recognize_invoice_pdf_async(file_content.read())
-                if handle_ocr_callback is not None:
-                    handle_ocr_callback(results)
+            async def handle_upload_invoice_ocr(e: events.UploadEventArguments):
                 dialog.close()
+                # event.content 是文件的二进制内容
+                file_content = await e.file.read()
+                save_dir = './static/uploads/'
+                os.makedirs(save_dir, exist_ok=True)  # 创建目录（若不存在）
+                file_name = e.file.name
+                save_path = os.path.join(save_dir, file_name)
+                with open(save_path, 'wb') as f:
+                    f.write(file_content)
+                # pdf_uploader.label = "正在识别，请稍候..."
+                # loading_row.visible = True
+                # ui.update()
+                # results = await recognize_invoice_pdf_async(file_content.read())
+                # if handle_ocr_callback is not None:
+                #     handle_ocr_callback(results)
+                recognize_dao = RecognizeInfoDao()
+                recognize_dao.file_name = file_name
+                recognize_dao.type = RecognizeType.InvoiceType.value
+                recognize_dao.result = RecognizeResult.InProgress.value
+                recognize_dao.create_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                dt = recognize_dao.to_db()
+                res, value = g.my_db.add_recognize_info(dt)
+                if res:
+                    id = str(value)
+                    recognize_dao.id = id
+                    if handle_ocr_start_callback is not None:
+                        handle_ocr_start_callback(recognize_dao)
+                    response = await recognize_invoice(file_name)
+                    if response is not None:
+                        print("gRPC 返回结果：", response)
+                        os.remove(save_path)
+                        if response.result == 0:
+                            recognize_dao.result = RecognizeResult.Success.value
+                            recognize_dao.msg = response.msg
+                        else:
+                            recognize_dao.result = RecognizeResult.Failed.value
+                            recognize_dao.msg = response.msg
+                        g.my_db.update_recognize_info(recognize_dao.to_db(), {'id': id})
+                        if handle_ocr_end_callback is not None:
+                            handle_ocr_end_callback(recognize_dao)
+                else:
+                    ui.notify("把数据保存到数据库失败", color='negative')
             pdf_uploader = ui.upload(label="请选择批量上传文件", on_upload=handle_upload_invoice_ocr) \
                 .props('flat accept=".pdf"') \
                 .classes('size-full')
@@ -523,22 +564,53 @@ async def recognize_certificate_pdf_async(pdf_content):
 '''
     打开完税凭证 OCR 对话框
 '''
-def open_ocr_certificate_dialog(handle_ocr_callback: Callable):
-    global import_invoice_ocr_callback
-    import_invoice_ocr_callback = handle_ocr_callback
+def open_ocr_certificate_dialog(handle_ocr_start_callback: Callable, handle_ocr_end_callback: Callable):
     with ui.dialog().props('persistent') as dialog, ui.card().classes('w-1/3 h-1/3') \
         .style('background-color: #FFFFFF !important; border-radius: 10px;'):
         with ui.row().classes('w-full h-[60%] mt-5 place-content-between'):
-            async def handle_upload_invoice_ocr(event):
-                # event.content 是文件的二进制内容
-                file_content = io.BytesIO(event.content.read())
-                pdf_uploader.label = "正在识别，请稍候..."
-                loading_row.visible = True
-                ui.update()
-                results = await recognize_certificate_pdf_async(file_content.read())
-                if handle_ocr_callback is not None:
-                    handle_ocr_callback(results)
+            async def handle_upload_invoice_ocr(e: events.UploadEventArguments):
                 dialog.close()
+                # event.content 是文件的二进制内容
+                file_content = await e.file.read()
+                save_dir = './static/uploads/'
+                os.makedirs(save_dir, exist_ok=True)  # 创建目录（若不存在）
+                file_name = e.file.name
+                save_path = os.path.join(save_dir, file_name)
+                with open(save_path, 'wb') as f:
+                    f.write(file_content)
+                # pdf_uploader.label = "正在识别，请稍候..."
+                # loading_row.visible = True
+                # ui.update()
+                # results = await recognize_invoice_pdf_async(file_content.read())
+                # if handle_ocr_callback is not None:
+                #     handle_ocr_callback(results)
+                recognize_dao = RecognizeInfoDao()
+                recognize_dao.file_name = file_name
+                recognize_dao.type = RecognizeType.TaxProofType.value
+                recognize_dao.result = RecognizeResult.InProgress.value
+                recognize_dao.create_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                dt = recognize_dao.to_db()
+                res, value = g.my_db.add_recognize_info(dt)
+                if res:
+                    id = str(value)
+                    recognize_dao.id = id
+                    if handle_ocr_start_callback is not None:
+                        handle_ocr_start_callback(recognize_dao)
+                    response = await recognize_certificate(file_name)
+                    if response is not None:
+                        print("gRPC 返回结果：", response)
+                        os.remove(save_path)
+                        if response.result == 0:
+                            recognize_dao.result = RecognizeResult.Success.value
+                            recognize_dao.msg = response.msg
+                        else:
+                            recognize_dao.result = RecognizeResult.Failed.value
+                            recognize_dao.msg = response.msg
+                        g.my_db.update_recognize_info(recognize_dao.to_db(), {'id': id})
+                        if handle_ocr_end_callback is not None:
+                            handle_ocr_end_callback(recognize_dao)
+                else:
+                    ui.notify("把数据保存到数据库失败", color='negative')
             pdf_uploader = ui.upload(label="请选择批量上传文件", on_upload=handle_upload_invoice_ocr) \
                 .props('flat accept=".pdf"') \
                 .classes('size-full')

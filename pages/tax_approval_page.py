@@ -11,6 +11,7 @@ import json
 import re
 from nicegui import ui,app,events
 from components import tables, inputs, dialogs
+from dao.recognize_info_dao import RecognizeInfoDao, RecognizeType
 from dao.tax_approval_dao import TaxApprovalDao
 from dao.company_dao import CompanyDao
 from typing import Callable, Optional, cast
@@ -39,9 +40,9 @@ def show_tax_approval_page() -> None:
         return
     options = list(company_info.keys())  # 获取所有公司名称
 
-    with ui.row().classes('w-full px-[20px] mt-0 place-content-start gap-1') \
+    with ui.column().classes('w-full px-[20px] py-[10px] mt-0 items-center gap-2') \
         .style('background-color: #FFFFFF !important; border-radius: 10px;'):
-        with ui.row().classes('w-[74%] place-content-start items-center gap-1'):
+        with ui.row().classes('w-full place-content-start items-center gap-1'):
             ui.label('纳税人').classes('text-[16px] px-[5px] text-[#333333] font-medium')
             def on_from_change(value):
                 if value in company_info:
@@ -59,16 +60,21 @@ def show_tax_approval_page() -> None:
             inputs.date_input_w40('结束时间', on_search) \
                 .bind_value_to(search_condition, 'end_time')
             
-        with ui.row().classes('w-[25%] place-content-start items-center gap-1'):
+        with ui.row().classes('w-full place-content-start items-center gap-1'):
             ui.button('刷新', icon='img:/static/images/refresh@2x.png', on_click=on_search) \
                 .classes('w-25 rounded-md text-white') \
                 .style('background-color: #6C96FB !important')
             ui.button('删除', icon='img:/static/images/delete@2x.png', on_click=del_select) \
                 .classes('w-25 rounded-md text-red') \
                 .style('background-color: rgba(255,77,77,0.39) !important')
-            ui.button('上传凭证', icon='upload', on_click=upload_approval_pdf) \
-                    .classes('w-25 rounded-md text-white') \
-                    .style('background-color: #65B6FF !important')
+            ui.button('上传凭证', on_click=upload_approval_pdf) \
+                .classes('w-25 rounded-md text-white') \
+                .style('background-color: #65B6FF !important')
+            with ui.button('识别列表', on_click=query_recognize_info_list) \
+                .classes('w-25 rounded-md text-white') \
+                .style('background-color: #65B6FF !important'):
+                app.storage.client['certificate_badge'] = ui.badge(color="red").props('floating')
+                app.storage.client['certificate_badge'].visible = False
             
     table_rows: list[dict] = []
     course_table: Optional[ui.table] = tables.show_tax_approval_table(table_rows, show_edit, show_delete)
@@ -101,6 +107,56 @@ def on_search() -> None:
             app.storage.client['tax_approval_table'].add_row(row_dict)
             sn += 1
         app.storage.client['tax_approval_table'].update()
+
+def query_recognize_info_list() -> None:
+    if 'certificate_badge' in app.storage.client:
+        app.storage.client['certificate_badge'].visible = False
+    with ui.dialog().props('persistent') as dialog, ui.card().classes('w-1/2 h-1/2') \
+        .style('background-color: #FFFFFF !important; border-radius: 10px;'):
+        with ui.column().classes('w-full place-content-center items-center'):
+            with ui.row().classes('w-full h-[80%] place-content-center items-center'):
+                grid = ui.aggrid({
+                    'columnDefs': [
+                        {'headerName': '文件名', 'field': 'file_name'},
+                        {'headerName': '类别', 'field': 'type', 'cellClassRules': {
+                            'text-blue-300': 'x == "发票"',
+                            'text-green-300': 'x == "完税证明"',
+                        }},
+                        {'headerName': '识别结果', 'field': 'result', 'cellClassRules': {
+                            'text-gray-300': 'x == "识别失败"',
+                            'text-green-300': 'x == "识别中"',
+                            'text-blue-300': 'x == "识别成功"',
+                        }},
+                        {'headerName': '错误信息', 'field': 'msg'},
+                        {'headerName': '时间', 'field': 'create_time'}
+                    ],
+                    'rowData': [
+                    ],
+                }).classes('w-full')
+            res, values = g.my_db.query_all_recognize_info(RecognizeType.TaxProofType.value)
+            if res and values is not None:
+                for item in values:
+                    dao = RecognizeInfoDao()
+                    dao.from_db(item)
+                    row_dict: dict[str, Any] = {}
+                    row_dict['file_name'] = dao.file_name
+                    if dao.type == 1:
+                        row_dict['type'] = '发票'
+                    else:
+                        row_dict['type'] = '完税证明'
+                    if dao.result == -1:
+                        row_dict['result'] = '识别失败'
+                    elif dao.result == 0:
+                        row_dict['result'] = '识别中'
+                    else:
+                        row_dict['result'] = '识别成功'
+                    row_dict['msg'] = dao.msg
+                    row_dict['create_time'] = dao.create_time
+                    grid.options['rowData'].append(row_dict)
+                    # grid.run_grid_method('ensureIndexVisible', len(grid.options['rowData']) - 1)
+            with ui.row().classes('w-full h-[20%] place-content-center items-center'):
+                ui.button('关闭', on_click=lambda: dialog.close()).classes('w-30')
+        dialog.open()
 
 """
 # @description: 解析上传结果到DAO对象
@@ -151,12 +207,23 @@ def parse_upload_result_to_dao(results: list[dict[str, Any]]) -> Optional[None|l
         dao_list.append(dao)
     return dao_list
 
+def refresh_recognizing_list():
+    #查询识别列表数量
+    res, values = g.my_db.query_recognizing_list_by_type(RecognizeType.TaxProofType.value)
+    if res and values is not None and len(values) > 0:
+        if 'certificate_badge' in app.storage.client:
+            app.storage.client['certificate_badge'].visible = True
+            app.storage.client['certificate_badge'].set_text(str(len(values)))
+            
 def read_pdf_from_upload(handle_upload: Callable) -> None:
-    def upload_ocr(result: list) -> None:
-        dao_list = parse_upload_result_to_dao(result)
-        if handle_upload is not None and dao_list is not None:
-            handle_upload(dao_list)
-    uf.open_ocr_certificate_dialog(upload_ocr)
+    def ocr_start(recognize_dao: RecognizeInfoDao) -> None:
+        # dao_list = parse_upload_result_to_dao(result)
+        # if handle_upload is not None and dao_list is not None:
+        #     handle_upload(dao_list)
+        refresh_recognizing_list()
+    def ocr_end(recognize_dao: RecognizeInfoDao) -> None:
+        on_search()
+    uf.open_ocr_certificate_dialog(ocr_start, ocr_end)
 
 def upload_approval_pdf() -> None:
     def handle_upload(dao_list: list[TaxApprovalDao]) -> None:

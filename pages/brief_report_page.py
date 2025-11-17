@@ -17,7 +17,7 @@ def show_brief_report_page():
             years_value = [f'{year}年' for year in range(curyear, 2020, -1)]
             def on_search_yeas(value):
                 on_search()
-            inputs.selection_w40(years_value, years_value[0], on_search_yeas) \
+            inputs.selection_w40(years_value, years_value[0], False, on_search_yeas) \
                 .bind_value_to(search_condition, 'select_year')
         with ui.row().classes('h-full items-center'):
             ui.button('刷新', icon='img:/static/images/refresh@2x.png', on_click=on_search) \

@@ -2,7 +2,7 @@
 Author: liguoqiang
 Date: 2025-03-16 15:26:37
 LastEditors: liguoqiang
-LastEditTime: 2025-03-16 17:18:36
+LastEditTime: 2025-11-11 13:55:36
 Description: 
 '''
 from fastapi.staticfiles import StaticFiles
@@ -20,7 +20,7 @@ from pages.service_record_page import show_service_record_page
 from pages.tax_approval_page import show_tax_approval_page
 import navigation
 
-@ui.page('/')
+# @ui.page('/')
 def main_page() -> None:
     ui.add_css('''
         .custom-tabs .q-tab__indicator {

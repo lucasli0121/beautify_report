@@ -9,6 +9,7 @@ import os
 from openpyxl.utils import get_column_letter
 from dao.company_dao import CompanyDao, CompanyType
 from dao.invoice_record_dao import InvoiceRecordDao
+from dao.recognize_info_dao import RecognizeInfoDao, RecognizeType
 from dao.service_record_dao import ServiceRecordDao
 from utils import global_vars as g
 from utils import upload_files as uf
@@ -36,22 +37,22 @@ def show_invoice_record_page():
     with ui.column().classes('w-full px-[20px] py-[10px] mt-0 items-center gap-2') \
         .style('background-color: #FFFFFF !important; border-radius: 10px;'):
         with ui.row().classes('w-full place-content-start items-center gap-1'):
-            with ui.row().classes('w-[25%] place-content-start items-center'):
+            with ui.row().classes('w-[20%] place-content-start items-center'):
                 ui.label('开票方').classes('w-[20%] text-[16px] text-[#333333] font-medium')
                 def on_from_change(value):
                     if value in company_info:
                         search_condition.invoice_from_id = company_info[value].id
                         search_condition.invoice_from_name = value
-                inputs.selection_w60(options, None, need_input=True, on_change=on_from_change)
+                inputs.selection_w40(options, None, need_input=True, on_change=on_from_change)
                 search_condition.invoice_from_id = ''
                 search_condition.invoice_from_name = ''
-            with ui.row().classes('w-[25%] place-content-start items-center'):
+            with ui.row().classes('w-[20%] place-content-start items-center'):
                 ui.label('受票方').classes('w-[20%] text-[16px] text-[#333333] font-medium')
                 def on_to_change(value):
                     if value in company_info:
                         search_condition.invoice_to_id = company_info[value].id
                         search_condition.invoice_to_name = value
-                inputs.selection_w60(options, None, need_input=True, on_change=on_to_change)
+                inputs.selection_w40(options, None, need_input=True, on_change=on_to_change)
                 search_condition.invoice_to_id = ''
                 search_condition.invoice_to_name = ''
             inputs.input_search_w40('发票内容', on_search) \
@@ -61,7 +62,7 @@ def show_invoice_record_page():
             inputs.date_input_w40('结束时间', on_search) \
                 .bind_value_to(search_condition, 'end_time')
         with ui.row().classes('w-full place-content-start items-center gap-1'):
-            with ui.row().classes('w-[25%] place-content-start items-center'):
+            with ui.row().classes('w-[20%] place-content-start items-center'):
                 ui.label('状态').classes('w-[20%] text-[16px] text-[#333333] font-medium')
                 def on_status_change(value):
                     if value == '全部':
@@ -75,26 +76,31 @@ def show_invoice_record_page():
                     elif value == '已红冲':
                         search_condition.status = 3
                     on_search()
-                inputs.selection_w60(['全部', '未开票', '已开票', '已作废', '已红冲'], '全部', need_input=False, on_change=on_status_change)
+                inputs.selection_w40(['全部', '未开票', '已开票', '已作废', '已红冲'], '全部', need_input=False, on_change=on_status_change)
                 search_condition.status = -1
-            with ui.row().classes('w-[25%] place-content-start items-center'):
+            with ui.row().classes('w-[20%] place-content-start items-center'):
                 inputs.input_search_w60('发票号码', on_search).bind_value_to(search_condition, 'invoice_number')
-            with ui.row().classes('w-[49%] place-content-start items-center gap-1'):
+            with ui.row().classes('w-[55%] place-content-start items-center gap-1'):
                 ui.button('刷新', icon='refresh', on_click=on_search) \
                     .classes('w-25 rounded-md text-white') \
                     .style('background-color: #6C96FB !important')
                 ui.button('删除', icon='delete', on_click=del_select) \
                     .classes('w-25 rounded-md text-red') \
                     .style('background-color: rgba(255,77,77,0.39) !important')
-                ui.button('开票计划', icon='add_chart', on_click=add_invoice) \
+                ui.button('开票计划', on_click=add_invoice) \
                     .classes('w-25 rounded-md text-white') \
                     .style('background-color: #65B6FF !important')
                 ui.button('导出', icon='file_download', on_click=export_invoice_to_excel) \
                     .classes('w-25 rounded-md text-white') \
                     .style('background-color: #65B6FF !important')
-                ui.button('上传发票', icon='upload', on_click=upload_invoice_pdf) \
+                ui.button('上传发票', on_click=upload_invoice_pdf) \
                     .classes('w-25 rounded-md text-white') \
                     .style('background-color: #65B6FF !important')
+                with ui.button('识别列表', on_click=query_recognize_info_list) \
+                    .classes('w-25 rounded-md text-white') \
+                    .style('background-color: #65B6FF !important'):
+                    app.storage.client['invoice_badge'] = ui.badge(color="red").props('floating')
+                    app.storage.client['invoice_badge'].visible = False
             
     table_rows: list[dict] = []
     app.storage.client['invoice_record_table'] = tables.show_open_invoice_table(table_rows, show_edit, delete_one)
@@ -144,6 +150,66 @@ def on_search() -> None:
                 app.storage.client['invoice_record_table'].add_row(row_dict)
                 sn += 1
         app.storage.client['invoice_record_table'].update()
+    
+
+def refresh_recognizing_list():
+    #查询识别列表数量
+    res, values = g.my_db.query_recognizing_list_by_type(RecognizeType.InvoiceType.value)
+    if res and values is not None and len(values) > 0:
+        if 'invoice_badge' in app.storage.client:
+            app.storage.client['invoice_badge'].visible = True
+            app.storage.client['invoice_badge'].set_text(str(len(values)))
+
+def query_recognize_info_list() -> None:
+    if 'invoice_badge' in app.storage.client:
+        app.storage.client['invoice_badge'].visible = False
+    with ui.dialog().props('persistent') as dialog, ui.card().classes('w-1/2 h-1/2') \
+        .style('background-color: #FFFFFF !important; border-radius: 10px;'):
+        with ui.column().classes('w-full place-content-center items-center'):
+            with ui.row().classes('w-full h-[80%] place-content-center items-center'):
+                grid = ui.aggrid({
+                    'columnDefs': [
+                        {'headerName': '文件名', 'field': 'file_name'},
+                        {'headerName': '类别', 'field': 'type', 'cellClassRules': {
+                            'text-blue-300': 'x == "发票"',
+                            'text-green-300': 'x == "完税证明"',
+                        }},
+                        {'headerName': '识别结果', 'field': 'result', 'cellClassRules': {
+                            'text-gray-300': 'x == "识别失败"',
+                            'text-green-300': 'x == "识别中"',
+                            'text-blue-300': 'x == "识别成功"',
+                        }},
+                        {'headerName': '错误信息', 'field': 'msg'},
+                        {'headerName': '时间', 'field': 'create_time'}
+                    ],
+                    'rowData': [
+                    ],
+                }).classes('w-full')
+            res, values = g.my_db.query_all_recognize_info(RecognizeType.InvoiceType.value)
+            if res and values is not None:
+                for item in values:
+                    dao = RecognizeInfoDao()
+                    dao.from_db(item)
+                    row_dict: dict[str, Any] = {}
+                    row_dict['file_name'] = dao.file_name
+                    if dao.type == 1:
+                        row_dict['type'] = '发票'
+                    else:
+                        row_dict['type'] = '完税证明'
+                    if dao.result == -1:
+                        row_dict['result'] = '识别失败'
+                    elif dao.result == 0:
+                        row_dict['result'] = '识别中'
+                    else:
+                        row_dict['result'] = '识别成功'
+                    row_dict['msg'] = dao.msg
+                    row_dict['create_time'] = dao.create_time
+                    grid.options['rowData'].append(row_dict)
+                    # grid.run_grid_method('ensureIndexVisible', len(grid.options['rowData']) - 1)
+            with ui.row().classes('w-full h-[20%] place-content-center items-center'):
+                ui.button('关闭', on_click=lambda: dialog.close()).classes('w-30')
+        dialog.open()
+
 
 def handle_import_pdf(d: dict) -> None:
     if d is None or len(d) == 0:
@@ -264,12 +330,16 @@ def parse_upload_result_to_dao(result: list) -> Optional[InvoiceRecordDao]:
         dao.status = 3 # 已红冲
     return dao
 
+
 def read_pdf_from_upload(handle_upload: Callable) -> None:
-    def upload_invoice_ocr(result: list) -> None:
-        dao = parse_upload_result_to_dao(result)
-        if handle_upload is not None and dao is not None:
-            handle_upload(dao)
-    uf.open_ocr_invoice_dialog(upload_invoice_ocr)
+    def invoice_ocr_start(recognize_dao: RecognizeInfoDao) -> None:
+        # dao = parse_upload_result_to_dao(result)
+        # if handle_upload is not None and dao is not None:
+        #     handle_upload(dao)
+        refresh_recognizing_list()
+    def invoice_ocr_end(recognize_dao: RecognizeInfoDao) -> None:
+        on_search()
+    uf.open_ocr_invoice_dialog(invoice_ocr_start, invoice_ocr_end)
 
 # @description: 上传发票PDF
 # @param None
@@ -540,7 +610,7 @@ def modify_or_add_invoice(dao: InvoiceRecordDao, is_add: bool = True):
                                 contract_name_select.set_value(select_service_dao.contract_name)
             with ui.row().classes('w-[49%] place-content-start items-center gap-1'):
                 ui.label('发票类型').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
-                invoice_type_select = inputs.selection_w40(['普票', '专票'], '普票', on_change=lambda value: setattr(dao, 'invoice_type', 0 if value == '普票' else 1))
+                invoice_type_select = inputs.selection_w40(['普票', '专票'], '普票', False, on_change=lambda value: setattr(dao, 'invoice_type', 0 if value == '普票' else 1))
                 if not is_add:
                     if dao.invoice_type == 0:
                         invoice_type_select.set_value('普票')
@@ -649,7 +719,7 @@ def modify_or_add_invoice(dao: InvoiceRecordDao, is_add: bool = True):
                     invoice_money = round(dao.before_tax_money / (1 + dao.tax_rate), 2)
                     if invoice_money_input is not None:
                         invoice_money_input.set_value(invoice_money)
-                tax_rate_select = inputs.selection_w40(['1%','3%','6%','9%','13%'], '3%', on_change=on_tax_rate_change)
+                tax_rate_select = inputs.selection_w40(['1%','3%','6%','9%','13%'], '3%', False, on_change=on_tax_rate_change)
                 if is_add:
                     dao.tax_rate = 0.03  # 默认税率为0.03
                 else:
@@ -688,7 +758,7 @@ def modify_or_add_invoice(dao: InvoiceRecordDao, is_add: bool = True):
                     .bind_value_to(dao, 'contract_content')
             with ui.row().classes('w-[49%] place-content-start items-center gap-1'):
                 ui.label('状态').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
-                status_select = inputs.selection_w40(['未开票','已开票'], '未开票', on_change=lambda value: setattr(dao, 'status', 0 if value == '未开票' else 1))
+                status_select = inputs.selection_w40(['未开票','已开票'], '未开票', False, on_change=lambda value: setattr(dao, 'status', 0 if value == '未开票' else 1))
                 if is_add:
                     dao.status = 0  # 默认状态为未开票
                 else:
