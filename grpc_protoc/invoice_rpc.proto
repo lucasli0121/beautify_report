@@ -1,0 +1,19 @@
+
+syntax = "proto3";
+
+package invoice;
+
+message InvoiceRecognizeReq {
+    string file_name = 1;
+    int32 flag = 2;
+}
+
+message InvoiceRecognizeResp {
+    int32 result = 1;
+    string msg = 2;
+    string id = 3;
+}
+service InvoiceRpc {
+    rpc invoice_recognize(InvoiceRecognizeReq) returns(stream InvoiceRecognizeResp);
+    rpc certificate_recognize(InvoiceRecognizeReq) returns(stream InvoiceRecognizeResp);
+}
