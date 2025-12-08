@@ -176,7 +176,7 @@ def modify_or_new_company(company_dao: CompanyDao, is_add: bool) -> None:
                     company_dao.company_type = CompanyType.SMALL.value
                 else:
                     company_dao.company_type = ''
-            company_type_selector = inputs.selection_w40(['一般纳税人','小规模纳税人'], '一般纳税人', on_change=on_company_type_change)
+            company_type_selector = inputs.selection_w40(['一般纳税人','小规模纳税人'], '一般纳税人', False, on_change=on_company_type_change)
             if not is_add:
                 if company_dao.company_type == CompanyType.GENERAL.value:
                     company_type_selector.value = '一般纳税人'
