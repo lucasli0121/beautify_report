@@ -36,7 +36,7 @@ os.environ["NUMEXPR_NUM_THREADS"] = "1"
 os.environ["OMP_NUM_THREADS"] = "1"
 
 
-fh = logging.FileHandler("paddleocr.log")
+fh = logging.FileHandler("/tmp/paddleocr.log")
 logger.addHandler(fh)
 paddle.device.set_device('cpu')
 paddle.set_flags({'FLAGS_use_mkldnn': False})  # 关闭 MKLDNN
