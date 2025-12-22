@@ -499,37 +499,51 @@ def modify_or_add_invoice(dao: InvoiceRecordDao, is_add: bool = True):
             ui.label('开票计划').classes('w-full text-[20px] text-[#333333] font-medium')
         else:
             ui.label('修改开票').classes('w-full text-[20px] text-[#333333] font-medium')
+        
+        # if not is_add:
+        #     with ui.row().classes('w-full place-content-start items-center mt-5'):
+        #         def handle_upload_invoice_ocr(event):
+        #             # event.content 是文件的二进制内容
+        #             file_content = io.BytesIO(event.content.read())
+        #             results = uf.recognize_invoice_pdf(file_content.read())
+        #             upload_dao = parse_upload_result_to_dao(results)
+        #             if upload_dao is not None:
+        #                 # if dao.from_company_id != upload_dao.from_company_id or dao.to_company_id != upload_dao.to_company_id:
+        #                 #     ui.notify('上传发票的开票方或受票方与当前编辑的发票不符，上传失败')
+        #                 #     return
+        #                 dao.specifi = upload_dao.specifi
+        #                 dao.quantity = upload_dao.quantity
+        #                 dao.unit_price = upload_dao.unit_price
+        #                 dao.tax_rate = upload_dao.tax_rate
+        #                 dao.invoice_number = upload_dao.invoice_number
+        #                 dao.invoice_time = upload_dao.invoice_time
+        #                 dao.is_red = upload_dao.is_red
+        #                 dao.blue_invoice_number = upload_dao.blue_invoice_number
+        #                 dao.invoice_content = upload_dao.invoice_content
+        #                 dao.before_tax_money = upload_dao.before_tax_money
+        #                 dao.invoice_money = upload_dao.invoice_money
+        #                 dao.added_tax = upload_dao.added_tax
+        #                 dao.remark = upload_dao.remark
+        #                 dao.status = upload_dao.status
+        #                 if before_tax_money_input is not None:
+        #                     before_tax_money_input.set_value(dao.before_tax_money)
+        #         ui.upload(label="请选择批量上传文件", on_upload=handle_upload_invoice_ocr) \
+        #             .props('flat accept=".pdf"') \
+        #             .classes('size-full')
         with ui.row().classes('w-full mt-5 place-content-between items-center'):
-            if not is_add:
-                with ui.row().classes('w-full place-content-between'):
-                    def handle_upload_invoice_ocr(event):
-                        # event.content 是文件的二进制内容
-                        file_content = io.BytesIO(event.content.read())
-                        results = uf.recognize_invoice_pdf(file_content.read())
-                        upload_dao = parse_upload_result_to_dao(results)
-                        if upload_dao is not None:
-                            # if dao.from_company_id != upload_dao.from_company_id or dao.to_company_id != upload_dao.to_company_id:
-                            #     ui.notify('上传发票的开票方或受票方与当前编辑的发票不符，上传失败')
-                            #     return
-                            dao.specifi = upload_dao.specifi
-                            dao.quantity = upload_dao.quantity
-                            dao.unit_price = upload_dao.unit_price
-                            dao.tax_rate = upload_dao.tax_rate
-                            dao.invoice_number = upload_dao.invoice_number
-                            dao.invoice_time = upload_dao.invoice_time
-                            dao.is_red = upload_dao.is_red
-                            dao.blue_invoice_number = upload_dao.blue_invoice_number
-                            dao.invoice_content = upload_dao.invoice_content
-                            dao.before_tax_money = upload_dao.before_tax_money
-                            dao.invoice_money = upload_dao.invoice_money
-                            dao.added_tax = upload_dao.added_tax
-                            dao.remark = upload_dao.remark
-                            dao.status = upload_dao.status
-                            if before_tax_money_input is not None:
-                                before_tax_money_input.set_value(dao.before_tax_money)
-                    ui.upload(label="请选择批量上传文件", on_upload=handle_upload_invoice_ocr) \
-                        .props('flat accept=".pdf"') \
-                        .classes('size-full')
+            with ui.row().classes('w-[49%] place-content-start items-center gap-1'):
+                ui.label('发票编号').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
+                ui.input(placeholder='请输入发票编号') \
+                    .props('rounded-md outlined dense') \
+                    .classes('w-[40%]') \
+                    .bind_value_from(dao, 'invoice_number') \
+                    .bind_value_to(dao, 'invoice_number')
+            with ui.row().classes('w-[49%] place-content-start items-center gap-1'):
+                ui.label('开票时间').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
+                date_input = inputs.date_input_w40('开票时间', lambda e: setattr(dao, 'invoice_time', e.value))
+                if not is_add:
+                    date_input.bind_value_from(dao, 'invoice_time')
+        with ui.row().classes('w-full place-content-between items-center'):    
             with ui.row().classes('w-[49%] place-content-start items-center gap-1'):
                 ui.label('开票方').classes('w-[20%] text-[16px] text-[#333333] font-medium')
                 def on_from_change(value):
@@ -621,7 +635,7 @@ def modify_or_add_invoice(dao: InvoiceRecordDao, is_add: bool = True):
                 ui.label('发票内容').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
                 ui.input(placeholder='请输入发票内容') \
                     .props('rounded-md outlined dense') \
-                    .classes('w-[30%] self-center item-center ') \
+                    .classes('w-[50%] self-center item-center ') \
                     .bind_value_from(dao, 'invoice_content') \
                     .bind_value_to(dao, 'invoice_content')
             with ui.row().classes('w-[49%] place-content-start items-center gap-1'):
@@ -766,11 +780,13 @@ def modify_or_add_invoice(dao: InvoiceRecordDao, is_add: bool = True):
                         status_select.set_value('未开票')
                     else:
                         status_select.set_value('已开票')
-        if not is_add:
-            with ui.row().classes('w-[49%] place-content-start items-center gap-1'):
-                ui.label('开票时间').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
-                date_input = inputs.date_input_w40('开票时间', lambda e: setattr(dao, 'invoice_time', e.value))
-                date_input.bind_value_from(dao, 'invoice_time')
+        with ui.row().classes('w-full place-content-start items-start'):
+            ui.label('备注').classes('w-[9%] self-right text-[16px] text-[#333333] font-medium')
+            ui.input(placeholder='请输入备注') \
+                .props('rounded-md outlined dense') \
+                .classes('w-[80%] self-left item-left ') \
+                .bind_value_from(dao, 'remark') \
+                .bind_value_to(dao, 'remark')
         with ui.row().classes('w-full place-content-end'):         
             ui.button('取消', color=None, on_click=dialog.close) \
                 .props('flat') \

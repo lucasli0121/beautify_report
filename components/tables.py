@@ -123,6 +123,7 @@ def show_open_invoice_table(datas, show_edit, show_delete) -> ui.table:
         {'name': 'operation', 'label': '操作', 'field': 'operation', 'width': '10%', 'align': 'center'},
         {'name': 'sn', 'label': '序号', 'field': 'sn', 'width': '5%', 'align': 'center'},
         {'name': 'invoice_time', 'label': '开票时间', 'field': 'invoice_time', 'width': '10%', 'align': 'center'},
+        {'name': 'invoice_number', 'label': '发票编号', 'field': 'invoice_number', 'width': '5%', 'align': 'center'},
         {'name': 'from_company_name', 'label': '开票方', 'field': 'from_company_name', 'width': '10%', 'align': 'center'},
         {'name': 'to_company_name', 'label': '受票方', 'field': 'to_company_name', 'width': '10%', 'align': 'center'},
         {'name': 'status', 'label': '状态', 'field': 'status', 'width': '10%', 'align': 'center'},
@@ -151,6 +152,7 @@ def show_open_invoice_table(datas, show_edit, show_delete) -> ui.table:
         table.props('v-model:selected="selected"')
         table.props('visible-columns="[ \
                     \'sn\', \
+                    \'invoice_number\', \
                     \'from_company_name\', \
                     \'to_company_name\', \
                     \'contract_name\', \

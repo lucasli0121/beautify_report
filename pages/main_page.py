@@ -12,7 +12,7 @@ from menu.top_menu import top_menu
 from pages.company_page import show_company_page
 from pages.invoice_title_page import show_invoice_title_page
 from pages.invoice_record_page import show_invoice_record_page
-from pages.paytax_record_page import show_paytax_record_page
+from pages.paytax_record_page import show_paytax_page
 from pages.brief_report_page import show_brief_report_page
 from pages.company_bank_account_page import show_company_bank_account_page
 from pages.payment_record_page import show_payment_record_page
@@ -135,7 +135,7 @@ def show_tabs() -> ui.tab_panels:
         with ui.tab_panel(payment_record).classes('gap-0').style('margin: 0 !important; padding: 0 !important; background-color: #F4F9FD !important;'):
             show_payment_record_page()
         with ui.tab_panel(paytax_record).classes('gap-0').style('margin: 0 !important; padding: 0 !important; background-color: #F4F9FD !important;'):
-            show_paytax_record_page()
+            show_paytax_page()
         with ui.tab_panel(brief_report).classes('gap-0').style('margin: 0 !important; padding: 0 !important; background-color: #F4F9FD !important;'):
             show_brief_report_page()
     return tab_panels
