@@ -466,7 +466,7 @@ async def recognize_invoice_pdf_async(pdf_content):
     打开发票 OCR 对话框
 '''
 def open_ocr_invoice_dialog(handle_ocr_start_callback: Callable, handle_ocr_end_callback: Callable):
-    with ui.dialog().props('persistent') as dialog, ui.card().classes('w-1/3 h-1/3') \
+    with ui.dialog().props('persistent') as dialog, ui.card().classes('w-1/2 h-1/2') \
         .style('background-color: #FFFFFF !important; border-radius: 10px;'):
         with ui.row().classes('w-full h-[60%] mt-5 place-content-between'):
             async def handle_upload_invoice_ocr(e: events.UploadEventArguments):
@@ -512,7 +512,7 @@ def open_ocr_invoice_dialog(handle_ocr_start_callback: Callable, handle_ocr_end_
                             handle_ocr_end_callback(recognize_dao)
                 else:
                     ui.notify("把数据保存到数据库失败", color='negative')
-            pdf_uploader = ui.upload(label="请选择批量上传文件", on_upload=handle_upload_invoice_ocr) \
+            pdf_uploader = ui.upload(label="请选择批量上传文件", multiple=True, on_upload=handle_upload_invoice_ocr) \
                 .props('flat accept=".pdf"') \
                 .classes('size-full')
         with ui.row().classes('w-full place-content-center') as loading_row:
@@ -565,7 +565,7 @@ async def recognize_certificate_pdf_async(pdf_content):
     打开完税凭证 OCR 对话框
 '''
 def open_ocr_certificate_dialog(handle_ocr_start_callback: Callable, handle_ocr_end_callback: Callable):
-    with ui.dialog().props('persistent') as dialog, ui.card().classes('w-1/3 h-1/3') \
+    with ui.dialog().props('persistent') as dialog, ui.card().classes('w-1/2 h-1/2') \
         .style('background-color: #FFFFFF !important; border-radius: 10px;'):
         with ui.row().classes('w-full h-[60%] mt-5 place-content-between'):
             async def handle_upload_invoice_ocr(e: events.UploadEventArguments):
@@ -611,7 +611,7 @@ def open_ocr_certificate_dialog(handle_ocr_start_callback: Callable, handle_ocr_
                             handle_ocr_end_callback(recognize_dao)
                 else:
                     ui.notify("把数据保存到数据库失败", color='negative')
-            pdf_uploader = ui.upload(label="请选择批量上传文件", on_upload=handle_upload_invoice_ocr) \
+            pdf_uploader = ui.upload(label="请选择批量上传文件", multiple=True, on_upload=handle_upload_invoice_ocr) \
                 .props('flat accept=".pdf"') \
                 .classes('size-full')
         with ui.row().classes('w-full place-content-center') as loading_row:

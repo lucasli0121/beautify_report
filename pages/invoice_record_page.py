@@ -163,10 +163,18 @@ def refresh_recognizing_list():
 def query_recognize_info_list() -> None:
     if 'invoice_badge' in app.storage.client:
         app.storage.client['invoice_badge'].visible = False
+    errmsg_label = None
     with ui.dialog().props('persistent') as dialog, ui.card().classes('w-1/2 h-1/2') \
         .style('background-color: #FFFFFF !important; border-radius: 10px;'):
-        with ui.column().classes('w-full place-content-center items-center'):
+        with ui.column().classes('w-full h-full place-content-center items-center '):
             with ui.row().classes('w-full h-[80%] place-content-center items-center'):
+                async def on_grid_row_click(e) -> None:
+                    r = await grid.get_selected_row()
+                    # msg = e.args['data'].get('msg', '')
+                    if r:
+                        msg = r.get('msg', '')
+                        if errmsg_label is not None:
+                            errmsg_label.set_text(f'错误信息: {msg}')
                 grid = ui.aggrid({
                     'columnDefs': [
                         {'headerName': '文件名', 'field': 'file_name'},
@@ -184,7 +192,8 @@ def query_recognize_info_list() -> None:
                     ],
                     'rowData': [
                     ],
-                }).classes('w-full')
+                    'rowSelection': {'mode': 'singleRow', 'enableClickSelection': 'true'}
+                }).classes('w-full h-full').on('rowSelected', on_grid_row_click)
             res, values = g.my_db.query_all_recognize_info(RecognizeType.InvoiceType.value)
             if res and values is not None:
                 for item in values:
@@ -206,7 +215,9 @@ def query_recognize_info_list() -> None:
                     row_dict['create_time'] = dao.create_time
                     grid.options['rowData'].append(row_dict)
                     # grid.run_grid_method('ensureIndexVisible', len(grid.options['rowData']) - 1)
-            with ui.row().classes('w-full h-[20%] place-content-center items-center'):
+            with ui.row().classes('w-full h-[9%] place-content-center items-center'):
+                errmsg_label = ui.label('').classes('w-full text-[12px] text-[#FF0000] font-small')
+            with ui.row().classes('w-full h-[9%] place-content-center items-center'):
                 ui.button('关闭', on_click=lambda: dialog.close()).classes('w-30')
         dialog.open()
 
