@@ -500,7 +500,9 @@ def open_ocr_invoice_dialog(handle_ocr_start_callback: Callable, handle_ocr_end_
                     response = await recognize_invoice(file_name)
                     if response is not None:
                         print("gRPC 返回结果：", response)
-                        os.remove(save_path)
+                        backup_path = './static/backup/'
+                        os.makedirs(backup_path, exist_ok=True)  # 创建目录（若不存在）
+                        os.rename(save_path, os.path.join(backup_path, file_name))
                         if response.result == 0:
                             recognize_dao.result = RecognizeResult.Success.value
                             recognize_dao.msg = response.msg
@@ -510,6 +512,7 @@ def open_ocr_invoice_dialog(handle_ocr_start_callback: Callable, handle_ocr_end_
                         g.my_db.update_recognize_info(recognize_dao.to_db(), {'id': id})
                         if handle_ocr_end_callback is not None:
                             handle_ocr_end_callback(recognize_dao)
+                        
                 else:
                     ui.notify("把数据保存到数据库失败", color='negative')
             pdf_uploader = ui.upload(label="请选择批量上传文件", multiple=True, on_upload=handle_upload_invoice_ocr) \
@@ -599,7 +602,9 @@ def open_ocr_certificate_dialog(handle_ocr_start_callback: Callable, handle_ocr_
                     response = await recognize_certificate(file_name)
                     if response is not None:
                         print("gRPC 返回结果：", response)
-                        os.remove(save_path)
+                        backup_path = './static/backup/'
+                        os.makedirs(backup_path, exist_ok=True)  # 创建目录（若不存在）
+                        os.rename(save_path, os.path.join(backup_path, file_name))
                         if response.result == 0:
                             recognize_dao.result = RecognizeResult.Success.value
                             recognize_dao.msg = response.msg

@@ -172,9 +172,17 @@ def query_recognize_info_list() -> None:
                     r = await grid.get_selected_row()
                     # msg = e.args['data'].get('msg', '')
                     if r:
+                        result = r.get('result', '')
                         msg = r.get('msg', '')
                         if errmsg_label is not None:
-                            errmsg_label.set_text(f'错误信息: {msg}')
+                            errmsg_label.classes.clear()
+                            if result == '识别成功':
+                                errmsg_label.classes.append('w-full text-[12px] text-[#000000] font-small')
+                            elif result == '识别中':
+                                errmsg_label.classes.append('w-full text-[12px] text-[#000000] font-small')
+                            else:
+                                errmsg_label.classes('w-full text-[12px] text-[#FF0000] font-small')
+                            errmsg_label.set_text(msg)
                 grid = ui.aggrid({
                     'columnDefs': [
                         {'headerName': '文件名', 'field': 'file_name'},

@@ -55,7 +55,6 @@ class MongoCompanyImpl():
             return False, None
         query: dict[str, Any] = {}
         
-        brief_name = re.escape(brief_name)
         if name and len(name) > 0:
             name = re.escape(name)
             query['name'] = {'$regex': name, '$options': 'i'}

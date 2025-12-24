@@ -36,7 +36,10 @@ async def recognize_invoice(file_name: str):
         return None
     except grpc.RpcError as e:
         print(f"gRPC 调用失败: {e.code()} - {e.details()}")
-        return None
+        resp = invoice_rpc_pb2.InvoiceRecognizeResp()
+        resp.result = -1
+        resp.msg = f"{e.code()} - {e.details()}"
+        return resp
     finally:
         await channel.close()
 
@@ -72,6 +75,9 @@ async def recognize_certificate(file_name: str):
         return None
     except grpc.RpcError as e:
         print(f"gRPC 调用失败: {e.code()} - {e.details()}")
-        return None
+        resp = invoice_rpc_pb2.InvoiceRecognizeResp()
+        resp.result = -1
+        resp.msg = f"{e.code()} - {e.details()}"
+        return resp
     finally:
         await channel.close()        
