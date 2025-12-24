@@ -290,10 +290,15 @@ def modify_or_new_company(company_dao: CompanyDao, is_add: bool) -> None:
                     else:
                         ui.notify('添加公司失败')
                 else:
-                    if old_name != data['name'] or old_brief_name != data['brief_name']:
-                        result, values = g.my_db.query_same_company(data['name'], data['brief_name'])
+                    if old_name != data['name']:
+                        result, values = g.my_db.query_same_company(data['name'], '')
                         if result and values and len(values) > 0:
-                            ui.notify('公司名称或简称已存在，请修改后再试')
+                            ui.notify('公司名称已存在，请修改后再试')
+                            return
+                    if old_brief_name != data['brief_name']:
+                        result, values = g.my_db.query_same_company('', data['brief_name'])
+                        if result and values and len(values) > 0:
+                            ui.notify('公司简称已存在，请修改后再试')
                             return
                     result = g.my_db.update_company(data, {'id': data['id']})
                     if result is True:

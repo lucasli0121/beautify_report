@@ -524,3 +524,53 @@ def show_service_record_table(datas, show_edit, show_delete) -> ui.table:
         table.on('show_edit', show_edit)
         table.on('show_delete', show_delete)
     return table    
+
+#
+# @description: 显示期初数据表格
+# @param {list} datas 数据列表
+#
+def show_period_data_table(datas, show_edit, show_delete) -> ui.table:
+    table_columns = [
+        {'name': 'id', 'label': 'id', 'field': 'id', 'width': '0%', 'align': 'center'},
+        {'name': 'sn', 'label': '序号', 'field': 'sn', 'width': '5%', 'align': 'center'},
+        {'name': 'company_name', 'label': '公司名称', 'field': 'company_name', 'width': '10%', 'align': 'center'},
+        {'name': 'create_time', 'label': '日期', 'field': 'create_time', 'width': '10%', 'align': 'center'},
+        {'name': 'last_month_no_verify', 'label': '上月未认证', 'field': 'last_month_no_verify', 'width': '10%', 'align': 'center'},
+        {'name': 'last_month_stay_pay', 'label': '上月留抵', 'field': 'last_month_stay_pay', 'width': '10%', 'align': 'center'},
+        {'name': 'billing_amount', 'label': '开票额', 'field': 'billing_amount', 'width': '10%', 'align': 'center'},
+        {'name': 'operation', 'label': '操作', 'field': 'operation', 'width': '5%', 'align': 'center'}
+    ]
+    with ui.table(
+        columns=table_columns,
+        rows=datas,
+        selection='multiple',
+        row_key='id',
+        pagination={'rowsPerPage': 10, 'sortBy': 'sn', 'page': 1}) \
+            .props('table-header-style="color: white; font-size: 16px; background-color: #65B6FF;" flat no-shadow') \
+            .classes('w-full mt-2 gap-0') \
+            .style('border: 1px solid #ECECEC; border-radius: 10px 10px 0px 0px;') as table:
+        
+        table.props('v-model:selected="selected"')
+        table.props('visible-columns="[ \
+                    \'sn\', \
+                    \'company_name\', \
+                    \'create_time\', \
+                    \'last_month_no_verify\', \
+                    \'last_month_stay_pay\', \
+                    \'billing_amount\', \
+                    \'operation\']"')
+
+        table.add_slot('body-cell-operation', r'''
+            <q-td auto-width key="operation" :props="props" class="item-left">
+                <q-btn size="sm" flat round dense icon="edit"
+                    @click="() => $parent.$emit('show_edit', props.row)"
+                />
+                &nbsp;
+                <q-btn size="sm" flat round dense icon="delete_outline"
+                    @click="() => $parent.$emit('show_delete', props.row)"
+                />
+            </q-td>
+        ''')
+        table.on('show_edit', show_edit)
+        table.on('show_delete', show_delete)
+    return table    

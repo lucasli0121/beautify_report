@@ -15,6 +15,7 @@ import logging
 from dao.recognize_info_dao import RecognizeInfoDao
 from db.mongo.mongo_impl import MongoImpl
 from db.mongo.mongo_invoice_title_impl import MongoInvoiceTitleImpl
+from db.mongo.mongo_period_data_impl import MongoPeriodDataImpl
 from db.mongo.mongo_recognize_info_impl import MongoRecognizeInfoImpl
 from db.mysql.mysql_db import MySqlImpl
 from db.mongo.mongo_company_impl import MongoCompanyImpl
@@ -501,4 +502,48 @@ class MyDb:
             if self.mongo is not None:
                 return MongoRecognizeInfoImpl(self.mongo).delete(id)
         self.logger.error("No database implementation available for deleting recognize info.")
+        return False
+    """
+    获取期初数据表名
+    :return: 期初数据表名
+    """
+    def query_all_period_data(self, company_id: str, create_time: str) -> tuple[bool, Any|None]:
+        if self.mysql is not None:
+            return False, None
+        else:
+            if self.mongo is not None:
+                return MongoPeriodDataImpl(self.mongo).query_all(company_id, create_time)
+        self.logger.error("No database implementation available for querying period data.")
+        return False, None
+    def query_period_data_by_id(self, id: str) -> tuple[bool, Any|None]:
+        if self.mysql is not None:
+            return False, None
+        else:
+            if self.mongo is not None:
+                return MongoPeriodDataImpl(self.mongo).query_by_id(id)
+        self.logger.error("No database implementation available for querying period data by id.")
+        return False, None
+    def add_period_data(self, d: dict[str, Any]) -> tuple[bool, str|None]:
+        if self.mysql is not None:
+            return False, None
+        else:
+            if self.mongo is not None:
+                return MongoPeriodDataImpl(self.mongo).add(d)
+        self.logger.error("No database implementation available for adding period data.")
+        return False, None
+    def update_period_data(self, d: dict[str, Any], condition: dict[str, Any]) -> bool:
+        if self.mysql is not None:
+            return False
+        else:
+            if self.mongo is not None:
+                return MongoPeriodDataImpl(self.mongo).update(d, condition)
+        self.logger.error("No database implementation available for updating period data.")
+        return False
+    def delete_period_data(self, id: str) -> bool:
+        if self.mysql is not None:
+            return False
+        else:
+            if self.mongo is not None:
+                return MongoPeriodDataImpl(self.mongo).delete(id)
+        self.logger.error("No database implementation available for deleting period data.")
         return False

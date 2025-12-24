@@ -62,16 +62,28 @@ def date_input_w40(placeholder, on_enterkey) -> ui.input:
 
 
 def selection_w40(options, value, need_input:bool, on_change) -> ui.select:
+    if on_change is None:
+        def default_on_change(v):
+            pass
+        on_change = default_on_change
     return ui.select(options=options, value=value, with_input=need_input, on_change=lambda e: on_change(e.value)) \
         .props('autofocus rounded-md outlined dense') \
         .classes('w-40 self-center item-center transition-all')
 
 def selection_w60(options, value, need_input:bool, on_change) -> ui.select:
+    if on_change is None:
+        def default_on_change(v):
+            pass
+        on_change = default_on_change
     return ui.select(options=options, value=value, with_input=need_input, on_change=lambda e: on_change(e.value)) \
         .props('autofocus rounded-md outlined dense') \
         .classes('w-60 self-center item-center transition-all')
 
 def selection_w80(options, value, need_input:bool, on_change) -> ui.select:
+    if on_change is None:
+        def default_on_change(v):
+            pass
+        on_change = default_on_change
     return ui.select(options=options, value=value, with_input=need_input, on_change=lambda e: on_change(e.value)) \
         .props('autofocus rounded-md outlined dense') \
         .classes('w-80 self-center item-center transition-all')
