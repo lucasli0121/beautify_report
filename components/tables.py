@@ -144,7 +144,7 @@ def show_open_invoice_table(datas, show_edit, show_delete) -> ui.table:
         rows=datas,
         selection='multiple',
         row_key='id',
-        pagination={'rowsPerPage': 0, 'sortBy': 'sn', 'page': 1}) \
+        pagination={'rowsPerPage': 10, 'sortBy': 'sn', 'page': 1}) \
             .props('table-header-style="color: white; font-size: 16px; background-color: #65B6FF;" flat no-shadow') \
             .classes('w-full mt-2 gap-0') \
             .style('border: 1px solid #ECECEC; border-radius: 10px 10px 0px 0px;') as table:

@@ -25,7 +25,7 @@ class CompanyDao:
     type: int # 1: 内部公司, 2: 外部公司
     extends: dict[str, Any]
     
-    def __init__(self, id=0, name="", brief_name='', address="", contacts="", phone="", email="", invoice_limit=0, has_invoiced=0.0, type = 1, tax_no=''):
+    def __init__(self, id="", name="", brief_name='', address="", contacts="", phone="", email="", invoice_limit=0, has_invoiced=0.0, type = 1, tax_no=''):
         self.id = str(id)
         self.name = name
         self.brief_name = brief_name
