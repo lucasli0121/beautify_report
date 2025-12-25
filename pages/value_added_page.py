@@ -4,6 +4,7 @@ from nicegui import ui,events, app
 from components import inputs, tables, dialogs
 from typing import Any, Optional, cast
 from dao.company_dao import CompanyDao
+from dao.period_data_dao import PeriodDataDao
 from dao.value_added_dao import ValueAddedDao
 from utils import global_vars as g
 
@@ -71,7 +72,19 @@ def on_search() -> None:
             row_dict['sn'] = sn
             dao = ValueAddedDao()
             dao.from_db(item)
-            row_dict.update(dao.to_db())
+            row_dict['id'] = dao.id
+            row_dict['create_time'] = dao.create_time
+            row_dict['last_month_no_verify'] = f"{round(dao.last_month_no_verify, 2):,.2f}"
+            row_dict['last_month_stay_pay'] = f"{round(dao.last_month_stay_pay, 2):,.2f}"
+            row_dict['opened_input_tax'] = f"{round(dao.opened_input_tax, 2):,.2f}"
+            row_dict['opened_output_tax'] = f"{round(dao.opened_output_tax, 2):,.2f}"
+            row_dict['to_open_input_tax'] = f"{round(dao.to_open_input_tax, 2):,.2f}"
+            row_dict['to_open_output_tax'] = f"{round(dao.to_open_output_tax, 2):,.2f}"
+            row_dict['payable_tax'] = f"{round(dao.payable_tax, 2):,.2f}"
+            row_dict['sales_amount'] = f"{round(dao.sales_amount, 2):,.2f}"
+            row_dict['opened_billing_amount'] = f"{round(dao.opened_billing_amount, 2):,.2f}"
+            row_dict['remaining_billing_amount'] = f"{round(dao.remaining_billing_amount, 2):,.2f}"
+            row_dict['billing_amount'] = f"{round(dao.billing_amount, 2):,.2f}"
             result, company_dao = g.my_db.query_company_by_id(dao.company_id)
             company_name = '未知公司'
             if result and company_dao is not None:
@@ -403,7 +416,7 @@ def summary_value_added(company_id: str, record_month: str) -> Optional[list[Val
         return None
     summary_dao_list : list[ValueAddedDao] = []
     for item in list_period:
-        period_dao = ValueAddedDao()
+        period_dao = PeriodDataDao()
         period_dao.from_db(item)
         value_added_dao = ValueAddedDao()
         value_added_dao.company_id = period_dao.company_id
@@ -416,10 +429,14 @@ def summary_value_added(company_id: str, record_month: str) -> Optional[list[Val
         value_added_dao.billing_amount = period_dao.billing_amount
         result, dict_input_value = g.my_db.summary_input_added_tax_by_month(period_dao.company_id, period_dao.create_time)
         if result is True and dict_input_value is not None:
-            value_added_dao.opened_input_tax = dict_input_value.get('total_added_tax', 0.0)
+            value = float(dict_input_value.get('total_added_tax', 0.0))
+            value_added_dao.opened_input_tax = value
         result, dict_output_value = g.my_db.summary_output_added_tax_by_month(period_dao.company_id, period_dao.create_time)
         if result is True and dict_output_value is not None:
-            value_added_dao.opened_output_tax = dict_output_value.get('total_added_tax', 0.0)
+            value1 = float(dict_output_value.get('total_added_tax', 0.0))
+            value_added_dao.opened_output_tax = value1
+            value2 = float(dict_output_value.get('total_invoice_money', 0.0))
+            value_added_dao.opened_billing_amount = value2
         value_added_dao.payable_tax = value_added_dao.opened_output_tax + value_added_dao.to_open_output_tax - value_added_dao.opened_input_tax - value_added_dao.to_open_input_tax - value_added_dao.last_month_stay_pay - value_added_dao.last_month_no_verify
         value_added_dao.sales_amount = value_added_dao.payable_tax * 1.06 / 0.06
         value_added_dao.remaining_billing_amount = value_added_dao.billing_amount - value_added_dao.opened_billing_amount

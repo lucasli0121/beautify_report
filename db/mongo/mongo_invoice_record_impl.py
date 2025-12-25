@@ -172,6 +172,7 @@ class MongoInvoiceRecordImpl():
         match_stage = {
             '$match': {
                 'to_company_id': company_id,
+                'invoice_type': 1,
                 '$expr': {
                     '$eq': [{'$substrBytes': ['$invoice_time', 0, 7]}, record_month]
                 }
@@ -216,6 +217,7 @@ class MongoInvoiceRecordImpl():
         match_stage = {
             '$match': {
                 'from_company_id': company_id,
+                'invoice_type': 1,
                 '$expr': {
                     '$eq': [{'$substrBytes': ['$invoice_time', 0, 7]}, record_month]
                 }
