@@ -222,6 +222,12 @@ class MyDb:
                 return MongoInvoiceTitleImpl(self.mongo).delete(id)
         self.logger.error("No database implementation available for deleting invoice title.")
         return False
+    ############################################################################################################
+    # 开票记录相关接口
+    #############################################################################################################
+    """
+    添加开票记录
+    """
     def add_invoice_record(self, d: dict[str, Any]) -> tuple[bool, str|None]:
         if self.mysql is not None:
             return False, None
@@ -238,12 +244,12 @@ class MyDb:
                 return MongoInvoiceRecordImpl(self.mongo).update(d, condition)
         self.logger.error("No database implementation available for updating invoice record.")
         return False
-    def query_invoice_record_by_time(self, from_company_id: str, to_company_id: str, invoice_content: str, invoice_time: str) -> tuple[bool, Any|None]:
+    def query_invoice_record_by_invoice_time(self, from_company_id: str, to_company_id: str, invoice_content: str, begin_invoice_time: str, end_invoice_time: str) -> tuple[bool, Any|None]:
         if self.mysql is not None:
             return False, None
         else:
             if self.mongo is not None:
-                return MongoInvoiceRecordImpl(self.mongo).query_by_time(from_company_id, to_company_id, invoice_content, invoice_time)
+                return MongoInvoiceRecordImpl(self.mongo).query_by_invoice_time(from_company_id, to_company_id, invoice_content, begin_invoice_time, end_invoice_time)
         self.logger.error("No database implementation available for querying invoice record.")
         return False, None
     
@@ -279,7 +285,42 @@ class MyDb:
                 return MongoInvoiceRecordImpl(self.mongo).delete(id)
         self.logger.error("No database implementation available for deleting invoice record.")
         return False
+    """
+        根据公司ID和年月统计进项增值税额
+        :param company_id: 公司ID
+        :param record_month: 统计年月，格式YYYY-MM
+        :return: 成功返回True和增值税额，否则返回False和None
+    """
+    def summary_input_added_tax_by_month(self, company_id: str, record_month: str) -> tuple[bool, dict[str, Any]|None]:
+        if self.mysql is not None:
+            return False, None
+        else:
+            if self.mongo is not None:
+                return MongoInvoiceRecordImpl(self.mongo).summary_input_added_tax_by_month(company_id, record_month)
+        self.logger.error("No database implementation available for summarizing input added tax by month.")
+        return False, None
+    """
+        根据公司ID和年月统计销项增值税额
+        :param company_id: 公司ID
+        :param record_month: 统计年月，格式YYYY-MM
+        :return: 成功返回True和增值税额，否则返回False和None
+    """
+    def summary_output_added_tax_by_month(self, company_id: str, record_month: str) -> tuple[bool, dict[str, Any]|None]:
+        if self.mysql is not None:
+            return False, None
+        else:
+            if self.mongo is not None:
+                return MongoInvoiceRecordImpl(self.mongo).summary_output_added_tax_by_month(company_id, record_month)
+        self.logger.error("No database implementation available for summarizing output added tax by month.")
+        return False, None
     
+    ############################################################################################################
+    # 付款记录相关接口
+    #############################################################################################################
+    
+    """
+    添加付款记录
+    """
     def add_payment_record(self, d: dict[str, Any]) -> tuple[bool, str|None]:
         if self.mysql is not None:
             return False, None
@@ -320,6 +361,9 @@ class MyDb:
                 return MongoPaymentRecordImpl(self.mongo).delete(id)
         self.logger.error("No database implementation available for deleting payment record.")
         return False
+    ############################################################################################################
+    # 服务记录相关接口
+    #############################################################################################################
     def add_service_record(self, d: dict[str, Any]) -> tuple[bool, str|None]:
         if self.mysql is not None:
             return False, None
@@ -453,7 +497,9 @@ class MyDb:
                 return MongoTaxApprovalImpl(self.mongo).delete(id)
         self.logger.error("No database implementation available for deleting tax approval.")
         return False
-    
+    #############################################################################################################
+    # 识别信息相关接口
+    #############################################################################################################
     def add_recognize_info(self, d: dict[str, Any]) -> tuple[bool, str|None]:
         if self.mysql is not None:
             return False, None
@@ -504,6 +550,9 @@ class MyDb:
                 return MongoRecognizeInfoImpl(self.mongo).delete(id)
         self.logger.error("No database implementation available for deleting recognize info.")
         return False
+    ############################################################################################################
+    # 期初数据相关接口
+    #############################################################################################################
     """
     获取期初数据表名
     :return: 期初数据表名
@@ -548,6 +597,9 @@ class MyDb:
                 return MongoPeriodDataImpl(self.mongo).delete(id)
         self.logger.error("No database implementation available for deleting period data.")
         return False
+    ############################################################################################################
+    # 增值税相关接口
+    #############################################################################################################
     """
     处理增值税数据表
     :return: 期初数据表名

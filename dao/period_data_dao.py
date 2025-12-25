@@ -29,9 +29,9 @@ class PeriodDataDao:
     def from_db(self, data: dict[str, Any]) -> None:
         self.id = str(data.get('_id', ''))
         self.company_id = data.get('company_id', "")
-        self.last_month_no_verify = data.get('last_month_no_verify', 0.0)
-        self.last_month_stay_pay = data.get('last_month_stay_pay', 0.0)
-        self.billing_amount = data.get('billing_amount', 0.0)
+        self.last_month_no_verify = float(data.get('last_month_no_verify', 0.0))
+        self.last_month_stay_pay = float(data.get('last_month_stay_pay', 0.0))
+        self.billing_amount = float(data.get('billing_amount', 0.0))
         self.create_time = data.get('create_time', "")
 
     def to_db(self) -> dict[str, Any]:

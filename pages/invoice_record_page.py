@@ -366,7 +366,7 @@ def read_pdf_from_upload(handle_upload: Callable) -> None:
 
 def upload_invoice_pdf() -> None:
     def handle_upload(dao: InvoiceRecordDao) -> None:
-        res, record_list = g.my_db.query_invoice_record_by_time(dao.from_company_id, dao.to_company_id, dao.invoice_content, dao.invoice_time)
+        res, record_list = g.my_db.query_invoice_record_by_invoice_time(dao.from_company_id, dao.to_company_id, dao.invoice_content, dao.invoice_time, dao.invoice_time)
         if res and record_list is not None and len(record_list) > 0:
             ui.notify(f'发票 "{dao.invoice_number}" 已存在，不能重复上传')
             return

@@ -90,7 +90,7 @@ class MongoInvoiceRecordImpl():
     :param condition: 查询条件，例如 "id = 1"
     :return: 查询结果列表，每个元素是一个字典，包含公司信息
     """
-    def query_by_time(self, from_company_id: str, to_company_id: str, invoice_content: str, invoice_time: str) -> tuple[bool, Any|None]:
+    def query_by_invoice_time(self, from_company_id: str, to_company_id: str, invoice_content: str, begin_invoice_time: str, end_invoice_time: str) -> tuple[bool, Any|None]:
         tbl_name = self.invoice_record_tbl()
         if tbl_name is None:
             self.logger.error("invoice table not found in MongoDB.")
@@ -102,8 +102,13 @@ class MongoInvoiceRecordImpl():
             query['to_company_id'] = {'$eq': to_company_id}
         # if invoice_content or len(invoice_content) > 0:
         #     query['invoice_content'] = {'$regex': invoice_content, '$options': 'i'}
-        if invoice_time or len(invoice_time) > 0:
-            query['invoice_time'] = {'$eq': invoice_time}
+        if begin_invoice_time or len(begin_invoice_time) > 0:
+            query['invoice_time'] = {'$gte': begin_invoice_time}
+        if end_invoice_time or len(end_invoice_time) > 0:
+            if 'invoice_time' in query:
+                query['invoice_time']['$lte'] = end_invoice_time
+            else:
+                query['invoice_time'] = {'$lte': end_invoice_time}
         # 执行查询
         return self.mongo_impl.query_by_condition(tbl_name, query, {'invoice_time': -1})
     
@@ -151,3 +156,91 @@ class MongoInvoiceRecordImpl():
             return False
         query = {'_id': ObjectId(id)}
         return self.mongo_impl.delete(tbl_name, query)
+    
+    """
+    function: summary_input_added_tax_by_month
+    description: 汇总某公司某月的进项增值税信息
+    param {*} company_id
+    param {*} record_month
+    return {*}
+    """
+    def summary_input_added_tax_by_month(self, company_id: str, record_month: str) -> tuple[bool, dict[str, Any]|None]:
+        tbl_name = self.invoice_record_tbl()
+        if tbl_name is None:
+            self.logger.error("Invoice table not found in MongoDB.")
+            return False, None
+        match_stage = {
+            '$match': {
+                'to_company_id': company_id,
+                '$expr': {
+                    '$eq': [{'$substrBytes': ['$invoice_time', 0, 7]}, record_month]
+                }
+            }
+        }
+        group_stage = {
+            '$group': {
+                '_id': {'$substrBytes': ['$invoice_time', 0, 7] },
+                'total_added_tax': {'$sum': '$added_tax'},
+                'total_before_tax_money': {'$sum': '$before_tax_money'},
+                'total_invoice_money': {'$sum': '$invoice_money'}
+            }
+        }
+        pipeline = [match_stage, group_stage]
+        value = list(tbl_name.aggregate(pipeline))
+        if not value:
+            self.logger.info("No invoice records found for the given company and month.")
+            return True, {
+                'total_added_tax': 0.0,
+                'total_before_tax_money': 0.0,
+                'total_invoice_money': 0.0
+            }
+        summary = value[0]
+        return True, {
+            'total_added_tax': summary.get('total_added_tax', 0.0),
+            'total_before_tax_money': summary.get('total_before_tax_money', 0.0),
+            'total_invoice_money': summary.get('total_invoice_money', 0.0)
+        }
+    
+    """
+    function: summary_output_added_tax_by_month
+    description: 汇总某公司某月的销项增值税信息
+    param {*} company_id
+    param {*} record_month
+    return {*}
+    """
+    def summary_output_added_tax_by_month(self, company_id: str, record_month: str) -> tuple[bool, dict[str, Any]|None]:
+        tbl_name = self.invoice_record_tbl()
+        if tbl_name is None:
+            self.logger.error("Invoice table not found in MongoDB.")
+            return False, None
+        match_stage = {
+            '$match': {
+                'from_company_id': company_id,
+                '$expr': {
+                    '$eq': [{'$substrBytes': ['$invoice_time', 0, 7]}, record_month]
+                }
+            }
+        }
+        group_stage = {
+            '$group': {
+                '_id': {'$substrBytes': ['$invoice_time', 0, 7] },
+                'total_added_tax': {'$sum': '$added_tax'},
+                'total_before_tax_money': {'$sum': '$before_tax_money'},
+                'total_invoice_money': {'$sum': '$invoice_money'}
+            }
+        }
+        pipeline = [match_stage, group_stage]
+        value = list(tbl_name.aggregate(pipeline))
+        if not value:
+            self.logger.info("No invoice records found for the given company and month.")
+            return True, {
+                'total_added_tax': 0.0,
+                'total_before_tax_money': 0.0,
+                'total_invoice_money': 0.0
+            }
+        summary = value[0]
+        return True, {
+            'total_added_tax': summary.get('total_added_tax', 0.0),
+            'total_before_tax_money': summary.get('total_before_tax_money', 0.0),
+            'total_invoice_money': summary.get('total_invoice_money', 0.0)
+        }

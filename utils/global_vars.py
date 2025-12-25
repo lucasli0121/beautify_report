@@ -33,6 +33,7 @@ def query_company_name_company() -> tuple[bool, dict[str, CompanyDao]]:
     if result is False:
         return False, {}
     company_info = {}
+    company_info['所有'] = CompanyDao()
     if result and list_values is not None:
         for item in list_values:
             company = CompanyDao()
