@@ -4,7 +4,7 @@ from nicegui import ui,events, app
 from components import inputs, tables, dialogs
 from typing import Any, Optional, cast
 from dao.company_dao import CompanyDao
-from dao.period_data_dao import PeriodDataDao
+from dao.value_added_dao import ValueAddedDao
 from utils import global_vars as g
 
 @dataclass
@@ -14,7 +14,7 @@ class SearchCondition:
     record_month: str = ""
 search_condition = SearchCondition()
 
-def show_period_data_page():
+def show_value_added_page():
     result, company_info = g.query_company_name_company()
     if result is False:
         ui.notify('查询公司信息失败')
@@ -41,6 +41,9 @@ def show_period_data_page():
         ui.button('刷新', icon='img:/static/images/refresh@2x.png', on_click=on_search) \
             .classes('w-25 rounded-md text-white') \
             .style('background-color: #6C96FB !important')
+        ui.button('汇总', icon='img:/static/images/subject@2x.png', on_click=on_search) \
+            .classes('w-25 rounded-md text-white') \
+            .style('background-color: #6C96FB !important')
         ui.button('删除', icon='img:/static/images/delete@2x.png', on_click=del_select) \
             .classes('w-25 rounded-md text-red') \
             .style('background-color: rgba(255,77,77,0.39) !important')
@@ -49,44 +52,44 @@ def show_period_data_page():
             .style('background-color: #65B6FF !important')
             
     table_rows: list[dict] = []
-    app.storage.client['period_data_table'] = tables.show_period_data_table(table_rows, show_edit, delete_one)
+    app.storage.client['value_added_table'] = tables.show_value_added_table(table_rows, show_edit, delete_one)
     on_search()
 
 def on_search() -> None:
-    result, list_values = g.my_db.query_all_period_data(search_condition.company_id, search_condition.record_month)
+    result, list_values = g.my_db.query_all_value_added(search_condition.company_id, search_condition.record_month)
     if result is False:
         ui.notify('查询期初数据失败')
         return
-    if 'period_data_table' in app.storage.client:
-        app.storage.client['period_data_table'].rows.clear()
-        app.storage.client['period_data_table'].update()
+    if 'value_added_table' in app.storage.client:
+        app.storage.client['value_added_table'].rows.clear()
+        app.storage.client['value_added_table'].update()
         if list_values is None or len(list_values) == 0:
-            ui.notify('没有查询到期初数据')
+            ui.notify('没有查询到增值税数据')
             return
         sn = 1
         for item in list_values:
             row_dict: dict[str, Any] = {}
             row_dict['sn'] = sn
-            dao = PeriodDataDao()
+            dao = ValueAddedDao()
             dao.from_db(item)
             row_dict.update(dao.to_db())
             result, company_dao = g.my_db.query_company_by_id(dao.company_id)
-            company_name = '未知开票方'
+            company_name = '未知公司'
             if result and company_dao is not None:
                 company_name = company_dao.brief_name
             row_dict['company_name'] = company_name
-            app.storage.client['period_data_table'].add_row(row_dict)
+            app.storage.client['value_added_table'].add_row(row_dict)
             sn += 1
-        app.storage.client['period_data_table'].update()
+        app.storage.client['value_added_table'].update()
 
 def show_edit(e: events.GenericEventArguments) -> None:
     id = e.args['id']
     if id is None or len(id) == 0:
         ui.notify('请选择要编辑的记录')
         return
-    result, dao = g.my_db.query_period_data_by_id(id)
+    result, dao = g.my_db.query_value_added_by_id(id)
     if result is False or dao is None:
-        ui.notify('查询期初数据失败')
+        ui.notify('查询增值税数据失败')
         return
     modify_or_new(dao, is_add=False)
 
@@ -96,10 +99,10 @@ def show_edit(e: events.GenericEventArguments) -> None:
 # @return: None
 #             
 def show_add():
-    dao = PeriodDataDao()
+    dao = ValueAddedDao()
     modify_or_new(dao, is_add=True)
 
-def modify_or_new(dao: PeriodDataDao, is_add: bool = True) -> None:
+def modify_or_new(dao: ValueAddedDao, is_add: bool = True) -> None:
     result, company_info = g.query_company_name_company()
     if result is False:
         ui.notify('查询公司信息失败')
@@ -135,21 +138,33 @@ def modify_or_new(dao: PeriodDataDao, is_add: bool = True) -> None:
                 ui.label('上月未认证').classes('w-[20%] text-[16px] text-[#333333] font-medium')
                 ui.input('上月未认证金额') \
                     .props('rounded-md outlined dense ') \
-                    .classes('w-[50%] self-center item-center ') \
+                    .classes('w-[25%] self-center item-center ') \
                     .bind_value_from(dao, 'last_month_no_verify') \
                     .bind_value_to(dao, 'last_month_no_verify')
-            with ui.row().classes('w-full place-content-start items-center gap-1'):
                 ui.label('上月留抵').classes('w-[20%] text-[16px] text-[#333333] font-medium')
                 ui.input('上月留抵金额') \
                     .props('rounded-md outlined dense ') \
-                    .classes('w-[50%] self-center item-center ') \
+                    .classes('w-[25%] self-center item-center ') \
                     .bind_value_from(dao, 'last_month_stay_pay') \
                     .bind_value_to(dao, 'last_month_stay_pay')
+            with ui.row().classes('w-full place-content-start items-center gap-1'):
+                ui.label('已开进项税额').classes('w-[20%] text-[16px] text-[#333333] font-medium')
+                ui.input('已开进项税额') \
+                    .props('rounded-md outlined dense ') \
+                    .classes('w-[25%] self-center item-center ') \
+                    .bind_value_from(dao, 'opened_input_tax') \
+                    .bind_value_to(dao, 'opened_input_tax')
+                ui.label('已开销项税额').classes('w-[20%] text-[16px] text-[#333333] font-medium')
+                ui.input('已开销项税额') \
+                    .props('rounded-md outlined dense ') \
+                    .classes('w-[25%] self-center item-center ') \
+                    .bind_value_from(dao, 'opened_output_tax') \
+                    .bind_value_to(dao, 'opened_output_tax')
             with ui.row().classes('w-full place-content-start items-center gap-1'):
                 ui.label('开票额').classes('w-[20%] text-[16px] text-[#333333] font-medium')
                 ui.input('开票额') \
                     .props('rounded-md outlined dense ') \
-                    .classes('w-[50%] self-center item-center ') \
+                    .classes('w-[25%] self-center item-center ') \
                     .bind_value_from(dao, 'billing_amount') \
                     .bind_value_to(dao, 'billing_amount')
             with ui.row().classes('w-full place-content-start items-center gap-1'):
@@ -208,10 +223,10 @@ def modify_or_new(dao: PeriodDataDao, is_add: bool = True) -> None:
 # 
 '''
 def del_select():
-    if 'period_data_table' not in app.storage.client:
+    if 'value_added_table' not in app.storage.client:
         ui.notify('请先查询记录')
         return
-    selection = app.storage.client['period_data_table'].selected
+    selection = app.storage.client['value_added_table'].selected
     if not selection:
         ui.notify('请选择要删除的记录')
         return
@@ -234,7 +249,7 @@ def del_by_ids(ids: list[str]) -> None:
         for id in ids:
             if id is None or len(id) == 0:
                 continue
-            result = g.my_db.delete_period_data(id)
+            result = g.my_db.delete_value_added(id)
             if result is False:
                 delok = False
                 ui.notify(f'删除记录失败: {id}')

@@ -17,6 +17,7 @@ from db.mongo.mongo_impl import MongoImpl
 from db.mongo.mongo_invoice_title_impl import MongoInvoiceTitleImpl
 from db.mongo.mongo_period_data_impl import MongoPeriodDataImpl
 from db.mongo.mongo_recognize_info_impl import MongoRecognizeInfoImpl
+from db.mongo.mongo_value_added_impl import MongoValueAddedImpl
 from db.mysql.mysql_db import MySqlImpl
 from db.mongo.mongo_company_impl import MongoCompanyImpl
 from db.mongo.mongo_invoice_record_impl import MongoInvoiceRecordImpl
@@ -546,4 +547,48 @@ class MyDb:
             if self.mongo is not None:
                 return MongoPeriodDataImpl(self.mongo).delete(id)
         self.logger.error("No database implementation available for deleting period data.")
+        return False
+    """
+    处理增值税数据表
+    :return: 期初数据表名
+    """
+    def query_all_value_added(self, company_id: str, create_time: str) -> tuple[bool, Any|None]:
+        if self.mysql is not None:
+            return False, None
+        else:
+            if self.mongo is not None:
+                return MongoValueAddedImpl(self.mongo).query_all(company_id, create_time)
+        self.logger.error("No database implementation available for querying period data.")
+        return False, None
+    def query_value_added_by_id(self, id: str) -> tuple[bool, Any|None]:
+        if self.mysql is not None:
+            return False, None
+        else:
+            if self.mongo is not None:
+                return MongoValueAddedImpl(self.mongo).query_by_id(id)
+        self.logger.error("No database implementation available for querying value added data by id.")
+        return False, None
+    def add_value_added(self, d: dict[str, Any]) -> tuple[bool, str|None]:
+        if self.mysql is not None:
+            return False, None
+        else:
+            if self.mongo is not None:
+                return MongoValueAddedImpl(self.mongo).add(d)
+        self.logger.error("No database implementation available for adding value added data.")
+        return False, None
+    def update_value_added(self, d: dict[str, Any], condition: dict[str, Any]) -> bool:
+        if self.mysql is not None:
+            return False
+        else:
+            if self.mongo is not None:
+                return MongoValueAddedImpl(self.mongo).update(d, condition)
+        self.logger.error("No database implementation available for updating value added data.")
+        return False
+    def delete_value_added(self, id: str) -> bool:
+        if self.mysql is not None:
+            return False
+        else:
+            if self.mongo is not None:
+                return MongoValueAddedImpl(self.mongo).delete(id)
+        self.logger.error("No database implementation available for deleting value added data.")
         return False
