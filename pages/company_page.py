@@ -37,8 +37,7 @@ def show_company_page() -> None:
             contacts_input = inputs.input_search_w40('联系人', on_search)
             contacts_input.bind_value_to(search_condition, 'contacts')
             ui.label('公司类型').classes('text-[16px] text-[#333333] font-medium')
-            def on_company_type_change(e: events.GenericEventArguments) -> None:
-                value = e.args['value']
+            def on_company_type_change(value) -> None:
                 if value == '全部':
                     search_condition.company_type = ''
                 elif value == '一般纳税人':
