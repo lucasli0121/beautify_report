@@ -418,6 +418,11 @@ def summary_value_added(company_id: str, record_month: str) -> Optional[list[Val
     for item in list_period:
         period_dao = PeriodDataDao()
         period_dao.from_db(item)
+        #查询公司信息，判断公司是否小规模，如果小规模，则不进行增值税汇总
+        result, company_dao = g.my_db.query_company_by_id(period_dao.company_id)
+        if result is True and company_dao is not None:
+            if company_dao.is_small_scale():
+                continue
         value_added_dao = ValueAddedDao()
         value_added_dao.company_id = period_dao.company_id
         value_added_dao.create_time = period_dao.create_time

@@ -217,7 +217,7 @@ class MongoInvoiceRecordImpl():
         match_stage = {
             '$match': {
                 'from_company_id': company_id,
-                'invoice_type': 1,
+                # 'invoice_type': 1, # 销项发票 销售出去的票都要统计
                 '$expr': {
                     '$eq': [{'$substrBytes': ['$invoice_time', 0, 7]}, record_month]
                 }

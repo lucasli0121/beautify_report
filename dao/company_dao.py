@@ -59,6 +59,11 @@ class CompanyDao:
         self.extends = data.get('extends', {})
         
 
+    def is_small_scale(self) -> bool:
+        return self.company_type == CompanyType.SMALL.value
+    def is_general(self) -> bool:
+        return self.company_type == CompanyType.GENERAL.value
+    
     def to_db(self) -> dict[str, Any]:
         return self.__dict__
     
