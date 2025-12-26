@@ -121,9 +121,9 @@ def show_open_invoice_table(datas, show_edit, show_delete) -> ui.table:
     table_columns = [
         {'name': 'id', 'label': 'id', 'field': 'id', 'width': '1%', 'align': 'center'},
         {'name': 'operation', 'label': '操作', 'field': 'operation', 'width': '10%', 'align': 'center'},
-        {'name': 'sn', 'label': '序号', 'field': 'sn', 'width': '5%', 'align': 'center'},
+        {'name': 'sn', 'label': '序号', 'field': 'sn', 'width': '5%', 'align': 'center', },
         {'name': 'invoice_time', 'label': '开票时间', 'field': 'invoice_time', 'width': '10%', 'align': 'center'},
-        {'name': 'invoice_number', 'label': '发票编号', 'field': 'invoice_number', 'width': '5%', 'align': 'center'},
+        {'name': 'invoice_number', 'label': '发票编号', 'field': 'invoice_number', 'width': '5%', 'align': 'center', 'style': 'position: sticky; left: 0px; background: white; z-index: 2;', 'headerStyle': 'position: sticky; left: 0px;  z-index: 3;'},
         {'name': 'from_company_name', 'label': '开票方', 'field': 'from_company_name', 'width': '10%', 'align': 'center'},
         {'name': 'to_company_name', 'label': '受票方', 'field': 'to_company_name', 'width': '10%', 'align': 'center'},
         {'name': 'status', 'label': '状态', 'field': 'status', 'width': '10%', 'align': 'center'},
@@ -145,11 +145,11 @@ def show_open_invoice_table(datas, show_edit, show_delete) -> ui.table:
         selection='multiple',
         row_key='id',
         pagination={'rowsPerPage': 10, 'sortBy': 'sn', 'page': 1}) \
-            .props('table-header-style="color: white; font-size: 16px; background-color: #65B6FF;" flat no-shadow') \
+            .props('table-header-style="color: white; font-size: 16px; background-color: #65B6FF; position: sticky; top: 0px; background: #65B6FF; z-index: 3"  flat no-shadow') \
             .classes('w-full mt-2 gap-0') \
-            .style('border: 1px solid #ECECEC; border-radius: 10px 10px 0px 0px;') as table:
+            .style('border: 1px solid #ECECEC; border-radius: 10px 10px 0px 0px; max-width: 100%; height: calc(100vh - 80px - 80px - 40px)') as table:
         
-        table.props('v-model:selected="selected"')
+        table.props('v-model:selected="selected" virtual-scroll')
         table.props('visible-columns="[ \
                     \'sn\', \
                     \'invoice_number\', \
@@ -582,9 +582,10 @@ def show_period_data_table(datas, show_edit, show_delete) -> ui.table:
 def show_value_added_table(datas, show_edit, show_delete) -> ui.table:
     table_columns = [
         {'name': 'id', 'label': 'id', 'field': 'id', 'width': '0%', 'align': 'center'},
+        {'name': 'operation', 'label': '操作', 'field': 'operation', 'width': '5%', 'align': 'center'},
         {'name': 'sn', 'label': '序号', 'field': 'sn', 'width': '5%', 'align': 'center'},
-        {'name': 'company_name', 'label': '公司名称', 'field': 'company_name', 'width': '10%', 'align': 'center'},
-        {'name': 'create_time', 'label': '日期', 'field': 'create_time', 'width': '10%', 'align': 'center'},
+        {'name': 'company_name', 'label': '公司名称', 'field': 'company_name', 'align': 'center', 'style': 'position: sticky; width: 100px; left: 0px; background: white; z-index: 2;', 'headerStyle': 'position: sticky; left: 0px;  z-index: 3;'},
+        {'name': 'create_time', 'label': '日期', 'field': 'create_time', 'width': '10%', 'align': 'center', 'style': 'position: sticky; left: 80px; background: white; z-index: 2;', 'headerStyle': 'position: sticky; left: 80px;  z-index: 3;'},
         {'name': 'last_month_no_verify', 'label': '上月未认证', 'field': 'last_month_no_verify', 'width': '10%', 'align': 'right'},
         {'name': 'last_month_stay_pay', 'label': '上月留抵', 'field': 'last_month_stay_pay', 'width': '10%', 'align': 'right'},
         {'name': 'opened_input_tax', 'label': '已开进项税', 'field': 'opened_input_tax', 'width': '10%', 'align': 'right'},
@@ -595,8 +596,7 @@ def show_value_added_table(datas, show_edit, show_delete) -> ui.table:
         {'name': 'sales_amount', 'label': '6%开销售额', 'field': 'sales_amount', 'width': '10%', 'align': 'right'},
         {'name': 'opened_billing_amount', 'label': '已开票额', 'field': 'opened_billing_amount', 'width': '10%', 'align': 'right'},
         {'name': 'remaining_billing_amount', 'label': '剩余开票额', 'field': 'remaining_billing_amount', 'width': '10%', 'align': 'right'},
-        {'name': 'billing_amount', 'label': '开票额', 'field': 'billing_amount', 'width': '10%', 'align': 'right'},
-        {'name': 'operation', 'label': '操作', 'field': 'operation', 'width': '5%', 'align': 'center'}
+        {'name': 'billing_amount', 'label': '开票额', 'field': 'billing_amount', 'width': '10%', 'align': 'right'}
     ]
     with ui.table(
         columns=table_columns,
@@ -604,9 +604,9 @@ def show_value_added_table(datas, show_edit, show_delete) -> ui.table:
         selection='multiple',
         row_key='id',
         pagination={'rowsPerPage': 10, 'sortBy': 'sn', 'page': 1}) \
-            .props('table-header-style="color: white; font-size: 16px; background-color: #65B6FF;" flat no-shadow') \
+            .props('table-header-style="color: white; font-size: 16px; background-color: #65B6FF; position: sticky; top: 0px; background: #65B6FF; z-index: 3" flat no-shadow') \
             .classes('w-full mt-2 gap-0') \
-            .style('border: 1px solid #ECECEC; border-radius: 10px 10px 0px 0px;') as table:
+            .style('border: 1px solid #ECECEC; border-radius: 10px 10px 0px 0px; max-width: 100%; height: calc(100vh - 80px - 80px - 40px)') as table:
         
         table.props('v-model:selected="selected"')
         table.props('visible-columns="[ \
