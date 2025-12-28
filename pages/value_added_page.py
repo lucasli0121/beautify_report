@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
-from nicegui import ui,events, app
+import asyncio
+from nicegui import ui,events, app, run
 from components import inputs, tables, dialogs
 from typing import Any, Optional, cast
 from dao.company_dao import CompanyDao
@@ -38,7 +39,7 @@ def show_value_added_page():
                 search_condition.record_month = f"{year_select.value}-{value.zfill(2)}"
         month_select = inputs.selection_w40([str(x).zfill(2) for x in range(1, 13)], None, False, on_change=on_month_select)
             
-        ui.button('刷新', icon='img:/static/images/refresh@2x.png', on_click=on_search) \
+        search_button = ui.button('刷新', icon='img:/static/images/refresh@2x.png', on_click=on_search) \
             .classes('w-25 rounded-md text-white') \
             .style('background-color: #6C96FB !important')
         ui.button('汇总', icon='img:/static/images/subject@2x.png', on_click=show_summary_value_added) \
@@ -66,32 +67,61 @@ def on_search() -> None:
         if list_values is None or len(list_values) == 0:
             ui.notify('没有查询到增值税数据')
             return
-        sn = 1
-        for item in list_values:
-            row_dict: dict[str, Any] = {}
-            row_dict['sn'] = sn
-            dao = ValueAddedDao()
-            dao.from_db(item)
-            row_dict['id'] = dao.id
-            row_dict['create_time'] = dao.create_time
-            row_dict['last_month_no_verify'] = f"{round(dao.last_month_no_verify, 2):,.2f}"
-            row_dict['last_month_stay_pay'] = f"{round(dao.last_month_stay_pay, 2):,.2f}"
-            row_dict['opened_input_tax'] = f"{round(dao.opened_input_tax, 2):,.2f}"
-            row_dict['opened_output_tax'] = f"{round(dao.opened_output_tax, 2):,.2f}"
-            row_dict['to_open_input_tax'] = f"{round(dao.to_open_input_tax, 2):,.2f}"
-            row_dict['to_open_output_tax'] = f"{round(dao.to_open_output_tax, 2):,.2f}"
-            row_dict['payable_tax'] = f"{round(dao.payable_tax, 2):,.2f}"
-            row_dict['sales_amount'] = f"{round(dao.sales_amount, 2):,.2f}"
-            row_dict['opened_billing_amount'] = f"{round(dao.opened_billing_amount, 2):,.2f}"
-            row_dict['remaining_billing_amount'] = f"{round(dao.remaining_billing_amount, 2):,.2f}"
-            row_dict['billing_amount'] = f"{round(dao.billing_amount, 2):,.2f}"
-            result, company_dao = g.my_db.query_company_by_id(dao.company_id)
-            company_name = '未知公司'
-            if result and company_dao is not None:
-                company_name = company_dao.brief_name
-            row_dict['company_name'] = company_name
-            app.storage.client['value_added_table'].add_row(row_dict)
-            sn += 1
+        def do_refresh() -> list[dict[str, Any]]:
+            sn = 1
+            rows: list[dict[str, Any]] = []
+            for item in list_values:
+                row_dict: dict[str, Any] = {}
+                row_dict['sn'] = sn
+                dao = ValueAddedDao()
+                dao.from_db(item)
+                row_dict['id'] = dao.id
+                row_dict['create_time'] = dao.create_time
+                row_dict['last_month_no_verify'] = f"{round(dao.last_month_no_verify, 2):,.2f}"
+                row_dict['last_month_stay_pay'] = f"{round(dao.last_month_stay_pay, 2):,.2f}"
+                row_dict['opened_input_tax'] = f"{round(dao.opened_input_tax, 2):,.2f}"
+                row_dict['opened_output_tax'] = f"{round(dao.opened_output_tax, 2):,.2f}"
+                row_dict['to_open_input_tax'] = f"{round(dao.to_open_input_tax, 2):,.2f}"
+                row_dict['to_open_output_tax'] = f"{round(dao.to_open_output_tax, 2):,.2f}"
+                row_dict['payable_tax'] = f"{round(dao.payable_tax, 2):,.2f}"
+                row_dict['sales_amount'] = f"{round(dao.sales_amount, 2):,.2f}"
+                row_dict['opened_billing_amount'] = f"{round(dao.opened_billing_amount, 2):,.2f}"
+                row_dict['remaining_billing_amount'] = f"{round(dao.remaining_billing_amount, 2):,.2f}"
+                row_dict['billing_amount'] = f"{round(dao.billing_amount, 2):,.2f}"
+                result, company_dao = g.my_db.query_company_by_id(dao.company_id)
+                company_name = '未知公司'
+                if result and company_dao is not None:
+                    company_name = company_dao.brief_name
+                row_dict['company_name'] = company_name
+                rows.append(row_dict)
+                sn += 1
+            return rows
+        # sn = 1
+        # for item in list_values:
+        #     row_dict: dict[str, Any] = {}
+        #     row_dict['sn'] = sn
+        #     dao = ValueAddedDao()
+        #     dao.from_db(item)
+        #     row_dict['id'] = dao.id
+        #     row_dict['create_time'] = dao.create_time
+        #     row_dict['last_month_no_verify'] = f"{round(dao.last_month_no_verify, 2):,.2f}"
+        #     row_dict['last_month_stay_pay'] = f"{round(dao.last_month_stay_pay, 2):,.2f}"
+        #     row_dict['opened_input_tax'] = f"{round(dao.opened_input_tax, 2):,.2f}"
+        #     row_dict['opened_output_tax'] = f"{round(dao.opened_output_tax, 2):,.2f}"
+        #     row_dict['to_open_input_tax'] = f"{round(dao.to_open_input_tax, 2):,.2f}"
+        #     row_dict['to_open_output_tax'] = f"{round(dao.to_open_output_tax, 2):,.2f}"
+        #     row_dict['payable_tax'] = f"{round(dao.payable_tax, 2):,.2f}"
+        #     row_dict['sales_amount'] = f"{round(dao.sales_amount, 2):,.2f}"
+        #     row_dict['opened_billing_amount'] = f"{round(dao.opened_billing_amount, 2):,.2f}"
+        #     row_dict['remaining_billing_amount'] = f"{round(dao.remaining_billing_amount, 2):,.2f}"
+        #     row_dict['billing_amount'] = f"{round(dao.billing_amount, 2):,.2f}"
+        #     result, company_dao = g.my_db.query_company_by_id(dao.company_id)
+        #     company_name = '未知公司'
+        #     if result and company_dao is not None:
+        #         company_name = company_dao.brief_name
+        #     row_dict['company_name'] = company_name
+        rows = do_refresh()
+        app.storage.client['value_added_table'].rows = rows
         app.storage.client['value_added_table'].update()
 
 """
@@ -100,7 +130,7 @@ description: 显示增值税汇总对话框
 param {*}
 return {*}
 """
-def show_summary_value_added() -> None:
+async def show_summary_value_added() -> None:
     result, company_info = g.query_company_name_company()
     if result is False:
         ui.notify('查询公司信息失败')
@@ -113,26 +143,42 @@ def show_summary_value_added() -> None:
             with ui.row().classes('w-full place-content-start items-center gap-1'):
                 ui.label('年月').classes('w-[20%] text-[16px] text-[#333333] font-medium')
                 year_input = inputs.selection_w40([str(x) for x in range(2001, 2031)], None, False, None)
+                year_input.set_value(datetime.now().strftime("%Y"))
                 month_select = inputs.selection_w40([str(x).zfill(2) for x in range(1, 13)], None, False, None)
+                month_select.set_value(datetime.now().strftime("%m").zfill(2))
             with ui.row().classes('w-full place-content-start items-center gap-1'):
                 ui.label('公司').classes('w-[20%] text-[16px] text-[#333333] font-medium')
                 company_select = inputs.selection_w60(options, None, need_input=True, on_change=None)
             with ui.row().classes('w-full place-content-center items-center gap-1'):
-                def on_summary():
+                async def on_summary():
                     company_id = ''
                     if company_select.value is not None:
                         company_id = company_info[company_select.value].id
                     if year_input.value is None or month_select.value is None:
                         ui.notify('请选择年月')
                         return
+                    refresh_dialog = g.show_refresh_process("汇总中，请稍候...")
                     record_month = f"{year_input.value}-{month_select.value.zfill(2)}"
+                    result, count = await run.io_bound(do_summary_update, company_id, record_month)
+                    if result is False:
+                        ui.notify("汇总增值税数据失败,没有查询到相关数据")
+                        refresh_dialog.close()
+                        return
+                    refresh_dialog.close()
+                    ui.notify(f"汇总增值税数据成功，共处理{count}条记录")
+                    on_search()
+                def do_summary_update(company_id: str, record_month: str) -> tuple[bool, int]:
                     summary_list = summary_value_added(company_id, record_month)
                     if summary_list is None or len(summary_list) == 0:
-                        ui.notify('汇总增值税数据失败')
-                        return
+                        return False, 0
+                    i = 0
                     for dao in summary_list:
-                        g.my_db.add_value_added(dao.to_db())
-                    on_search()
+                        if dao.id is None or len(dao.id) == 0:
+                            g.my_db.add_value_added(dao.to_db())
+                        else:
+                            g.my_db.update_value_added(dao.to_db(), {'id': dao.id})
+                        i += 1
+                    return True, i
                 ui.button('关闭', color=None, on_click=dialog.close) \
                     .props('flat') \
                     .classes('w-[120px] text-[16px] text-[#888888] font-[400]') \
@@ -235,72 +281,75 @@ def modify_or_new(dao: ValueAddedDao, is_add: bool = True) -> None:
             with ui.row().classes('w-full place-content-start items-center gap-1'):
                 ui.label('上月未认证').classes('w-[20%] text-[16px] text-[#333333] font-medium')
                 ui.input('上月未认证金额') \
-                    .props('rounded-md outlined dense ') \
+                    .props('rounded-md outlined dense type="number"') \
                     .classes('w-[25%] self-center item-center ') \
                     .bind_value_from(dao, 'last_month_no_verify') \
                     .bind_value_to(dao, 'last_month_no_verify')
                 ui.label('上月留抵').classes('w-[20%] text-[16px] text-[#333333] font-medium')
                 ui.input('上月留抵金额') \
-                    .props('rounded-md outlined dense ') \
+                    .props('rounded-md outlined dense type="number"') \
                     .classes('w-[25%] self-center item-center ') \
                     .bind_value_from(dao, 'last_month_stay_pay') \
                     .bind_value_to(dao, 'last_month_stay_pay')
             with ui.row().classes('w-full place-content-start items-center gap-1'):
                 ui.label('已开进项税额').classes('w-[20%] text-[16px] text-[#333333] font-medium')
                 ui.input('已开进项税额') \
-                    .props('rounded-md outlined dense ') \
+                    .props('rounded-md outlined dense type="number"') \
                     .classes('w-[25%] self-center item-center ') \
                     .bind_value_from(dao, 'opened_input_tax') \
                     .bind_value_to(dao, 'opened_input_tax')
                 ui.label('已开销项税额').classes('w-[20%] text-[16px] text-[#333333] font-medium')
                 ui.input('已开销项税额') \
-                    .props('rounded-md outlined dense ') \
+                    .props('rounded-md outlined dense type="number"') \
                     .classes('w-[25%] self-center item-center ') \
                     .bind_value_from(dao, 'opened_output_tax') \
                     .bind_value_to(dao, 'opened_output_tax')
             with ui.row().classes('w-full place-content-start items-center gap-1'):
                 ui.label('待开进项税额').classes('w-[20%] text-[16px] text-[#333333] font-medium')
                 ui.input('待开进项税额') \
-                    .props('rounded-md outlined dense ') \
+                    .props('rounded-md outlined dense type="number"') \
                     .classes('w-[25%] self-center item-center ') \
                     .bind_value_from(dao, 'to_open_input_tax') \
                     .bind_value_to(dao, 'to_open_input_tax')
                 ui.label('待开销项税额').classes('w-[20%] text-[16px] text-[#333333] font-medium')
                 ui.input('待开销项税额') \
-                    .props('rounded-md outlined dense ') \
+                    .props('rounded-md outlined dense type="number"') \
                     .classes('w-[25%] self-center item-center ') \
                     .bind_value_from(dao, 'to_open_output_tax') \
                     .bind_value_to(dao, 'to_open_output_tax')
             with ui.row().classes('w-full place-content-start items-center gap-1'):
                 ui.label('应纳税额').classes('w-[20%] text-[16px] text-[#333333] font-medium')
                 ui.input('应纳税额') \
-                    .props('rounded-md outlined dense ') \
+                    .props('rounded-md outlined dense type="number"') \
                     .classes('w-[25%] self-center item-center ') \
                     .bind_value_from(dao, 'payable_tax') \
-                    .bind_value_to(dao, 'payable_tax')
+                    .bind_value_to(dao, 'payable_tax') \
+                    .set_enabled(False)
                 ui.label('开销售额').classes('w-[20%] text-[16px] text-[#333333] font-medium')
                 ui.input('开销售额') \
-                    .props('rounded-md outlined dense ') \
+                    .props('rounded-md outlined dense type="number"') \
                     .classes('w-[25%] self-center item-center ') \
                     .bind_value_from(dao, 'sales_amount') \
-                    .bind_value_to(dao, 'sales_amount')
+                    .bind_value_to(dao, 'sales_amount') \
+                    .set_enabled(False)
             with ui.row().classes('w-full place-content-start items-center gap-1'):
                 ui.label('已开票额').classes('w-[20%] text-[16px] text-[#333333] font-medium')
                 ui.input('已开票额') \
-                    .props('rounded-md outlined dense ') \
+                    .props('rounded-md outlined dense type="number"') \
                     .classes('w-[25%] self-center item-center ') \
                     .bind_value_from(dao, 'opened_billing_amount') \
                     .bind_value_to(dao, 'opened_billing_amount')
                 ui.label('剩余开票额').classes('w-[20%] text-[16px] text-[#333333] font-medium')
                 ui.input('剩余开票额') \
-                    .props('rounded-md outlined dense ') \
+                    .props('rounded-md outlined dense type="number"') \
                     .classes('w-[25%] self-center item-center ') \
                     .bind_value_from(dao, 'remaining_billing_amount') \
-                    .bind_value_to(dao, 'remaining_billing_amount')
+                    .bind_value_to(dao, 'remaining_billing_amount') \
+                    .set_enabled(False)
             with ui.row().classes('w-full place-content-start items-center gap-1'):
                 ui.label('可开票额').classes('w-[20%] text-[16px] text-[#333333] font-medium')
                 ui.input('可开票额') \
-                    .props('rounded-md outlined dense ') \
+                    .props('rounded-md outlined dense type="number"') \
                     .classes('w-[25%] self-center item-center ') \
                     .bind_value_from(dao, 'billing_amount') \
                     .bind_value_to(dao, 'billing_amount')
@@ -310,7 +359,7 @@ def modify_or_new(dao: ValueAddedDao, is_add: bool = True) -> None:
                     .props('flat') \
                     .classes('w-[120px] text-[16px] text-[#888888] font-[400]') \
                     .style('background-color: #FFFFFF !important;border-radius: 10px;border: 1px solid #888888;')
-                def on_create():
+                async def on_create():
                     if dao.company_id is None or len(dao.company_id) == 0:
                         ui.notify('请选择公司')
                         return
@@ -368,7 +417,7 @@ def modify_or_new(dao: ValueAddedDao, is_add: bool = True) -> None:
 # @return: None
 # 
 '''
-def del_select():
+async def del_select():
     if 'value_added_table' not in app.storage.client:
         ui.notify('请先查询记录')
         return
@@ -380,17 +429,17 @@ def del_select():
     if not ids:
         ui.notify('没有选中任何记录')
         return
-    del_by_ids(ids)
+    await del_by_ids(ids)
 
-def delete_one(e: events.GenericEventArguments):
+async def delete_one(e: events.GenericEventArguments):
     id = e.args['id']
-    del_by_ids([id])
+    await del_by_ids([id])
 
-def del_by_ids(ids: list[str]) -> None:
+async def del_by_ids(ids: list[str]) -> None:
     if ids is None or len(ids) == 0:
         ui.notify('请选择要删除的记录')
         return
-    def make_delete():
+    async def make_delete():
         delok = True
         for id in ids:
             if id is None or len(id) == 0:

@@ -1,10 +1,8 @@
 from dataclasses import dataclass
-from nicegui import ui,events, app
-from components import inputs, tables,cards
-from typing import Optional
-from datetime import datetime
+from nicegui import ui
 
 from pages.period_data_page import show_period_data_page
+from pages.value_added_page import show_value_added_page
 
 @dataclass
 class SearchCondition:
@@ -64,5 +62,4 @@ def show_period_page():
     show_period_data_page()
 
 def show_added_value_page():
-    from pages.value_added_page import show_value_added_page
     show_value_added_page()

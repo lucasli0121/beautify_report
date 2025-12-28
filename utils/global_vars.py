@@ -27,6 +27,23 @@ def unsubscribe_event_topic(mac: str):
 def unsubscribe_attr_topic(mac: str):
     mq_impl.unsubscribe(f'server-t1/study/attr/{mac.lower()}')
 
+def validate_input_float(value, input_component:ui.input) -> None:
+    if value is None or len(str(value).strip()) == 0:
+        return
+    try:
+        num = float(value)
+    except ValueError:
+        ui.notify('格式不正确,请输入有效的数字')
+
+def show_refresh_process(msg: str) -> ui.dialog:
+    with ui.dialog().props('persistent') as dialog, ui.card().classes('') \
+        .style('background-color: #FFFFFF !important; border-radius: 10px;'):
+        with ui.row().classes('w-full mt-2 place-content-center items-center gap-1'):
+            ui.spinner('dots', size='20px', color='red').classes('w-[20px] h-[20px]')
+            ui.label('提示:').classes(' text-[18px] text-[#333333] font-medium')
+            ui.label(msg).classes('text-[16px] text-[#333333] font-normal')
+    dialog.open()
+    return dialog
 
 def query_company_name_company() -> tuple[bool, dict[str, CompanyDao]]:
     result, list_values = my_db.query_all_company('','','','')
