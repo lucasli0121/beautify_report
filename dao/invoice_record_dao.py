@@ -70,23 +70,56 @@ class InvoiceRecordDao:
         self.from_company_id = str(data.get('from_company_id', ''))
         self.to_company_id = str(data.get('to_company_id', ''))
         self.contract_id = str(data.get('contract_id', ''))
-        self.invoice_type = int(data.get('invoice_type', 0))
-        self.tax_rate = float(data.get('tax_rate', 0.0))
+        try:
+            self.invoice_type = int(data.get('invoice_type', 0))
+        except (TypeError, ValueError):
+            self.invoice_type = 0
+        try:
+            self.tax_rate = float(data.get('tax_rate', 0.0))
+        except (TypeError, ValueError):
+            self.tax_rate = 0.0
         self.invoice_content = str(data.get('invoice_content', ''))
-        self.before_tax_money = float(data.get('before_tax_money', 0.0))
-        self.added_tax = float(data.get('added_tax', 0.0))
-        self.invoice_money = float(data.get('invoice_money', 0.0))
+        try:
+            self.before_tax_money = float(data.get('before_tax_money', 0.0))
+        except (TypeError, ValueError):
+            self.before_tax_money = 0.0
+        try:
+            self.added_tax = float(data.get('added_tax', 0.0))
+        except (TypeError, ValueError):
+            self.added_tax = 0.0
+        try:
+            self.invoice_money = float(data.get('invoice_money', 0.0))
+        except (TypeError, ValueError):
+            self.invoice_money = 0.0
         self.contract_content = str(data.get('contract_content', ''))
-        self.status = int(data.get('status', 0))
+        try:
+            self.status = int(data.get('status', 0))
+        except (TypeError, ValueError):
+            self.status = 0
         self.create_time = str(data.get('create_time', datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
         self.invoice_time = str(data.get('invoice_time', ''))
         self.specifi = str(data.get('specifi', ''))
-        self.quantity = int(data.get('quantity', 0))
-        self.unit_price = float(data.get('unit_price', 0.0))
+        try:
+            self.quantity = int(data.get('quantity', 0))
+        except (TypeError, ValueError):
+            self.quantity = 0
+        try:
+            self.unit_price = float(data.get('unit_price', 0.0))
+        except (TypeError, ValueError):
+            self.unit_price = 0.0
         self.remark = str(data.get('remark', ''))
-        self.operator_flag = int(data.get('operator_flag', 0))
-        self.is_red = int(data.get('is_red', 0))
-        self.blue_invoice_number = str(data.get('blue_invoice_number', ''))
+        try:
+            self.operator_flag = int(data.get('operator_flag', 0))
+        except (TypeError, ValueError):
+            self.operator_flag = 0
+        try:
+            self.is_red = int(data.get('is_red', 0))
+        except (TypeError, ValueError):
+            self.is_red = 0
+        try:
+            self.blue_invoice_number = str(data.get('blue_invoice_number', ''))
+        except (TypeError, ValueError):
+            self.blue_invoice_number = ''
 
     def to_db(self) -> dict[str, Any]:
         return self.__dict__

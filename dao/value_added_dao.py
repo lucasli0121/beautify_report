@@ -57,17 +57,50 @@ class ValueAddedDao:
     def from_db(self, data: dict[str, Any]) -> None:
         self.id = str(data.get('_id', ''))
         self.company_id = data.get('company_id', "")
-        self.last_month_no_verify = float(data.get('last_month_no_verify', 0.0))
-        self.last_month_stay_pay = float(data.get('last_month_stay_pay', 0.0))
-        self.opened_input_tax = float(data.get('opened_input_tax', 0.0))
-        self.opened_output_tax = float(data.get('opened_output_tax', 0.0))
-        self.to_open_input_tax = float(data.get('to_open_input_tax', 0.0))
-        self.to_open_output_tax = float(data.get('to_open_output_tax', 0.0))
-        self.payable_tax = float(data.get('payable_tax', 0.0))
-        self.sales_amount = float(data.get('sales_amount', 0.0))
-        self.opened_billing_amount = float(data.get('opened_billing_amount', 0.0))
-        self.remaining_billing_amount = float(data.get('remaining_billing_amount', 0.0))
-        self.billing_amount = float(data.get('billing_amount', 0.0))
+        try:
+            self.last_month_no_verify = float(data.get('last_month_no_verify', 0.0))
+        except (TypeError, ValueError):
+            self.last_month_no_verify = 0.0
+        try:
+            self.last_month_stay_pay = float(data.get('last_month_stay_pay', 0.0))
+        except (TypeError, ValueError):
+            self.last_month_stay_pay = 0.0
+        try:
+            self.opened_input_tax = float(data.get('opened_input_tax', 0.0))
+        except (TypeError, ValueError):
+            self.opened_input_tax = 0.0
+        try:
+            self.opened_output_tax = float(data.get('opened_output_tax', 0.0))
+        except (TypeError, ValueError):
+            self.opened_output_tax = 0.0
+        try:
+            self.to_open_input_tax = float(data.get('to_open_input_tax', 0.0))
+        except (TypeError, ValueError):
+            self.to_open_input_tax = 0.0
+        try:
+            self.to_open_output_tax = float(data.get('to_open_output_tax', 0.0))
+        except (TypeError, ValueError):
+            self.to_open_output_tax = 0.0
+        try:
+            self.payable_tax = float(data.get('payable_tax', 0.0))
+        except (TypeError, ValueError):
+            self.payable_tax = 0.0
+        try:
+            self.sales_amount = float(data.get('sales_amount', 0.0))
+        except (TypeError, ValueError):
+            self.sales_amount = 0.0
+        try:
+            self.opened_billing_amount = float(data.get('opened_billing_amount', 0.0))
+        except (TypeError, ValueError):
+            self.opened_billing_amount = 0.0
+        try:
+            self.remaining_billing_amount = float(data.get('remaining_billing_amount', 0.0))
+        except (TypeError, ValueError):
+            self.remaining_billing_amount = 0.0
+        try:
+            self.billing_amount = float(data.get('billing_amount', 0.0))
+        except (TypeError, ValueError):
+            self.billing_amount = 0.0
         self.create_time = data.get('create_time', "")
 
     def to_db(self) -> dict[str, Any]:

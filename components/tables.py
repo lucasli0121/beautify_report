@@ -149,7 +149,7 @@ def show_open_invoice_table(datas, show_edit, show_delete) -> ui.table:
             .classes('w-full mt-2 gap-0') \
             .style('border: 1px solid #ECECEC; border-radius: 10px 10px 0px 0px; max-width: 100%; height: calc(100vh - 80px - 80px - 40px)') as table:
         
-        table.props('v-model:selected="selected" virtual-scroll')
+        table.props('v-model:selected="selected" ')
         table.props('visible-columns="[ \
                     \'sn\', \
                     \'invoice_number\', \
