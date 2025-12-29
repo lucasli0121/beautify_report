@@ -363,27 +363,27 @@ def modify_or_new(dao: ValueAddedDao, is_add: bool = True) -> None:
                     if dao.company_id is None or len(dao.company_id) == 0:
                         ui.notify('请选择公司')
                         return
-                    if dao.last_month_no_verify is None:
+                    if dao.last_month_no_verify is None or len(str(dao.last_month_no_verify)) == 0:
                         dao.last_month_no_verify = 0.0
-                    if dao.last_month_stay_pay is None:
+                    if dao.last_month_stay_pay is None or len(str(dao.last_month_stay_pay)) == 0:
                         dao.last_month_stay_pay = 0.0
-                    if dao.opened_input_tax is None:
+                    if dao.opened_input_tax is None or len(str(dao.opened_input_tax)) == 0:
                         dao.opened_input_tax = 0.0
-                    if dao.opened_output_tax is None:
+                    if dao.opened_output_tax is None or len(str(dao.opened_output_tax)) == 0:
                         dao.opened_output_tax = 0.0
-                    if dao.to_open_input_tax is None:
+                    if dao.to_open_input_tax is None or len(str(dao.to_open_input_tax)) == 0:
                         dao.to_open_input_tax = 0.0
-                    if dao.to_open_output_tax is None:
+                    if dao.to_open_output_tax is None or len(str(dao.to_open_output_tax)) == 0:
                         dao.to_open_output_tax = 0.0
-                    if dao.payable_tax is None:
+                    if dao.payable_tax is None or len(str(dao.payable_tax)) == 0:
                         dao.payable_tax = 0.0
-                    if dao.sales_amount is None:
+                    if dao.sales_amount is None or len(str(dao.sales_amount)) == 0:
                         dao.sales_amount = 0.0
-                    if dao.opened_billing_amount is None:
+                    if dao.opened_billing_amount is None or len(str(dao.opened_billing_amount)) == 0:
                         dao.opened_billing_amount = 0.0
-                    if dao.remaining_billing_amount is None:
+                    if dao.remaining_billing_amount is None or len(str(dao.remaining_billing_amount)) == 0:
                         dao.remaining_billing_amount = 0.0
-                    if dao.billing_amount is None:
+                    if dao.billing_amount is None or len(str(dao.billing_amount)) == 0:
                         dao.billing_amount = 0.0
                     if year_input.value is not None and month_select.value is not None:
                         dao.create_time = f"{year_input.value}-{month_select.value.zfill(2)}"
