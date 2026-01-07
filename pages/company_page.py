@@ -323,6 +323,7 @@ def del_select_company():
     selection = app.storage.client['company_table'].selected
     ids = [item['id'] for item in selection]
     del_company_by_ids(ids)
+    app.storage.client['company_table'].selected.clear()
 
 def del_company_by_ids(ids: list[str]) -> None:
     if ids is None or len(ids) == 0:

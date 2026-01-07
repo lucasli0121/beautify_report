@@ -12,7 +12,7 @@ from pymongo.collection import Collection
 import logging
 from typing import Any
 from bson.objectid import ObjectId
-from dao.recognize_info_dao import RecognizeInfoDao
+from dao.recognize_info_dao import RecognizeInfoDao, RecognizeResult, RecognizeType
 from db.mongo.mongo_impl import MongoImpl
 
 class MongoRecognizeInfoImpl():
@@ -63,12 +63,12 @@ class MongoRecognizeInfoImpl():
         if tbl_name is None:
             self.logger.error("invoice table not found in MongoDB.")
             return False, None
-        query = {}
+        query: dict[str, Any] = {}
         begin_time = (datetime.now() - timedelta(days=3)).strftime("%Y-%m-%d %H:%M:%S")
         end_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         query['create_time'] = {'$gte': begin_time}
         query['create_time']['$lte'] = end_time
-        if type != -1:
+        if type != RecognizeType.AllType.value:
             query['type'] = type
         # 执行查询
         return self.mongo_impl.query_by_condition(tbl_name, query, {'create_time': -1})
@@ -107,8 +107,23 @@ class MongoRecognizeInfoImpl():
         if tbl_name is None:
             self.logger.error("Company table not found in MongoDB.")
             return False, None
-        query = {'result': 0}
-        if type != -1:
+        query = {'result': RecognizeResult.InProgress.value}
+        if type != RecognizeType.AllType.value:
+            query['type'] = type
+        return self.mongo_impl.query_by_condition(tbl_name, query, None)
+    """
+    function: 查询等待识别的记录
+    description: 从服务器查询信息
+    param {*} course
+    return {*}
+    """
+    def query_waiting_list_by_type(self, type: int) -> tuple[bool, Any|None]:
+        tbl_name = self.recognize_info_tbl()
+        if tbl_name is None:
+            self.logger.error("Company table not found in MongoDB.")
+            return False, None
+        query = {'result': RecognizeResult.Waiting.value}
+        if type != RecognizeType.AllType.value:
             query['type'] = type
         return self.mongo_impl.query_by_condition(tbl_name, query, None)
     """

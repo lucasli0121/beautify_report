@@ -91,6 +91,7 @@ def del_select():
     selection = app.storage.client['company_bank_account_table'].selected
     ids = [item['id'] for item in selection]
     del_by_ids(ids)
+    app.storage.client['company_bank_account_table'].selected.clear()
 
 def del_by_ids(ids: list[str]) -> None:
     if ids is None or len(ids) == 0:
@@ -191,7 +192,7 @@ def modify_or_new_company_bank_account(account_dao: CompanyBankAccountDao, is_ad
                         account_dao.account_type = 1
                     case _:
                         account_dao.account_type = 0
-            account_type_select = inputs.selection_w40(['基本户', '一般户'], value='基本户', on_change=on_change)
+            account_type_select = inputs.selection_w40(['基本户', '一般户'], value='基本户', need_input=False, on_change=on_change)
             if not is_add:
                 if account_dao.account_type == 0:
                     account_type_select.set_value('基本户')

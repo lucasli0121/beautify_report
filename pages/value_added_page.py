@@ -430,6 +430,7 @@ async def del_select():
         ui.notify('没有选中任何记录')
         return
     await del_by_ids(ids)
+    app.storage.client['value_added_table'].selected.clear()
 
 async def delete_one(e: events.GenericEventArguments):
     id = e.args['id']

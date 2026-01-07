@@ -542,6 +542,14 @@ class MyDb:
                 return MongoRecognizeInfoImpl(self.mongo).query_recognizing_list_by_type(type)
         self.logger.error("No database implementation available for querying recognizing info.")
         return False, None
+    def query_recognize_waiting_list_by_type(self, type: int) -> tuple[bool, Any|None]:
+        if self.mysql is not None:
+            return False, None
+        else:
+            if self.mongo is not None:
+                return MongoRecognizeInfoImpl(self.mongo).query_waiting_list_by_type(type)
+        self.logger.error("No database implementation available for querying waiting info.")
+        return False, None
     def delete_recognize_info(self, id: str) -> bool:
         if self.mysql is not None:
             return False

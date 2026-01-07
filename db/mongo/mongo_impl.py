@@ -7,6 +7,7 @@ Description:
 '''
 # coding="utf8"
 
+from copy import deepcopy
 from typing import Any
 from bson import ObjectId
 from pymongo import MongoClient
@@ -75,9 +76,11 @@ class MongoImpl(DbBaseImpl):
             if table is None:
                 self.logger.error("table not found in MongoDB.")
                 return False
-            if len(condition) == 0:
+            data = deepcopy(data)
+            if condition is None or len(condition) == 0:
                 condition = {'_id': ObjectId(data.get('id', ''))}  # 如果没有条件，使用id作为默认条件
             else:
+                condition = deepcopy(condition)
                 if 'id' in condition:
                     condition['_id'] = ObjectId(condition['id'])
                     del condition['id']

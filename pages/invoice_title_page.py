@@ -228,6 +228,7 @@ def del_select():
         ui.notify('没有选中任何记录')
         return
     del_by_ids(ids)
+    app.storage.client['invoice_title_table'].selected.clear()
     
 
 def delete_one(e: events.GenericEventArguments):

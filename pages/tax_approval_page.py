@@ -11,13 +11,14 @@ import json
 import re
 from nicegui import ui,app,events
 from components import tables, inputs, dialogs
-from dao.recognize_info_dao import RecognizeInfoDao, RecognizeType
+from dao.recognize_info_dao import RecognizeInfoDao, RecognizeResult, RecognizeType
 from dao.tax_approval_dao import TaxApprovalDao
 from dao.company_dao import CompanyDao
 from typing import Callable, Optional, cast
 from typing import Any
 from utils import global_vars as g
 from utils import upload_files as uf
+from utils import ocr_manager
 
 @dataclass
 class SearchCondition:
@@ -80,7 +81,26 @@ def show_tax_approval_page() -> None:
     course_table: Optional[ui.table] = tables.show_tax_approval_table(table_rows, show_edit, show_delete)
     app.storage.client['tax_approval_table'] = course_table
     on_search()
+    # 订阅ocr事件
+    g.ocr_mgr.subscribe(on_event)
 
+"""
+# @function: on_event
+# @description: 处理ocr event订阅事件
+# @return {*}
+"""
+def on_event(event_obj: ocr_manager.EventObj) -> None:
+    if event_obj.type != RecognizeType.TaxProofType.value:
+        return
+    if event_obj.result == RecognizeResult.InProgress.value:
+        refresh_recognizing_list()
+    elif event_obj.result in (RecognizeResult.Success.value, RecognizeResult.Failed.value):
+        on_search()
+"""
+# @function: on_search
+# @description: 查询搜索请求
+# @return {*}
+"""
 def on_search() -> None:
     result, list_values = g.my_db.query_all_tax_approval(search_condition.company_id, search_condition.approval_no, search_condition.ori_voucher_number, search_condition.begin_time, search_condition.end_time)
     if result is False:
@@ -216,14 +236,7 @@ def refresh_recognizing_list():
             app.storage.client['certificate_badge'].set_text(str(len(values)))
             
 def read_pdf_from_upload(handle_upload: Callable) -> None:
-    def ocr_start(recognize_dao: RecognizeInfoDao) -> None:
-        # dao_list = parse_upload_result_to_dao(result)
-        # if handle_upload is not None and dao_list is not None:
-        #     handle_upload(dao_list)
-        refresh_recognizing_list()
-    def ocr_end(recognize_dao: RecognizeInfoDao) -> None:
-        on_search()
-    uf.open_ocr_certificate_dialog(ocr_start, ocr_end)
+    uf.open_ocr_certificate_dialog()
 
 def upload_approval_pdf() -> None:
     def handle_upload(dao_list: list[TaxApprovalDao]) -> None:
@@ -425,6 +438,7 @@ def del_select():
     selection = app.storage.client['tax_approval_table'].selected
     ids = [item['id'] for item in selection]
     del_by_ids(ids)
+    app.storage.client['tax_approval_table'].selected.clear()
 
 def del_by_ids(ids: list[str]) -> None:
     if ids is None or len(ids) == 0:

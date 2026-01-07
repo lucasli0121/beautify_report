@@ -9,10 +9,11 @@ import os
 from openpyxl.utils import get_column_letter
 from dao.company_dao import CompanyDao, CompanyType
 from dao.invoice_record_dao import InvoiceRecordDao
-from dao.recognize_info_dao import RecognizeInfoDao, RecognizeType
+from dao.recognize_info_dao import RecognizeInfoDao, RecognizeResult, RecognizeType
 from dao.service_record_dao import ServiceRecordDao
 from utils import global_vars as g
 from utils import upload_files as uf
+from utils import ocr_manager
 
 @dataclass
 class SearchCondition:
@@ -358,7 +359,15 @@ def read_pdf_from_upload(handle_upload: Callable) -> None:
         refresh_recognizing_list()
     def invoice_ocr_end(recognize_dao: RecognizeInfoDao) -> None:
         on_search()
-    uf.open_ocr_invoice_dialog(invoice_ocr_start, invoice_ocr_end)
+    def on_event(event_obj: ocr_manager.EventObj) -> None:
+        if event_obj.type != RecognizeType.InvoiceType.value:
+            return
+        if event_obj.result == RecognizeResult.InProgress.value:
+            refresh_recognizing_list()
+        elif event_obj.result in (RecognizeResult.Success.value, RecognizeResult.Failed.value):
+            on_search()
+    g.ocr_mgr.subscribe(on_event)
+    uf.open_ocr_invoice_dialog()
 
 # @description: 上传发票PDF
 # @param None
@@ -862,6 +871,7 @@ def del_select():
         ui.notify('没有选中任何开票记录')
         return
     del_by_ids(ids)
+    app.storage.client['invoice_record_table'].selected.clear()
     
 
 def delete_one(e: events.GenericEventArguments):

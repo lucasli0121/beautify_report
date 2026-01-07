@@ -16,6 +16,7 @@ from resources import strings
 import logging
 import logging.config
 import yaml
+from utils import global_vars as g
 from pages import main_page, login_page
 
 # 定义全局颜色
@@ -30,21 +31,6 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 app.storage.user['referrer_path'] = request.url.path
                 return RedirectResponse('/login')
         return await call_next(request)
-
-
-def app_shutdown():
-    """应用关闭时清理存储"""
-    authenticated = app.storage.user['authenticated']
-    try:
-        app.storage.user.clear()
-        app.storage.client.clear()
-        app.storage.browser.clear()
-        app.storage.general.clear()
-    except Exception as e:
-        pass
-    app.storage.user['authenticated'] = authenticated
-
-
 
 def init_logger():
     cfg_path = 'cfg/log.yaml'
@@ -64,7 +50,6 @@ def init_logger():
 
 def init_app():
     app.add_middleware(AuthMiddleware)
-    app.on_shutdown(app_shutdown)
     # 添加以下代码以注册静态文件目录
     # 获取当前文件所在目录的路径
     current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -109,7 +94,36 @@ def init_app():
             }
         ''')
         main_page.main_page()
+        
+'''
+function app_startup
+description: 应用启动时执行的函数，启动OCR管理器
+parameters: []
+'''
+@app.on_startup
+async def app_startup():
+    # 启动OCR管理器
+    g.ocr_mgr.start()
 
+'''
+function app_shutdown
+description: 应用关闭时执行的函数，清理存储
+parameters: []
+'''
+@app.on_shutdown
+async def app_shutdown():
+    # 关闭OCR管理器
+    g.ocr_mgr.stop()
+    """应用关闭时清理存储"""
+    authenticated = app.storage.user['authenticated']
+    try:
+        app.storage.user.clear()
+        app.storage.client.clear()
+        app.storage.browser.clear()
+        app.storage.general.clear()
+    except Exception as e:
+        pass
+    app.storage.user['authenticated'] = authenticated
 
 if __name__ in {"__main__", "__mp_main__"}:
     if getattr(sys, '_main_already_running', False):
