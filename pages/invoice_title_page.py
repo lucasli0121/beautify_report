@@ -9,7 +9,7 @@ from utils import global_vars as g
 
 @dataclass
 class SearchCondition:
-    company_list: list[CompanyDao] = field(default_factory=list)
+    company_dao: CompanyDao = CompanyDao()
 
 search_condition = SearchCondition()
 
@@ -21,8 +21,7 @@ def show_invoice_title_page() -> None:
     options = list(company_info.keys())  # 获取所有公司名称
     def on_change(value):
         if value in company_info:
-            company_dao = company_info[value]
-            search_condition.company_list = [company_dao]
+            search_condition.company_dao = company_info[value]
             on_search()
 
     with ui.row().classes('w-full h-[60px] px-[20px] py-[10px] place-content-between items-center') \
@@ -38,7 +37,6 @@ def show_invoice_title_page() -> None:
             ui.button('新建', icon='img:/static/images/add_course@2x.png', on_click=add_invoice_title) \
                 .classes('w-25 rounded-md text-white') \
                 .style('background-color: #65B6FF !important')
-    search_condition.company_list = list(company_info.values())
     table_rows: list[dict] = []
     app.storage.client['invoice_title_table'] = tables.show_invoice_title_table(table_rows, edit_invoice_title, delete_one)
     on_search()
@@ -48,29 +46,41 @@ def on_search() -> None:
     if 'invoice_title_table' not in app.storage.client:
         return
     app.storage.client['invoice_title_table'].rows.clear()
-    row_dict: dict[str, Any] = {}
+    app.storage.client['invoice_title_table'].update()
+    result, invoice_title_list = g.my_db.query_invoice_title_all(search_condition.company_dao.id)
+    if result is False:
+        ui.notify('查询公司发票抬头信息失败')
+        return
+    if invoice_title_list is None or len(invoice_title_list) == 0:
+        ui.notify('没有公司发票抬头信息')
+        return
+    rows: list[dict[str, Any]] = []
     sn = 1
-    for company_dao in search_condition.company_list:
-        if not isinstance(company_dao, CompanyDao):
-            continue
-        result, invoice_title_list = g.my_db.query_invoice_title_all(company_dao.id)
-        if result is False or invoice_title_list is None:
-            continue
-        for invoice_title in invoice_title_list:
-            dao = InvoiceTitleDao()
-            dao.from_db(invoice_title)
-            row_dict.update({
-                'id': dao.id,
-                'sn': sn,
-                'company_name': company_dao.name,
-                'address': company_dao.address,
-                'tax_no': company_dao.tax_no,
-                'bank_name': dao.bank_name,
-                'bank_account': dao.bank_account,
-                'contact_phone': dao.contact_phone
-            })
-            app.storage.client['invoice_title_table'].add_row(row_dict)
-            sn += 1
+    for invoice_title in invoice_title_list:
+        row_dict: dict[str, Any] = {}
+        dao = InvoiceTitleDao()
+        dao.from_db(invoice_title)
+        result, company_dao = g.my_db.query_company_by_id(dao.company_id)
+        company_name = '未知开票方'
+        company_address = ''
+        company_tax_no = ''
+        if result and company_dao is not None:
+            company_name = company_dao.brief_name
+            company_address = company_dao.address
+            company_tax_no = company_dao.tax_no
+        row_dict.update({
+            'id': dao.id,
+            'sn': sn,
+            'company_name': company_name,
+            'address': company_address,
+            'tax_no': company_tax_no,
+            'bank_name': dao.bank_name,
+            'bank_account': dao.bank_account,
+            'contact_phone': dao.contact_phone
+        })
+        rows.append(row_dict)
+        sn += 1
+    app.storage.client['invoice_title_table'].rows = rows
     app.storage.client['invoice_title_table'].update()
 
 def add_invoice_title() -> None:
@@ -121,14 +131,14 @@ def modify_or_new_invoice_title(dao: InvoiceTitleDao, is_add: bool = True) -> No
             company_select = inputs.selection_w60(options, None, need_input=True, on_change=on_company_change)
             def add_out_company():
                 def on_complete(new_company: CompanyDao):
-                    company_info[new_company.name] = new_company
-                    options.append(new_company.name)
+                    company_info[new_company.brief_name] = new_company
+                    options.append(new_company.brief_name)
                     company_select.set_options(options)
-                    company_select.set_value(new_company.name)
+                    company_select.set_value(new_company.brief_name)
                 g.add_out_company(on_complete)
             ui.button('增加公司', icon='add', on_click=add_out_company)
             if not is_add:
-                company_select.set_value(company_dao.name)
+                company_select.set_value(company_dao.brief_name)
         with ui.row().classes('w-full place-content-start items-center'):
             ui.label('地址').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
             address_input = ui.input() \

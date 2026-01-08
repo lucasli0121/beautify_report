@@ -96,30 +96,6 @@ def on_search() -> None:
                 rows.append(row_dict)
                 sn += 1
             return rows
-        # sn = 1
-        # for item in list_values:
-        #     row_dict: dict[str, Any] = {}
-        #     row_dict['sn'] = sn
-        #     dao = ValueAddedDao()
-        #     dao.from_db(item)
-        #     row_dict['id'] = dao.id
-        #     row_dict['create_time'] = dao.create_time
-        #     row_dict['last_month_no_verify'] = f"{round(dao.last_month_no_verify, 2):,.2f}"
-        #     row_dict['last_month_stay_pay'] = f"{round(dao.last_month_stay_pay, 2):,.2f}"
-        #     row_dict['opened_input_tax'] = f"{round(dao.opened_input_tax, 2):,.2f}"
-        #     row_dict['opened_output_tax'] = f"{round(dao.opened_output_tax, 2):,.2f}"
-        #     row_dict['to_open_input_tax'] = f"{round(dao.to_open_input_tax, 2):,.2f}"
-        #     row_dict['to_open_output_tax'] = f"{round(dao.to_open_output_tax, 2):,.2f}"
-        #     row_dict['payable_tax'] = f"{round(dao.payable_tax, 2):,.2f}"
-        #     row_dict['sales_amount'] = f"{round(dao.sales_amount, 2):,.2f}"
-        #     row_dict['opened_billing_amount'] = f"{round(dao.opened_billing_amount, 2):,.2f}"
-        #     row_dict['remaining_billing_amount'] = f"{round(dao.remaining_billing_amount, 2):,.2f}"
-        #     row_dict['billing_amount'] = f"{round(dao.billing_amount, 2):,.2f}"
-        #     result, company_dao = g.my_db.query_company_by_id(dao.company_id)
-        #     company_name = '未知公司'
-        #     if result and company_dao is not None:
-        #         company_name = company_dao.brief_name
-        #     row_dict['company_name'] = company_name
         rows = do_refresh()
         app.storage.client['value_added_table'].rows = rows
         app.storage.client['value_added_table'].update()

@@ -77,6 +77,7 @@ def on_search() -> None:
             ui.notify('没有查询到公司信息')
             return
         sn = 1
+        rows: list[dict[str, Any]] = []
         for item in list_values:
             row_dict: dict[str, Any] = {}
             row_dict['sn'] = sn
@@ -88,11 +89,10 @@ def on_search() -> None:
 
             # If 'extends' should be a string, ensure the table schema supports it
             row_dict['extends'] = json.dumps(company.extends, ensure_ascii=False, indent=4)
-            app.storage.client['company_table'].add_row(row_dict)
+            rows.append(row_dict)
             sn += 1
+        app.storage.client['company_table'].rows = rows
         app.storage.client['company_table'].update()
-
-#
 # @description: 显示课堂删除操作，由table组件触发
 #
 def show_company_delete(e: events.GenericEventArguments) -> None:

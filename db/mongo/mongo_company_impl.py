@@ -239,27 +239,16 @@ class MongoCompanyImpl():
     :param condition: 查询条件，例如 "id = 1"
     :return: 查询结果列表，每个元素是一个字典，包含公司信息
     """
-    def query_all_company_bank_account(self, company_id: str) -> tuple[bool, None|list[CompanyBankAccountDao]]:
-        try:
-            tbl_name = self.company_bank_account_tbl()
-            if tbl_name is None:
-                self.logger.error("Company bank account table not found in MongoDB.")
-                return False, None
-            query = {}
-            if company_id or len(company_id) > 0:
-                query['company_id'] = {'$eq': company_id}
-            
-            results = list(tbl_name.find(query))
-            dao_list = []
-            for result in results:
-                # 将查询结果转换为 CompanyDao 对象
-                dao = CompanyBankAccountDao()
-                dao.from_db(result)
-                dao_list.append(dao)
-            return True, dao_list
-        except Exception as e:
-            self.logger.error(f"查询公司银行账户信息失败: {e}")
+    def query_all_company_bank_account(self, company_id: str) -> tuple[bool, Any|None]:
+        tbl_name = self.company_bank_account_tbl()
+        if tbl_name is None:
+            self.logger.error("Company bank account table not found in MongoDB.")
             return False, None
+        query: dict[str, Any] = {}
+        if company_id or len(company_id) > 0:
+            query['company_id'] = {'$eq': company_id}
+        return self.mongo_impl.query_by_condition(tbl_name, query, None)
+            
         
     def query_company_bank_account_by_id(self, id: str) -> tuple[bool, CompanyBankAccountDao|None]:
         tbl_name = self.company_bank_account_tbl()

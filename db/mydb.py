@@ -157,7 +157,7 @@ class MyDb:
                 return MongoCompanyImpl(self.mongo).update_company_bank_account(d, condition)
         self.logger.error("No database implementation available for updating company bank account.")
         return False
-    def query_all_company_bank_account(self, company_id: str) -> tuple[bool, None|list[CompanyBankAccountDao]]:
+    def query_all_company_bank_account(self, company_id: str) -> tuple[bool, Any|None]:
         if self.mysql is not None:
             return False, None
         else:

@@ -312,7 +312,7 @@ def show_company_bank_account_table(datas, show_edit, show_delete) -> ui.table:
     table_columns = [
         {'name': 'id', 'label': 'id', 'field': 'id', 'width': '0%', 'align': 'center'},
         {'name': 'sn', 'label': '序号', 'field': 'sn', 'width': '5%', 'align': 'center'},
-        {'name': 'name', 'label': '公司名称', 'field': 'name', 'width': '10%', 'align': 'center'},
+        {'name': 'company_name', 'label': '公司名称', 'field': 'company_name', 'width': '10%', 'align': 'center'},
         {'name': 'bank_account', 'label': '银行账户', 'field': 'bank_account', 'width': '10%', 'align': 'center'},
         {'name': 'bank_name', 'label': '银行名称', 'field': 'bank_name', 'width': '15%', 'align': 'center'},
         {'name': 'account_type', 'label': '账号类型', 'field': 'account_type', 'width': '10%', 'align': 'center'},
@@ -322,13 +322,14 @@ def show_company_bank_account_table(datas, show_edit, show_delete) -> ui.table:
     with ui.table(
         columns=table_columns,
         rows=datas,
+        selection='multiple',
         row_key='id',
         pagination={'rowsPerPage': 10, 'sortBy': 'sn', 'page': 1}) \
             .props('table-header-style="color: white; font-size: 16px; background-color: #65B6FF;"') \
             .classes('w-full mt-2 gap-0') \
             .style('border: 1px solid #ECECEC; border-radius: 10px 10px 0px 0px;') as table:
         table.props('v-model:selected="selected"')
-        table.props('visible-columns="[\'sn\', \'name\', \'bank_account\', \'bank_name\', \'account_type\', \'bank_address\', \'operation\']"')
+        table.props('visible-columns="[\'sn\', \'company_name\', \'bank_account\', \'bank_name\', \'account_type\', \'bank_address\', \'operation\']"')
         
         table.add_slot('body-cell-account_type', r'''
             <q-td auto-width key="account_type" :props="props">  

@@ -15,7 +15,7 @@ from utils import global_vars as g
 
 @dataclass
 class SearchCondition:
-    company_list: list[CompanyDao] = field(default_factory=list)
+    company_dao: CompanyDao = CompanyDao()
 search_condition = SearchCondition()
 
 #
@@ -30,8 +30,7 @@ def show_company_bank_account_page() -> None:
     options = list(company_info.keys())  # 获取所有公司名称
     def on_change(value):
         if value in company_info:
-            company_dao = company_info[value]
-            search_condition.company_list = [company_dao]
+            search_condition.company_dao = company_info[value]
             on_search()
     with ui.row().classes('w-full h-[60px] px-[20px] py-[10px] place-content-between items-center') \
         .style('background-color: #FFFFFF !important; border-radius: 10px;'):
@@ -50,27 +49,39 @@ def show_company_bank_account_page() -> None:
             
     table_rows: list[dict] = []
     app.storage.client['company_bank_account_table'] = tables.show_company_bank_account_table(table_rows, show_edit, show_delete)
-    search_condition.company_list = list(company_info.values())
     on_search()
 
 def on_search() -> None:
     if 'company_bank_account_table' not in app.storage.client:
         return
     app.storage.client['company_bank_account_table'].rows.clear()
-    sn = 1
-    for company_dao in search_condition.company_list:
-        result, result_list = g.my_db.query_all_company_bank_account(str(company_dao.id))
-        if result is False:
-            continue
-        if result_list is None or len(result_list) == 0:
-            continue
-        for item in result_list:
+    app.storage.client['company_bank_account_table'].update()
+    result, list_values = g.my_db.query_all_company_bank_account(search_condition.company_dao.id)
+    if result is False:
+        ui.notify('查询公司银行账户信息失败')
+        return
+    if list_values is None or len(list_values) == 0:
+        ui.notify('没有公司银行账户信息')
+        return
+    def do_refresh() -> list[dict[str, Any]]:
+        sn = 1
+        rows: list[dict[str, Any]] = []
+        for item in list_values:
             row_dict: dict[str, Any] = {}
+            dao = CompanyBankAccountDao()
+            dao.from_db(item)
+            result, company_dao = g.my_db.query_company_by_id(dao.company_id)
             row_dict['sn'] = sn
-            row_dict['name'] = company_dao.name
-            row_dict.update(item.__dict__)
-            app.storage.client['company_bank_account_table'].add_row(row_dict)
+            company_name = '未知开票方'
+            if result and company_dao is not None:
+                company_name = company_dao.brief_name
+            row_dict['company_name'] = company_name
+            row_dict.update(dao.to_db())
+            rows.append(row_dict)
             sn += 1
+        return rows
+    rows = do_refresh()
+    app.storage.client['company_bank_account_table'].rows = rows
     app.storage.client['company_bank_account_table'].update()
 
 #
@@ -132,7 +143,11 @@ def add_company_bank_account():
 
 
 def modify_or_new_company_bank_account(account_dao: CompanyBankAccountDao, is_add: bool = True) -> None:
-    options = [item.name for item in search_condition.company_list]  # 获取所有公司名称
+    result, company_info = g.query_company_name_company()
+    if result is False:
+        ui.notify('查询公司信息失败')
+        return
+    options = list(company_info.keys())  # 获取所有公司名称
     company_dao: CompanyDao = CompanyDao()
     if not is_add:
         result, value = g.my_db.query_company_by_id(account_dao.company_id)
@@ -140,13 +155,6 @@ def modify_or_new_company_bank_account(account_dao: CompanyBankAccountDao, is_ad
             ui.notify('查询公司信息失败')
             return
         company_dao = cast(CompanyDao, value)
-    def on_select_change(value):
-        global company_dao
-        for company in search_condition.company_list:
-            if company.name == value:
-                account_dao.company_id = company.id
-                company_dao = company
-                break
     with ui.dialog().props('persistent') as dialog, ui.card().classes('w-1/2') \
         .style('background-color: #FFFFFF !important; border-radius: 10px;'):
         if is_add:
@@ -155,15 +163,17 @@ def modify_or_new_company_bank_account(account_dao: CompanyBankAccountDao, is_ad
             ui.label('修改银行账户').classes('w-full text-[20px] text-[#333333] font-medium')
         with ui.row().classes('w-full mt-5 place-content-start items-center'):
             ui.label('选择公司').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
-            company_select = inputs.selection_w60(options, None, need_input=True, on_change=on_select_change)
+            def on_company_change(value):
+                if value in company_info:
+                    account_dao.company_id = company_info[value].id
+            company_select = inputs.selection_w60(options, None, need_input=True, on_change=on_company_change)
             if not is_add:
-                company_select.set_value(company_dao.name)
+                company_select.set_value(company_dao.brief_name)
             def add_out_company():
                 def on_complete(new_company: CompanyDao):
-                    search_condition.company_list.append(new_company)
-                    options.append(new_company.name)
+                    options.append(new_company.brief_name)
                     company_select.set_options(options)
-                    company_select.set_value(new_company.name)
+                    company_select.set_value(new_company.brief_name)
                 g.add_out_company(on_complete)
             ui.button('增加公司', icon='add', on_click=add_out_company)
         with ui.row().classes('w-full place-content-start items-center'):

@@ -75,6 +75,8 @@ def show_service_record_page():
     on_search()
 
 def on_search() -> None:
+    if 'service_record_table' not in app.storage.client:
+        return
     result, list_values = g.my_db.query_all_service_record(
         search_condition.from_company_id,
         search_condition.to_company_id,
@@ -84,35 +86,37 @@ def on_search() -> None:
     if result is False:
         ui.notify('查询业务记录失败')
         return
-    if 'service_record_table' in app.storage.client:
-        app.storage.client['service_record_table'].rows.clear()
-        if list_values is not None:
-            sn = 1
-            for item in list_values:
-                dao = ServiceRecordDao()
-                dao.from_db(item)
-                row_dict: dict[str, Any] = {}
-                row_dict['sn'] = sn
-                row_dict.update(dao.to_db())
-                result, from_company_dao = g.my_db.query_company_by_id(dao.from_company_id)
-                if result and from_company_dao is not None:
-                    row_dict['from_company_name'] = from_company_dao.name
-                else:
-                    row_dict['from_company_name'] = '未知甲方'
-                result, to_company_dao = g.my_db.query_company_by_id(dao.to_company_id)
-                if result and to_company_dao is not None:
-                    row_dict['to_company_name'] = to_company_dao.name
-                else:
-                    row_dict['to_company_name'] = '未知乙方'
-                gap_money = dao.payment_money - dao.invoice_money
-                row_dict['invoice_gap_money'] = 0 if gap_money < 0 else gap_money
-                row_dict['payment_gap_money'] = dao.contract_money - dao.payment_money
-                row_dict['contract_money'] = '{:,.2f}'.format(dao.contract_money)
-                row_dict['invoice_money'] = '{:,.2f}'.format(dao.invoice_money)
-                row_dict['payment_money'] = '{:,.2f}'.format(dao.payment_money)
-                app.storage.client['service_record_table'].add_row(row_dict)
-                sn += 1
-        app.storage.client['service_record_table'].update()
+    app.storage.client['service_record_table'].rows.clear()
+    app.storage.client['service_record_table'].update()
+    rows: list[dict[str, Any]] = []
+    if list_values is not None:
+        sn = 1
+        for item in list_values:
+            dao = ServiceRecordDao()
+            dao.from_db(item)
+            row_dict: dict[str, Any] = {}
+            row_dict['sn'] = sn
+            row_dict.update(dao.to_db())
+            result, from_company_dao = g.my_db.query_company_by_id(dao.from_company_id)
+            if result and from_company_dao is not None:
+                row_dict['from_company_name'] = from_company_dao.name
+            else:
+                row_dict['from_company_name'] = '未知甲方'
+            result, to_company_dao = g.my_db.query_company_by_id(dao.to_company_id)
+            if result and to_company_dao is not None:
+                row_dict['to_company_name'] = to_company_dao.name
+            else:
+                row_dict['to_company_name'] = '未知乙方'
+            gap_money = dao.payment_money - dao.invoice_money
+            row_dict['invoice_gap_money'] = 0 if gap_money < 0 else gap_money
+            row_dict['payment_gap_money'] = dao.contract_money - dao.payment_money
+            row_dict['contract_money'] = '{:,.2f}'.format(dao.contract_money)
+            row_dict['invoice_money'] = '{:,.2f}'.format(dao.invoice_money)
+            row_dict['payment_money'] = '{:,.2f}'.format(dao.payment_money)
+            rows.append(row_dict)
+            sn += 1
+    app.storage.client['service_record_table'].rows = rows
+    app.storage.client['service_record_table'].update()
 
 def show_edit(e: events.GenericEventArguments) -> None:
     id = e.args['id']
