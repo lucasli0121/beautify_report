@@ -89,12 +89,13 @@ def show_invoice_title_table(datas, show_edit, show_delete) -> ui.table:
         columns=table_columns,
         rows=datas,
         row_key='id',
+        selection='multiple',
         pagination={'rowsPerPage': 10, 'sortBy': 'sn', 'page': 1}) \
             .props('table-header-style="color: white; font-size: 16px; background-color: #65B6FF;"') \
             .classes('w-full mt-2 gap-0') \
             .style('border: 1px solid #ECECEC; border-radius: 10px 10px 0px 0px;') as table:
         table.props('v-model:selected="selected"')
-        table.props('visible-columns="[\'sn\', \'name\', \'address\', \'tax_no\', \'bank_name\', \'bank_account\', \'contact_phone\', \'operation\']"')
+        table.props('visible-columns="[\'sn\', \'company_name\', \'address\', \'tax_no\', \'bank_name\', \'bank_account\', \'contact_phone\', \'operation\']"')
         
 
         table.add_slot('body-cell-operation', r'''
@@ -440,12 +441,12 @@ def show_service_record_table(datas, show_edit, show_delete) -> ui.table:
         {'name': 'to_company_name', 'label': '乙方', 'field': 'to_company_name', 'width': '10%', 'align': 'center'},
         {'name': 'contract_name', 'label': '合同名称', 'field': 'contract_name', 'width': '10%', 'align': 'center'},
         {'name': 'contract_content', 'label': '合同内容', 'field': 'contract_name', 'width': '10%', 'align': 'center'},
-        {'name': 'contract_money', 'label': '合同金额', 'field': 'contract_money', 'width': '5%', 'align': 'center'},
+        {'name': 'contract_money', 'label': '合同金额', 'field': 'contract_money', 'width': '5%', 'align': 'right'},
         {'name': 'is_contract', 'label': '是否有合同', 'field': 'is_contract', 'width': '5%', 'align': 'center'},
-        {'name': 'invoice_money', 'label': '开票金额', 'field': 'invoice_money', 'width': '5%', 'align': 'center'},
-        {'name': 'payment_money', 'label': '付款金额', 'field': 'payment_money', 'width': '5%', 'align': 'center'},
-        {'name': 'invoice_gap_money', 'label': '发票差额', 'field': 'invoice_gap_money', 'width': '5%', 'align': 'center'},
-        {'name': 'payment_gap_money', 'label': '付款差额', 'field': 'payment_gap_money', 'width': '5%', 'align': 'center'},
+        {'name': 'invoice_money', 'label': '开票金额', 'field': 'invoice_money', 'width': '5%', 'align': 'right'},
+        {'name': 'payment_money', 'label': '付款金额', 'field': 'payment_money', 'width': '5%', 'align': 'right'},
+        {'name': 'invoice_gap_money', 'label': '发票差额', 'field': 'invoice_gap_money', 'width': '5%', 'align': 'right'},
+        {'name': 'payment_gap_money', 'label': '付款差额', 'field': 'payment_gap_money', 'width': '5%', 'align': 'right'},
         {'name': 'latest_payment_time', 'label': '最近付款时间', 'field': 'latest_payment_time', 'width': '10%', 'align': 'center'},
         {'name': 'latest_invoice_time', 'label': '最近开票时间', 'field': 'latest_invoice_time', 'width': '10%', 'align': 'center'},
         {'name': 'status', 'label': '状态', 'field': 'status', 'width': '5%', 'align': 'center'},
@@ -536,9 +537,9 @@ def show_period_data_table(datas, show_edit, show_delete) -> ui.table:
         {'name': 'sn', 'label': '序号', 'field': 'sn', 'width': '5%', 'align': 'center'},
         {'name': 'company_name', 'label': '公司名称', 'field': 'company_name', 'width': '10%', 'align': 'center'},
         {'name': 'create_time', 'label': '日期', 'field': 'create_time', 'width': '10%', 'align': 'center'},
-        {'name': 'last_month_no_verify', 'label': '上月未认证', 'field': 'last_month_no_verify', 'width': '10%', 'align': 'center'},
-        {'name': 'last_month_stay_pay', 'label': '上月留抵', 'field': 'last_month_stay_pay', 'width': '10%', 'align': 'center'},
-        {'name': 'billing_amount', 'label': '开票额', 'field': 'billing_amount', 'width': '10%', 'align': 'center'},
+        {'name': 'last_month_no_verify', 'label': '上月未认证', 'field': 'last_month_no_verify', 'width': '10%', 'align': 'right'},
+        {'name': 'last_month_stay_pay', 'label': '上月留抵', 'field': 'last_month_stay_pay', 'width': '10%', 'align': 'right'},
+        {'name': 'billing_amount', 'label': '开票额', 'field': 'billing_amount', 'width': '10%', 'align': 'right'},
         {'name': 'operation', 'label': '操作', 'field': 'operation', 'width': '5%', 'align': 'center'}
     ]
     with ui.table(

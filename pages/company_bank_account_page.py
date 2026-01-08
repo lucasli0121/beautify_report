@@ -153,8 +153,8 @@ def modify_or_new_company_bank_account(account_dao: CompanyBankAccountDao, is_ad
         result, value = g.my_db.query_company_by_id(account_dao.company_id)
         if result is False or value is None:
             ui.notify('查询公司信息失败')
-            return
-        company_dao = cast(CompanyDao, value)
+        else:
+            company_dao = cast(CompanyDao, value)
     with ui.dialog().props('persistent') as dialog, ui.card().classes('w-1/2') \
         .style('background-color: #FFFFFF !important; border-radius: 10px;'):
         if is_add:

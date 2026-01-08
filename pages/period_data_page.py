@@ -30,14 +30,19 @@ def show_period_data_page():
         inputs.selection_w60(options, None, need_input=True, on_change=on_company_change)
             
         def on_year_select(value):
-            if month_select.value is not None:
+            if month_select is not None and month_select.value is not None:
                 search_condition.record_month = f"{value}-{month_select.value.zfill(2)}"
-        year_select = inputs.selection_w40([str(x) for x in range(2001, 2031)], None, False, on_change=on_year_select)
+        from_year = datetime.now().year - 3
+        to_year = datetime.now().year + 2
+        year_select = inputs.selection_w40([str(x).zfill(4) for x in range(from_year, to_year)], None, False, on_change=on_year_select)
+        year_select.set_value(str(datetime.now().year))
+
         def on_month_select(value):
-            if year_select.value is not None:
+            if year_select is not None and year_select.value is not None:
                 search_condition.record_month = f"{year_select.value}-{value.zfill(2)}"
         month_select = inputs.selection_w40([str(x).zfill(2) for x in range(1, 13)], None, False, on_change=on_month_select)
-            
+        month_select.set_value(str(datetime.now().month).zfill(2))
+
         ui.button('刷新', icon='img:/static/images/refresh@2x.png', on_click=on_search) \
             .classes('w-25 rounded-md text-white') \
             .style('background-color: #6C96FB !important')
@@ -53,31 +58,37 @@ def show_period_data_page():
     on_search()
 
 def on_search() -> None:
+    if 'period_data_table' not in app.storage.client:
+        return
     result, list_values = g.my_db.query_all_period_data(search_condition.company_id, search_condition.record_month)
     if result is False:
         ui.notify('查询期初数据失败')
         return
-    if 'period_data_table' in app.storage.client:
-        app.storage.client['period_data_table'].rows.clear()
-        app.storage.client['period_data_table'].update()
-        if list_values is None or len(list_values) == 0:
-            ui.notify('没有查询到期初数据')
-            return
-        sn = 1
-        for item in list_values:
-            row_dict: dict[str, Any] = {}
-            row_dict['sn'] = sn
-            dao = PeriodDataDao()
-            dao.from_db(item)
-            row_dict.update(dao.to_db())
-            result, company_dao = g.my_db.query_company_by_id(dao.company_id)
-            company_name = '未知开票方'
-            if result and company_dao is not None:
-                company_name = company_dao.brief_name
-            row_dict['company_name'] = company_name
-            app.storage.client['period_data_table'].add_row(row_dict)
-            sn += 1
-        app.storage.client['period_data_table'].update()
+    app.storage.client['period_data_table'].rows.clear()
+    app.storage.client['period_data_table'].update()
+    if list_values is None or len(list_values) == 0:
+        ui.notify('没有查询到期初数据')
+        return
+    rows: list[dict[str, Any]] = []
+    sn = 1
+    for item in list_values:
+        row_dict: dict[str, Any] = {}
+        row_dict['sn'] = sn
+        dao = PeriodDataDao()
+        dao.from_db(item)
+        row_dict.update(dao.to_db())
+        result, company_dao = g.my_db.query_company_by_id(dao.company_id)
+        company_name = '未知开票方'
+        if result and company_dao is not None:
+            company_name = company_dao.brief_name
+        row_dict['company_name'] = company_name
+        row_dict['last_month_no_verify'] = g.format_currency(dao.last_month_no_verify)
+        row_dict['last_month_stay_pay'] = g.format_currency(dao.last_month_stay_pay)
+        row_dict['billing_amount'] = g.format_currency(dao.billing_amount)
+        rows.append(row_dict)
+        sn += 1
+    app.storage.client['period_data_table'].rows = rows
+    app.storage.client['period_data_table'].update()
 
 def show_edit(e: events.GenericEventArguments) -> None:
     id = e.args['id']

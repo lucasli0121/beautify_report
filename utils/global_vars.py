@@ -16,6 +16,21 @@ def validate_input_float(value, input_component:ui.input) -> None:
     except ValueError:
         ui.notify('格式不正确,请输入有效的数字')
 
+"""
+# @function format_currency
+# @description 格式化货币值，保留两位小数并添加千分位符
+# @param value 货币值
+# @return 格式化后的字符串
+"""
+def format_currency(value: float) -> str:
+    return '{:,.2f}'.format(value)
+
+"""
+# @function show_refresh_process
+# @description 显示刷新过程的对话框
+# @param msg 提示信息
+# @return 对话框对象
+"""
 def show_refresh_process(msg: str) -> ui.dialog:
     with ui.dialog().props('persistent') as dialog, ui.card().classes('') \
         .style('background-color: #FFFFFF !important; border-radius: 10px;'):

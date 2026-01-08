@@ -99,20 +99,20 @@ def on_search() -> None:
             row_dict.update(dao.to_db())
             result, from_company_dao = g.my_db.query_company_by_id(dao.from_company_id)
             if result and from_company_dao is not None:
-                row_dict['from_company_name'] = from_company_dao.name
+                row_dict['from_company_name'] = from_company_dao.brief_name
             else:
                 row_dict['from_company_name'] = '未知甲方'
             result, to_company_dao = g.my_db.query_company_by_id(dao.to_company_id)
             if result and to_company_dao is not None:
-                row_dict['to_company_name'] = to_company_dao.name
+                row_dict['to_company_name'] = to_company_dao.brief_name
             else:
                 row_dict['to_company_name'] = '未知乙方'
             gap_money = dao.payment_money - dao.invoice_money
-            row_dict['invoice_gap_money'] = 0 if gap_money < 0 else gap_money
-            row_dict['payment_gap_money'] = dao.contract_money - dao.payment_money
-            row_dict['contract_money'] = '{:,.2f}'.format(dao.contract_money)
-            row_dict['invoice_money'] = '{:,.2f}'.format(dao.invoice_money)
-            row_dict['payment_money'] = '{:,.2f}'.format(dao.payment_money)
+            row_dict['invoice_gap_money'] = g.format_currency(0 if gap_money < 0 else gap_money)
+            row_dict['payment_gap_money'] = g.format_currency(dao.contract_money - dao.payment_money)
+            row_dict['contract_money'] = g.format_currency(dao.contract_money)
+            row_dict['invoice_money'] = g.format_currency(dao.invoice_money)
+            row_dict['payment_money'] = g.format_currency(dao.payment_money)
             rows.append(row_dict)
             sn += 1
     app.storage.client['service_record_table'].rows = rows
@@ -158,11 +158,11 @@ def modify_or_new_service(dao: ServiceRecordDao, is_add: bool = True) -> None:
             from_company_select = inputs.selection_w60(options, None, need_input=True, on_change=on_from_change)
             def add_out_company():
                 def on_complete(new_company: CompanyDao):
-                    company_info[new_company.name] = new_company
-                    options.append(new_company.name)
+                    company_info[new_company.brief_name] = new_company
+                    options.append(new_company.brief_name)
                     from_company_select.set_options(options)
                     to_company_select.set_options(options)
-                    from_company_select.set_value(new_company.name)
+                    from_company_select.set_value(new_company.brief_name)
                 g.add_out_company(on_complete)
             ui.button('增加公司', icon='add', on_click=add_out_company)
             if not is_add:
@@ -178,11 +178,11 @@ def modify_or_new_service(dao: ServiceRecordDao, is_add: bool = True) -> None:
             to_company_select = inputs.selection_w60(options, None, need_input=True, on_change=on_to_change)
             def add_out_company():
                 def on_complete(new_company: CompanyDao):
-                    company_info[new_company.name] = new_company
-                    options.append(new_company.name)
+                    company_info[new_company.brief_name] = new_company
+                    options.append(new_company.brief_name)
                     from_company_select.set_options(options)
                     to_company_select.set_options(options)
-                    to_company_select.set_value(new_company.name)
+                    to_company_select.set_value(new_company.brief_name)
                 g.add_out_company(on_complete)
             ui.button('增加公司', icon='add', on_click=add_out_company)
             if not is_add:

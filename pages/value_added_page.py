@@ -31,13 +31,18 @@ def show_value_added_page():
                 search_condition.company_name = value
         inputs.selection_w60(options, None, need_input=True, on_change=on_company_change)
         def on_year_select(value):
-            if month_select.value is not None:
+            if month_select is not None and month_select.value is not None:
                 search_condition.record_month = f"{value}-{month_select.value.zfill(2)}"
-        year_select = inputs.selection_w40([str(x) for x in range(2001, 2031)], None, False, on_change=on_year_select)
+        from_year = datetime.now().year - 3
+        to_year = datetime.now().year + 2
+        year_select = inputs.selection_w40([str(x).zfill(4) for x in range(from_year, to_year)], None, False, on_change=on_year_select)
+        year_select.set_value(str(datetime.now().year))
+
         def on_month_select(value):
-            if year_select.value is not None:
+            if year_select is not None and year_select.value is not None:
                 search_condition.record_month = f"{year_select.value}-{value.zfill(2)}"
         month_select = inputs.selection_w40([str(x).zfill(2) for x in range(1, 13)], None, False, on_change=on_month_select)
+        month_select.set_value(str(datetime.now().month).zfill(2))
             
         search_button = ui.button('刷新', icon='img:/static/images/refresh@2x.png', on_click=on_search) \
             .classes('w-25 rounded-md text-white') \
@@ -77,17 +82,17 @@ def on_search() -> None:
                 dao.from_db(item)
                 row_dict['id'] = dao.id
                 row_dict['create_time'] = dao.create_time
-                row_dict['last_month_no_verify'] = f"{round(dao.last_month_no_verify, 2):,.2f}"
-                row_dict['last_month_stay_pay'] = f"{round(dao.last_month_stay_pay, 2):,.2f}"
-                row_dict['opened_input_tax'] = f"{round(dao.opened_input_tax, 2):,.2f}"
-                row_dict['opened_output_tax'] = f"{round(dao.opened_output_tax, 2):,.2f}"
-                row_dict['to_open_input_tax'] = f"{round(dao.to_open_input_tax, 2):,.2f}"
-                row_dict['to_open_output_tax'] = f"{round(dao.to_open_output_tax, 2):,.2f}"
-                row_dict['payable_tax'] = f"{round(dao.payable_tax, 2):,.2f}"
-                row_dict['sales_amount'] = f"{round(dao.sales_amount, 2):,.2f}"
-                row_dict['opened_billing_amount'] = f"{round(dao.opened_billing_amount, 2):,.2f}"
-                row_dict['remaining_billing_amount'] = f"{round(dao.remaining_billing_amount, 2):,.2f}"
-                row_dict['billing_amount'] = f"{round(dao.billing_amount, 2):,.2f}"
+                row_dict['last_month_no_verify'] = g.format_currency(dao.last_month_no_verify)
+                row_dict['last_month_stay_pay'] = g.format_currency(dao.last_month_stay_pay)
+                row_dict['opened_input_tax'] = g.format_currency(dao.opened_input_tax)
+                row_dict['opened_output_tax'] = g.format_currency(dao.opened_output_tax)
+                row_dict['to_open_input_tax'] = g.format_currency(dao.to_open_input_tax)
+                row_dict['to_open_output_tax'] = g.format_currency(dao.to_open_output_tax)
+                row_dict['payable_tax'] = g.format_currency(dao.payable_tax)
+                row_dict['sales_amount'] = g.format_currency(dao.sales_amount)
+                row_dict['opened_billing_amount'] = g.format_currency(dao.opened_billing_amount)
+                row_dict['remaining_billing_amount'] = g.format_currency(dao.remaining_billing_amount)
+                row_dict['billing_amount'] = g.format_currency(dao.billing_amount)
                 result, company_dao = g.my_db.query_company_by_id(dao.company_id)
                 company_name = '未知公司'
                 if result and company_dao is not None:

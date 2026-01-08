@@ -110,9 +110,9 @@ def modify_or_new_invoice_title(dao: InvoiceTitleDao, is_add: bool = True) -> No
     if not is_add:
         result, value = g.my_db.query_company_by_id(dao.company_id)
         if result is False or value is None:
-            ui.notify('查询公司信息失败')
-            return
-        company_dao = cast(CompanyDao, value)
+            ui.notify('查询公司信息失败,请检查该公司是否已被删除')
+        else:
+            company_dao = cast(CompanyDao, value)
     with ui.dialog().props('persistent') as dialog, ui.card().classes('w-1/2') \
         .style('background-color: #FFFFFF !important; border-radius: 10px;'):
         address_input = None
