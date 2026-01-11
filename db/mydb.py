@@ -12,7 +12,9 @@ from datetime import datetime
 from typing import Any
 from configparser import ConfigParser, NoSectionError
 import logging
+from dao.payment_record_dao import PaymentRecordDao
 from dao.recognize_info_dao import RecognizeInfoDao
+from dao.service_record_dao import ServiceRecordDao
 from db.mongo.mongo_impl import MongoImpl
 from db.mongo.mongo_invoice_title_impl import MongoInvoiceTitleImpl
 from db.mongo.mongo_period_data_impl import MongoPeriodDataImpl
@@ -345,7 +347,7 @@ class MyDb:
                 return MongoPaymentRecordImpl(self.mongo).query_all(from_company_id, to_company_id, status, begin_time, end_time)
         self.logger.error("No database implementation available for querying payment record.")
         return False, None
-    def query_payment_record_by_id(self, id: str) -> tuple[bool, Any|None]:
+    def query_payment_record_by_id(self, id: str) -> tuple[bool, PaymentRecordDao|None]:
         if self.mysql is not None:
             return False, None
         else:
@@ -388,7 +390,7 @@ class MyDb:
                 return MongoServiceRecordImpl(self.mongo).query_all(from_company_id, to_company_id, status, begin_time, end_time)
         self.logger.error("No database implementation available for querying service record.")
         return False, None
-    def query_service_record_by_id(self, id: str) -> tuple[bool, Any|None]:
+    def query_service_record_by_id(self, id: str) -> tuple[bool, ServiceRecordDao|None]:
         if self.mysql is not None:
             return False, None
         else:

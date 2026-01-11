@@ -368,12 +368,14 @@ def show_payment_record_table(datas, show_edit, show_delete) -> ui.table:
         {'name': 'sn', 'label': '序号', 'field': 'sn', 'width': '5%', 'align': 'center'},
         {'name': 'from_company_name', 'label': '付款方', 'field': 'from_company_name', 'width': '10%', 'align': 'center'},
         {'name': 'to_company_name', 'label': '受款方', 'field': 'to_company_name', 'width': '10%', 'align': 'center'},
-        {'name': 'contract_name', 'label': '合同名称', 'field': 'contract_name', 'width': '10%', 'align': 'center'},
-        {'name': 'payment_money', 'label': '付款金额', 'field': 'payment_money', 'width': '10%', 'align': 'center'},
-        {'name': 'should_invoice_money', 'label': '应开票金额', 'field': 'should_invoice_money', 'width': '10%', 'align': 'center'},
-        {'name': 'has_invoice_money', 'label': '已开票金额', 'field': 'has_invoice_money', 'width': '10%', 'align': 'center'},
-        {'name': 'remain_invoice_money', 'label': '未开票金额', 'field': 'remain_invoice_money', 'width': '10%', 'align': 'center'},
-        {'name': 'status', 'label': '状态', 'field': 'status', 'width': '10%', 'align': 'center'},
+        {'name': 'contract_name', 'label': '合同名称', 'field': 'contract_name', 'width': '5%', 'align': 'center'},
+        {'name': 'payment_money', 'label': '付款金额', 'field': 'payment_money', 'width': '5%', 'align': 'right'},
+        {'name': 'item_name', 'label': '事项', 'field': 'item_name', 'width': '5%', 'align': 'center'},
+        # {'name': 'should_invoice_money', 'label': '应开票金额', 'field': 'should_invoice_money', 'width': '10%', 'align': 'center'},
+        # {'name': 'has_invoice_money', 'label': '已开票金额', 'field': 'has_invoice_money', 'width': '10%', 'align': 'center'},
+        # {'name': 'remain_invoice_money', 'label': '未开票金额', 'field': 'remain_invoice_money', 'width': '10%', 'align': 'center'},
+        {'name': 'status', 'label': '状态', 'field': 'status', 'width': '5%', 'align': 'center'},
+        {'name': 'remarks', 'label': '备注', 'field': 'remarks', 'width': '10%', 'align': 'center'},
         {'name': 'create_time', 'label': '付款时间', 'field': 'create_time', 'width': '10%', 'align': 'center'},
         {'name': 'operation', 'label': '操作', 'field': 'operation', 'width': '10%', 'align': 'center'}
     ]
@@ -394,11 +396,10 @@ def show_payment_record_table(datas, show_edit, show_delete) -> ui.table:
                     \'to_company_name\', \
                     \'contract_name\', \
                     \'payment_money\', \
-                    \'should_invoice_money\', \
-                    \'has_invoice_money\', \
-                    \'remain_invoice_money\', \
+                    \'item_name\', \
                     \'status\', \
                     \'create_time\', \
+                    \'remarks\', \
                     \'operation\']"')
 
         table.add_slot('body-cell-status', r'''

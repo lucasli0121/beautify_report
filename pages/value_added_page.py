@@ -22,6 +22,7 @@ def show_value_added_page():
         ui.notify('查询公司信息失败')
         return
     options = list(company_info.keys())  # 获取所有公司名称
+    month_select = None
     with ui.row().classes('w-full px-[20px] py-[10px] mt-0 place-content-start items-center gap-2') \
         .style('background-color: #FFFFFF !important; border-radius: 10px;'):
         ui.label('公司').classes('text-[16px] text-[#333333] font-medium')

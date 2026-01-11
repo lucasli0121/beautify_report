@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any
 from nicegui import app, ui
 from dao.company_dao import CompanyDao
-from dao.service_record_dao import ServiceRecordDao
+from dao.service_record_dao import ServiceRecordDao, ServiceStatus
 from utils import ocr_manager as ocr_mgr
 from db.mydb import MyDb
 my_db = MyDb()
@@ -147,11 +147,11 @@ def update_contract_invoice_money(contract_id: str, invoice_money: float) -> boo
         return False
     service_dao.invoice_money += invoice_money
     if service_dao.invoice_money > service_dao.payment_money:
-        service_dao.status = 2 # 更新状态为待付款
+        service_dao.status = ServiceStatus.WaitPayment.value # 更新状态为待付款
     if service_dao.invoice_money < service_dao.payment_money:
-        service_dao.status = 3 # 更新状态为待开票
+        service_dao.status = ServiceStatus.WaitInvoice.value # 更新状态为待开票
     if service_dao.invoice_money == service_dao.contract_money and service_dao.payment_money == service_dao.contract_money:
-        service_dao.status = 4 # 更新状态为完成
+        service_dao.status = ServiceStatus.Finished # 更新状态为完成
     service_dao.latest_invoice_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     return my_db.update_service_record(service_dao.to_db(), {})
 
@@ -167,10 +167,10 @@ def update_contract_payment_money(contract_id: str, payment_money: float) -> boo
         return False
     service_dao.payment_money += payment_money
     if service_dao.payment_money > service_dao.invoice_money:
-        service_dao.status = 3 # 更新状态为待付款
+        service_dao.status = ServiceStatus.WaitInvoice.value # 更新状态为待开票
     if service_dao.payment_money < service_dao.invoice_money:
-        service_dao.status = 2 # 更新状态为待开票
+        service_dao.status = ServiceStatus.WaitPayment.value # 更新状态为待付款
     if service_dao.payment_money == service_dao.contract_money and service_dao.invoice_money == service_dao.contract_money:
-        service_dao.status = 4 # 更新状态为完成
+        service_dao.status = ServiceStatus.Finished.value # 更新状态为完成
     service_dao.latest_payment_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     return my_db.update_service_record(service_dao.to_db(), {})

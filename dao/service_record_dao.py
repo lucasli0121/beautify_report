@@ -1,7 +1,15 @@
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
+from enum import Enum
 
+
+class ServiceStatus(Enum):
+    NotFinished = 0 # 未完成
+    NotContract = 1 # 无合同
+    WaitPayment = 2 # 待付款
+    WaitInvoice = 3 # 待开票
+    Finished = 4 # 完成
 
 @dataclass
 class ServiceRecordDao:
