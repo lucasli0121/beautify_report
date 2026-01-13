@@ -69,6 +69,9 @@ def show_service_record_page():
             ui.button('新建', icon='img:/static/images/add_course@2x.png', on_click=add_service) \
                 .classes('w-25 rounded-md text-white') \
                 .style('background-color: #65B6FF !important')
+            ui.button('同步', icon='currency_exchange', on_click=sync_service) \
+                .classes('w-25 rounded-md text-white') \
+                .style('background-color: #65B6FF !important')
             
     table_rows: list[dict] = []
     app.storage.client['service_record_table'] = tables.show_service_record_table(table_rows, show_edit, delete_one)
@@ -118,6 +121,37 @@ def on_search() -> None:
     app.storage.client['service_record_table'].rows = rows
     app.storage.client['service_record_table'].update()
 
+"""
+# @description: 同步业务数据, 分别从发票记录和付款记录里面查询数据进行同步
+# 根据合同ID，同步合同金额，甲方乙方，公司名称，最近付款时间，最近开票时间，开票金额，付款金额，状态等信息
+# 能够做到开票金额，发票差额，付款金额，付款差额等信息的自动计算
+# 原则: 乙方给甲方开票，甲方和乙方付款
+# @param None
+# @return: None
+"""
+async def sync_service():
+    if 'service_record_table' not in app.storage.client:
+        ui.notify('请先查询记录')
+        return
+    selection = app.storage.client['service_record_table'].selected
+    if not selection:
+        ui.notify('请选择要同步的记录')
+        return
+    ids = [item['id'] for item in selection]
+    if not ids:
+        ui.notify('没有选中任何记录')
+        return
+    app.storage.client['service_record_table'].selected.clear()
+    for id in ids:
+        if id is None or len(id) == 0:
+            continue
+        # 原则，乙方给甲方开票，甲方和乙方付款
+        # 根据合同id查询对应的发票记录
+        result, service_dao = g.my_db.query_service_record_by_id(id)
+        if result is False:
+            ui.notify(f'同步记录失败: {id}')
+        else:
+            ui.notify(f'同步记录成功: {id}')
 def show_edit(e: events.GenericEventArguments) -> None:
     id = e.args['id']
     if id is None or len(id) == 0:

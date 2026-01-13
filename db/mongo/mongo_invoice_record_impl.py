@@ -144,6 +144,22 @@ class MongoInvoiceRecordImpl():
         dao.from_db(value[0])
         return True, dao
     """
+    function: query_by_contract_id
+    description: 根据合同ID从服务器查询信息
+    param {*} contract_id
+    return {*}
+    """
+    def query_by_contract_id(self, contract_id: str) -> tuple[bool, list[Any]|None]:
+        tbl_name = self.invoice_record_tbl()
+        if tbl_name is None:
+            self.logger.error("Company table not found in MongoDB.")
+            return False, None
+        if contract_id is None or len(contract_id) == 0:
+            return False, None
+        query = {'contract_id': contract_id}
+        return self.mongo_impl.query_by_condition(tbl_name, query, {'invoice_time': -1})
+    
+    """
     function:
     description: 删除信息
     param {*} self

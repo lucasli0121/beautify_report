@@ -28,7 +28,8 @@ def show_period_data_page():
                 search_condition.company_id = company_info[value].id
                 search_condition.company_name = value
         inputs.selection_w60(options, None, need_input=True, on_change=on_company_change)
-            
+        month_select = None
+        year_select = None
         def on_year_select(value):
             if month_select is not None and month_select.value is not None:
                 search_condition.record_month = f"{value}-{month_select.value.zfill(2)}"

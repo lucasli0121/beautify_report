@@ -829,7 +829,7 @@ def modify_or_add_invoice(dao: InvoiceRecordDao, is_add: bool = True):
                     result, _ = g.my_db.add_invoice_record(dao.to_db())
                     if result:
                         # 更新服务记录的开票金额
-                        g.update_contract_invoice_money(dao.contract_id, dao.before_tax_money)
+                        # g.update_contract_invoice_money(dao.contract_id, dao.before_tax_money)
                         ui.notify('添加开票信息成功')
                         on_search()
                     else:
@@ -840,9 +840,9 @@ def modify_or_add_invoice(dao: InvoiceRecordDao, is_add: bool = True):
                         ui.notify('更新开票记录失败')
                         return
                     # 更新服务记录的开票金额
-                    if old_before_tax_money != dao.before_tax_money:
-                        gap_money = dao.before_tax_money - old_before_tax_money
-                        g.update_contract_invoice_money(dao.contract_id, gap_money)
+                    # if old_before_tax_money != dao.before_tax_money:
+                    #     gap_money = dao.before_tax_money - old_before_tax_money
+                    #     g.update_contract_invoice_money(dao.contract_id, gap_money)
                     ui.notify('修改开票信息成功')
                     on_search()
                 dialog.close()

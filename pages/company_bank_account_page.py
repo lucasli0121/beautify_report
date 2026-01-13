@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from nicegui import ui,app,events
 from components import tables, inputs, labels, dialogs
 from dao.company_dao import CompanyDao
-from dao.company_bank_account_dao import CompanyBankAccountDao
+from dao.company_bank_account_dao import BackType, CompanyBankAccountDao
 from typing import Any, Optional, cast
 from utils import global_vars as g
 
@@ -76,12 +76,13 @@ def on_search() -> None:
             if result and company_dao is not None:
                 company_name = company_dao.brief_name
             row_dict['company_name'] = company_name
+            row_dict['opening_balance'] = g.format_currency(dao.opening_balance)
+            row_dict['current_balance'] = g.format_currency(dao.current_balance)
             row_dict.update(dao.to_db())
             rows.append(row_dict)
             sn += 1
         return rows
-    rows = do_refresh()
-    app.storage.client['company_bank_account_table'].rows = rows
+    app.storage.client['company_bank_account_table'].rows = do_refresh()
     app.storage.client['company_bank_account_table'].update()
 
 #
@@ -197,17 +198,37 @@ def modify_or_new_company_bank_account(account_dao: CompanyBankAccountDao, is_ad
                     return
                 match value:
                     case '基本户':
-                        account_dao.account_type = 0
+                        account_dao.account_type = BackType.BASIC.value
                     case '一般户':
-                        account_dao.account_type = 1
+                        account_dao.account_type = BackType.GENERAL.value
                     case _:
-                        account_dao.account_type = 0
+                        account_dao.account_type = BackType.OTHER.value
             account_type_select = inputs.selection_w40(['基本户', '一般户'], value='基本户', need_input=False, on_change=on_change)
             if not is_add:
-                if account_dao.account_type == 0:
+                if account_dao.account_type == BackType.BASIC.value:
                     account_type_select.set_value('基本户')
                 else:
                     account_type_select.set_value('一般户')
+        with ui.row().classes('w-full place-content-start items-center'):
+            ui.label('期初余额').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
+            current_balance_label = None
+            def on_opening_balance_change(e: events.ValueChangeEventArguments):
+                value = e.value
+                if is_add and current_balance_label is not None:
+                    if value is None or len(value) == 0:
+                        current_balance_label.set_text(g.format_currency(0.0))
+                    else:
+                        current_balance_label.set_text(g.format_currency(float(value)))
+            ui.input(placeholder='请输入期初余额') \
+                .props('rounded-md outlined dense type="number"') \
+                .classes('self-left') \
+                .on_value_change(on_opening_balance_change) \
+                .bind_value_from(account_dao, 'opening_balance') \
+                .bind_value_to(account_dao, 'opening_balance')
+        with ui.row().classes('w-full place-content-start items-center'):
+            ui.label('当前余额').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
+            current_balance_label = ui.label('').classes('w-[40%] text-[14px] text-red font-small self-center')
+            current_balance_label.set_text(g.format_currency(account_dao.current_balance))
         with ui.row().classes('w-full place-content-start items-center'):
             ui.label('银行地址').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
             ui.input(placeholder='请输入银行地址') \

@@ -24,6 +24,7 @@ class ServiceRecordDao:
     payment_money: float # 已付款金额
     latest_payment_time: str # 最近付款时间
     latest_invoice_time: str # 最近开票时间
+    sync_time: str # 同步时间
     status: int # 状态 0: 未完成, 1: 无合同 2: 待付款 3:待开票 4:完成
     create_time: str
     
@@ -62,6 +63,7 @@ class ServiceRecordDao:
         self.latest_invoice_time = str(data.get('latest_invoice_time', datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
         self.status = int(data.get('status', 0))
         self.create_time = str(data.get('create_time', datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+        self.sync_time = str(data.get('sync_time', datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
 
     def to_db(self) -> dict[str, Any]:
         return self.__dict__

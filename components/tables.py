@@ -315,9 +315,11 @@ def show_company_bank_account_table(datas, show_edit, show_delete) -> ui.table:
         {'name': 'sn', 'label': '序号', 'field': 'sn', 'width': '5%', 'align': 'center'},
         {'name': 'company_name', 'label': '公司名称', 'field': 'company_name', 'width': '10%', 'align': 'center'},
         {'name': 'bank_account', 'label': '银行账户', 'field': 'bank_account', 'width': '10%', 'align': 'center'},
-        {'name': 'bank_name', 'label': '银行名称', 'field': 'bank_name', 'width': '15%', 'align': 'center'},
-        {'name': 'account_type', 'label': '账号类型', 'field': 'account_type', 'width': '10%', 'align': 'center'},
-        {'name': 'bank_address', 'label': '银行地址', 'field': 'bank_address', 'width': '25%', 'align': 'center'},
+        {'name': 'bank_name', 'label': '银行名称', 'field': 'bank_name', 'width': '10%', 'align': 'center'},
+        {'name': 'account_type', 'label': '账号类型', 'field': 'account_type', 'width': '5%', 'align': 'center'},
+        {'name': 'opening_balance', 'label': '期初余额', 'field': 'opening_balance', 'width': '10%', 'align': 'right'},
+        {'name': 'current_balance', 'label': '当前余额', 'field': 'current_balance', 'width': '10%', 'align': 'right'},
+        {'name': 'bank_address', 'label': '银行地址', 'field': 'bank_address', 'width': '20%', 'align': 'center'},
         {'name': 'operation', 'label': '操作', 'field': 'operation', 'width': '10%', 'align': 'center'}
     ]
     with ui.table(
@@ -330,7 +332,15 @@ def show_company_bank_account_table(datas, show_edit, show_delete) -> ui.table:
             .classes('w-full mt-2 gap-0') \
             .style('border: 1px solid #ECECEC; border-radius: 10px 10px 0px 0px;') as table:
         table.props('v-model:selected="selected"')
-        table.props('visible-columns="[\'sn\', \'company_name\', \'bank_account\', \'bank_name\', \'account_type\', \'bank_address\', \'operation\']"')
+        table.props('visible-columns="[\'sn\', \
+                    \'company_name\', \
+                    \'bank_account\', \
+                    \'bank_name\', \
+                    \'account_type\', \
+                    \'opening_balance\', \
+                    \'current_balance\', \
+                    \'bank_address\', \
+                    \'operation\']"')
         
         table.add_slot('body-cell-account_type', r'''
             <q-td auto-width key="account_type" :props="props">  
@@ -367,7 +377,7 @@ def show_payment_record_table(datas, show_edit, show_delete) -> ui.table:
         {'name': 'id', 'label': 'id', 'field': 'id', 'width': '0%', 'align': 'center'},
         {'name': 'sn', 'label': '序号', 'field': 'sn', 'width': '5%', 'align': 'center'},
         {'name': 'from_company_name', 'label': '付款方', 'field': 'from_company_name', 'width': '10%', 'align': 'center'},
-        {'name': 'to_company_name', 'label': '受款方', 'field': 'to_company_name', 'width': '10%', 'align': 'center'},
+        {'name': 'to_company_name', 'label': '收款方', 'field': 'to_company_name', 'width': '10%', 'align': 'center'},
         {'name': 'contract_name', 'label': '合同名称', 'field': 'contract_name', 'width': '5%', 'align': 'center'},
         {'name': 'payment_money', 'label': '付款金额', 'field': 'payment_money', 'width': '5%', 'align': 'right'},
         {'name': 'item_name', 'label': '事项', 'field': 'item_name', 'width': '5%', 'align': 'center'},
@@ -438,6 +448,7 @@ def show_service_record_table(datas, show_edit, show_delete) -> ui.table:
     table_columns = [
         {'name': 'id', 'label': 'id', 'field': 'id', 'width': '0%', 'align': 'center'},
         {'name': 'sn', 'label': '序号', 'field': 'sn', 'width': '5%', 'align': 'center'},
+        {'name': 'operation', 'label': '操作', 'field': 'operation', 'width': '5%', 'align': 'center'},
         {'name': 'from_company_name', 'label': '甲方', 'field': 'from_company_name', 'width': '10%', 'align': 'center'},
         {'name': 'to_company_name', 'label': '乙方', 'field': 'to_company_name', 'width': '10%', 'align': 'center'},
         {'name': 'contract_name', 'label': '合同名称', 'field': 'contract_name', 'width': '10%', 'align': 'center'},
@@ -451,8 +462,7 @@ def show_service_record_table(datas, show_edit, show_delete) -> ui.table:
         {'name': 'latest_payment_time', 'label': '最近付款时间', 'field': 'latest_payment_time', 'width': '10%', 'align': 'center'},
         {'name': 'latest_invoice_time', 'label': '最近开票时间', 'field': 'latest_invoice_time', 'width': '10%', 'align': 'center'},
         {'name': 'status', 'label': '状态', 'field': 'status', 'width': '5%', 'align': 'center'},
-        {'name': 'create_time', 'label': '创建时间', 'field': 'create_time', 'width': '10%', 'align': 'center'},
-        {'name': 'operation', 'label': '操作', 'field': 'operation', 'width': '5%', 'align': 'center'}
+        {'name': 'create_time', 'label': '创建时间', 'field': 'create_time', 'width': '10%', 'align': 'center'}
     ]
     with ui.table(
         columns=table_columns,
