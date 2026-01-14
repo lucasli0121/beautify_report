@@ -70,6 +70,7 @@ def on_search() -> None:
             row_dict: dict[str, Any] = {}
             dao = CompanyBankAccountDao()
             dao.from_db(item)
+            row_dict.update(dao.to_db())
             result, company_dao = g.my_db.query_company_by_id(dao.company_id)
             row_dict['sn'] = sn
             company_name = '未知开票方'
@@ -78,7 +79,6 @@ def on_search() -> None:
             row_dict['company_name'] = company_name
             row_dict['opening_balance'] = g.format_currency(dao.opening_balance)
             row_dict['current_balance'] = g.format_currency(dao.current_balance)
-            row_dict.update(dao.to_db())
             rows.append(row_dict)
             sn += 1
         return rows
@@ -148,6 +148,7 @@ def modify_or_new_company_bank_account(account_dao: CompanyBankAccountDao, is_ad
     if result is False:
         ui.notify('查询公司信息失败')
         return
+    current_balance_input = None
     options = list(company_info.keys())  # 获取所有公司名称
     company_dao: CompanyDao = CompanyDao()
     if not is_add:
@@ -211,14 +212,13 @@ def modify_or_new_company_bank_account(account_dao: CompanyBankAccountDao, is_ad
                     account_type_select.set_value('一般户')
         with ui.row().classes('w-full place-content-start items-center'):
             ui.label('期初余额').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
-            current_balance_label = None
             def on_opening_balance_change(e: events.ValueChangeEventArguments):
                 value = e.value
-                if is_add and current_balance_label is not None:
+                if is_add and current_balance_input is not None:
                     if value is None or len(value) == 0:
-                        current_balance_label.set_text(g.format_currency(0.0))
+                        current_balance_input.set_value(0.0)
                     else:
-                        current_balance_label.set_text(g.format_currency(float(value)))
+                        current_balance_input.set_value(float(value))
             ui.input(placeholder='请输入期初余额') \
                 .props('rounded-md outlined dense type="number"') \
                 .classes('self-left') \
@@ -227,8 +227,11 @@ def modify_or_new_company_bank_account(account_dao: CompanyBankAccountDao, is_ad
                 .bind_value_to(account_dao, 'opening_balance')
         with ui.row().classes('w-full place-content-start items-center'):
             ui.label('当前余额').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
-            current_balance_label = ui.label('').classes('w-[40%] text-[14px] text-red font-small self-center')
-            current_balance_label.set_text(g.format_currency(account_dao.current_balance))
+            current_balance_input = ui.input(placeholder='当前余额') \
+                .props('rounded-md outlined dense type="number"') \
+                .classes('self-left') \
+                .bind_value_from(account_dao, 'current_balance') \
+                .bind_value_to(account_dao, 'current_balance')
         with ui.row().classes('w-full place-content-start items-center'):
             ui.label('银行地址').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
             ui.input(placeholder='请输入银行地址') \

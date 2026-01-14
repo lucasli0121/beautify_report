@@ -15,6 +15,8 @@ class PaymentRecordDao:
     to_company_id: str
     item_name: str # 事项
     contract_id: str  # 合同ID
+    from_bank_id: str # 付款方银行账户ID
+    to_bank_id: str # 收款方银行账户ID
     payment_money: float # 金额
     should_invoice_money: float # 应开票金额
     has_invoice_money: float # 已开票金额
@@ -23,7 +25,8 @@ class PaymentRecordDao:
     create_time: str
     remarks: str = '' # 备注
 
-    def __init__(self, id: str = '', from_company_id: str = "", to_company_id: str = "", item_name: str = "", contract_id='', payment_money: float = 0.0,
+    def __init__(self, id: str = '', from_company_id: str = "", to_company_id: str = "", item_name: str = "",
+                 contract_id='', from_bank_id: str = '', to_bank_id: str = '', payment_money: float = 0.0,
                  should_invoice_money: float = 0.0, has_invoice_money: float = 0.0,
                  remain_invoice_money: float = 0.0, status: int = 0, create_time: str = "") -> None:
         self.id = id
@@ -31,6 +34,8 @@ class PaymentRecordDao:
         self.to_company_id = to_company_id
         self.item_name = item_name
         self.contract_id = contract_id
+        self.from_bank_id = from_bank_id
+        self.to_bank_id = to_bank_id
         self.payment_money = payment_money
         self.should_invoice_money = should_invoice_money
         self.has_invoice_money = has_invoice_money
@@ -44,6 +49,8 @@ class PaymentRecordDao:
         self.to_company_id = str(data.get('to_company_id', ''))
         self.item_name = str(data.get('item_name', ''))
         self.contract_id = str(data.get('contract_id', ''))
+        self.from_bank_id = str(data.get('from_bank_id', ''))
+        self.to_bank_id = str(data.get('to_bank_id', ''))
         self.payment_money = float(data.get('payment_money', 0.0))
         self.should_invoice_money = float(data.get('should_invoice_money', 0.0))
         self.has_invoice_money = float(data.get('has_invoice_money', 0.0))

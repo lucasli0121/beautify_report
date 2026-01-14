@@ -379,6 +379,8 @@ def show_payment_record_table(datas, show_edit, show_delete) -> ui.table:
         {'name': 'from_company_name', 'label': '付款方', 'field': 'from_company_name', 'width': '10%', 'align': 'center'},
         {'name': 'to_company_name', 'label': '收款方', 'field': 'to_company_name', 'width': '10%', 'align': 'center'},
         {'name': 'contract_name', 'label': '合同名称', 'field': 'contract_name', 'width': '5%', 'align': 'center'},
+        {'name': 'from_bank_name', 'label': '付款银行账户', 'field': 'from_bank_name', 'width': '10%', 'align': 'center'},
+        {'name': 'to_bank_name', 'label': '收款银行账户', 'field': 'to_bank_name', 'width': '10%', 'align': 'center'},
         {'name': 'payment_money', 'label': '付款金额', 'field': 'payment_money', 'width': '5%', 'align': 'right'},
         {'name': 'item_name', 'label': '事项', 'field': 'item_name', 'width': '5%', 'align': 'center'},
         # {'name': 'should_invoice_money', 'label': '应开票金额', 'field': 'should_invoice_money', 'width': '10%', 'align': 'center'},
@@ -405,6 +407,8 @@ def show_payment_record_table(datas, show_edit, show_delete) -> ui.table:
                     \'from_company_name\', \
                     \'to_company_name\', \
                     \'contract_name\', \
+                    \'from_bank_name\', \
+                    \'to_bank_name\', \
                     \'payment_money\', \
                     \'item_name\', \
                     \'status\', \
@@ -420,7 +424,7 @@ def show_payment_record_table(datas, show_edit, show_delete) -> ui.table:
                 <template v-if="props.row.status == 1">
                     已完成
                 </template>
-                <template v-if="props.row.status == 1">
+                <template v-if="props.row.status == 2">
                     已取消
                 </template>
             </q-td>

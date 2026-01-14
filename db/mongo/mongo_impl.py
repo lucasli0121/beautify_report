@@ -57,6 +57,7 @@ class MongoImpl(DbBaseImpl):
             if table is None:
                 self.logger.error("table not found in MongoDB.")
                 return False
+            data = deepcopy(data)
             if 'id' in data:
                 del data['id']
             ret = table.insert_one(data)

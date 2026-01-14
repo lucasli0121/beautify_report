@@ -103,8 +103,8 @@ parameters: []
 @app.on_startup
 async def app_startup():
     # 启动OCR管理器
-    g.ocr_mgr.start()
-    # pass
+    # g.ocr_mgr.start()
+    pass
 
 '''
 function app_shutdown

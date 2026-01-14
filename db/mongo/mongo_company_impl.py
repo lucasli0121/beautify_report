@@ -7,6 +7,7 @@ Description:
 '''
 # coding="utf8"
 
+from copy import deepcopy
 from pymongo.collection import Collection
 import logging
 from typing import Any
@@ -148,6 +149,8 @@ class MongoCompanyImpl():
             if tbl_name is None:
                 self.logger.error("Company table not found in MongoDB.")
                 return False, None
+            if id is None or len(id) == 0:
+                return False, None
             query = {'_id': ObjectId(id)}
             result = tbl_name.find_one(query)
             if result is None:
@@ -188,6 +191,8 @@ class MongoCompanyImpl():
             if tbl_name is None:
                 self.logger.error("Company table not found in MongoDB.")
                 return False
+            if id is None or len(id) == 0:
+                return False
             query = {'_id': ObjectId(id)}
             ret = tbl_name.delete_one(query)
             return ret.deleted_count > 0  # 返回是否有记录被删除
@@ -208,8 +213,6 @@ class MongoCompanyImpl():
             if tbl_name is None:
                 self.logger.error("Company bank account table not found in MongoDB.")
                 return False, None
-            if 'id' in data:
-                del data['id']
             return self.mongo_impl.add(tbl_name, data)
         except Exception as e:
             self.logger.error(f"添加公司银行账户信息失败: {e}")
@@ -227,8 +230,6 @@ class MongoCompanyImpl():
             if tbl_name is None:
                 self.logger.error("Company bank account table not found in MongoDB.")
                 return False
-            if 'id' in data:
-                del data['id']
             return self.mongo_impl.update(tbl_name, data, condition)
         except Exception as e:
             self.logger.error(f"更新公司银行账户信息失败: {e}")
@@ -255,6 +256,8 @@ class MongoCompanyImpl():
         if tbl_name is None:
             self.logger.error("Company bank account table not found in MongoDB.")
             return False, None
+        if id is None or len(id) == 0:
+            return False, None
         query = {'_id': ObjectId(id)}
         result, value = self.mongo_impl.query_by_condition(tbl_name, query, None)
         if not result or value is None:
@@ -273,6 +276,8 @@ class MongoCompanyImpl():
             tbl_name = self.company_bank_account_tbl()
             if tbl_name is None:
                 self.logger.error("Company bank account table not found in MongoDB.")
+                return False
+            if id is None or len(id) == 0:
                 return False
             query = {'_id': ObjectId(id)}
             ret = tbl_name.delete_one(query)
