@@ -363,6 +363,14 @@ class MyDb:
                 return MongoPaymentRecordImpl(self.mongo).query_by_id(id)
         self.logger.error("No database implementation available for querying payment record by id.")
         return False, None
+    def query_payment_record_by_contract_id(self, contract_id: str) -> tuple[bool, Any|None]:
+        if self.mysql is not None:
+            return False, None
+        else:
+            if self.mongo is not None:
+                return MongoPaymentRecordImpl(self.mongo).query_by_contract_id(contract_id)
+        self.logger.error("No database implementation available for querying payment record by contract id.")
+        return False, None
     def delete_payment_record(self, id: str) -> bool:
         if self.mysql is not None:
             return False

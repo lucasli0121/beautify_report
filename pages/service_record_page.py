@@ -1,9 +1,12 @@
+from asyncio import run
 from dataclasses import dataclass
 from datetime import datetime
 from nicegui import ui,events, app
 from components import inputs, tables, dialogs
 from typing import Any, Optional
 from dao.company_dao import CompanyDao
+from dao.invoice_record_dao import InvoiceRecordDao
+from dao.payment_record_dao import PaymentRecordDao
 from dao.service_record_dao import ServiceRecordDao
 from utils import global_vars as g
 
@@ -97,9 +100,8 @@ def on_search() -> None:
         for item in list_values:
             dao = ServiceRecordDao()
             dao.from_db(item)
-            row_dict: dict[str, Any] = {}
+            row_dict: dict[str, Any] = dao.to_db()
             row_dict['sn'] = sn
-            row_dict.update(dao.to_db())
             result, from_company_dao = g.my_db.query_company_by_id(dao.from_company_id)
             if result and from_company_dao is not None:
                 row_dict['from_company_name'] = from_company_dao.brief_name
@@ -142,16 +144,74 @@ async def sync_service():
         ui.notify('没有选中任何记录')
         return
     app.storage.client['service_record_table'].selected.clear()
+    with ui.dialog().props('persistent') as dialog, ui.card().style('width: 30%; max-width: 30%;') \
+        .style('background-color: #FFFFFF !important; border-radius: 10px;'):
+        ui.label('同步发票及付款数据').classes('w-full text-[20px] text-[#333333] font-medium')
+        with ui.column().classes('w-full mt-5 place-content-start items-center'):
+            with ui.row().classes('w-full place-content-start items-center gap-1'):
+                ui.label('年月').classes('w-[20%] text-[16px] text-[#333333] font-medium')
+                from_year = datetime.now().year - 3
+                to_year = datetime.now().year + 2
+                year_select = inputs.selection_w40([str(x) for x in range(from_year, to_year + 1)], None, False, None)
+                year_select.set_value(datetime.now().strftime("%Y"))
+                month_select = inputs.selection_w40([str(x).zfill(2) for x in range(1, 13)], None, False, None)
+                month_select.set_value(datetime.now().strftime("%m").zfill(2))
+            with ui.row().classes('w-full place-content-start items-center gap-1'):
+                ui.label('公司').classes('w-[20%] text-[16px] text-[#333333] font-medium')
+                company_select = inputs.selection_w60(options, None, need_input=True, on_change=None)
+            with ui.row().classes('w-full place-content-center items-center gap-1'):
+                
+                ui.button('关闭', color=None, on_click=dialog.close) \
+                    .props('flat') \
+                    .classes('w-[120px] text-[16px] text-[#888888] font-[400]') \
+                    .style('background-color: #FFFFFF !important;border-radius: 10px;border: 1px solid #888888;')
+                ui.button('汇总增值税', color=None, on_click=on_summary) \
+                    .props('flat') \
+                    .classes('w-[120px] text-[16px] text-white font-[400]') \
+                    .style('background-color: #65B6FF !important; border-radius: 10px')
+    dialog.open()
+
+    refresh_dialog = g.show_refresh_process("数据同步中，请稍候...")
+    result, msg = await run.io_bound(do_sync_service, ids)
+    if result is False:
+        ui.notify(f"同步数据失败,{msg}")
+    else:
+        ui.notify("同步数据成功")
+        on_search()
+    refresh_dialog.close()
+
+"""
+# @description: 执行同步业务数据的具体逻辑
+# @param ids: 需要同步的业务记录ID列表
+# @return: (是否同步成功, 错误信息)
+"""
+def do_sync_service(ids: list[str]) -> tuple[bool, str]:
     for id in ids:
         if id is None or len(id) == 0:
             continue
         # 原则，乙方给甲方开票，甲方和乙方付款
         # 根据合同id查询对应的发票记录
         result, service_dao = g.my_db.query_service_record_by_id(id)
-        if result is False:
-            ui.notify(f'同步记录失败: {id}')
-        else:
-            ui.notify(f'同步记录成功: {id}')
+        if result and service_dao is not None:
+            result, list_values = g.my_db.query_invoice_record_by_contract_id(service_dao.id)
+            if result and list_values is not None:
+                for item in list_values:
+                    invoice_dao = InvoiceRecordDao()
+                    invoice_dao.from_db(item)
+                    # 乙方给甲方开票
+                    if invoice_dao.to_company_id == service_dao.from_company_id and invoice_dao.from_company_id == service_dao.to_company_id:
+                        g.update_contract_invoice_money_using_service_dao(service_dao, invoice_dao.invoice_money)
+            # 根据合同id查询对应的付款记录
+            result, list_values = g.my_db.query_payment_record_by_contract_id(id)
+            if result and list_values is not None:
+                for item in list_values:
+                    payment_dao = PaymentRecordDao()
+                    payment_dao.from_db(item)
+                    # 甲方付款给乙方
+                    if payment_dao.from_company_id == service_dao.from_company_id and payment_dao.to_company_id == service_dao.to_company_id:
+                        g.update_contract_payment_money_using_service_dao(service_dao, payment_dao.payment_money)
+    return True, "同步成功"
+    
 def show_edit(e: events.GenericEventArguments) -> None:
     id = e.args['id']
     if id is None or len(id) == 0:

@@ -145,13 +145,21 @@ def update_contract_invoice_money(contract_id: str, invoice_money: float) -> boo
     result, service_dao = my_db.query_service_record_by_id(contract_id)
     if not result or service_dao is None:
         return False
+    return update_contract_invoice_money_using_service_dao(service_dao, invoice_money)
+
+def update_contract_invoice_money_using_service_dao(service_dao: ServiceRecordDao, invoice_money: float) -> bool:
     service_dao.invoice_money += invoice_money
     if service_dao.invoice_money > service_dao.payment_money:
         service_dao.status = ServiceStatus.WaitPayment.value # 更新状态为待付款
     if service_dao.invoice_money < service_dao.payment_money:
         service_dao.status = ServiceStatus.WaitInvoice.value # 更新状态为待开票
     if service_dao.invoice_money == service_dao.contract_money and service_dao.payment_money == service_dao.contract_money:
-        service_dao.status = ServiceStatus.Finished # 更新状态为完成
+        service_dao.status = ServiceStatus.Finished.value # 更新状态为完成
+    else:
+        if service_dao.is_contract == 0:
+            service_dao.status = ServiceStatus.NotContract.value # 更新状态为无合同
+        else:
+            service_dao.status = ServiceStatus.NotFinished.value # 更新状态为未完成
     service_dao.latest_invoice_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     return my_db.update_service_record(service_dao.to_db(), {})
 
@@ -165,6 +173,9 @@ def update_contract_payment_money(contract_id: str, payment_money: float) -> boo
     result, service_dao = my_db.query_service_record_by_id(contract_id)
     if not result or service_dao is None:
         return False
+    return update_contract_payment_money_using_service_dao(service_dao, payment_money)
+
+def update_contract_payment_money_using_service_dao(service_dao: ServiceRecordDao, payment_money: float) -> bool:
     service_dao.payment_money += payment_money
     if service_dao.payment_money > service_dao.invoice_money:
         service_dao.status = ServiceStatus.WaitInvoice.value # 更新状态为待开票
@@ -172,5 +183,10 @@ def update_contract_payment_money(contract_id: str, payment_money: float) -> boo
         service_dao.status = ServiceStatus.WaitPayment.value # 更新状态为待付款
     if service_dao.payment_money == service_dao.contract_money and service_dao.invoice_money == service_dao.contract_money:
         service_dao.status = ServiceStatus.Finished.value # 更新状态为完成
+    else:
+        if service_dao.is_contract == 0:
+            service_dao.status = ServiceStatus.NotContract.value # 更新状态为无合同
+        else:
+            service_dao.status = ServiceStatus.NotFinished.value # 更新状态为未完成
     service_dao.latest_payment_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     return my_db.update_service_record(service_dao.to_db(), {})

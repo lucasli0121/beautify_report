@@ -218,8 +218,10 @@ def query_recognize_info_list() -> None:
                         row_dict['result'] = '识别失败'
                     elif dao.result == 0:
                         row_dict['result'] = '识别中'
-                    else:
+                    elif dao.result == 1:
                         row_dict['result'] = '识别成功'
+                    else:
+                        row_dict['result'] = '待识别'
                     row_dict['msg'] = dao.msg
                     row_dict['create_time'] = dao.create_time
                     grid.options['rowData'].append(row_dict)

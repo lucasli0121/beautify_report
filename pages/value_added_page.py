@@ -124,8 +124,10 @@ async def show_summary_value_added() -> None:
         with ui.column().classes('w-full mt-5 place-content-start items-center'):
             with ui.row().classes('w-full place-content-start items-center gap-1'):
                 ui.label('年月').classes('w-[20%] text-[16px] text-[#333333] font-medium')
-                year_input = inputs.selection_w40([str(x) for x in range(2001, 2031)], None, False, None)
-                year_input.set_value(datetime.now().strftime("%Y"))
+                from_year = datetime.now().year - 3
+                to_year = datetime.now().year + 2
+                year_select = inputs.selection_w40([str(x) for x in range(from_year, to_year + 1)], None, False, None)
+                year_select.set_value(datetime.now().strftime("%Y"))
                 month_select = inputs.selection_w40([str(x).zfill(2) for x in range(1, 13)], None, False, None)
                 month_select.set_value(datetime.now().strftime("%m").zfill(2))
             with ui.row().classes('w-full place-content-start items-center gap-1'):
@@ -136,11 +138,11 @@ async def show_summary_value_added() -> None:
                     company_id = ''
                     if company_select.value is not None:
                         company_id = company_info[company_select.value].id
-                    if year_input.value is None or month_select.value is None:
+                    if year_select.value is None or month_select.value is None:
                         ui.notify('请选择年月')
                         return
                     refresh_dialog = g.show_refresh_process("汇总中，请稍候...")
-                    record_month = f"{year_input.value}-{month_select.value.zfill(2)}"
+                    record_month = f"{year_select.value}-{month_select.value.zfill(2)}"
                     result, count = await run.io_bound(do_summary_update, company_id, record_month)
                     if result is False:
                         ui.notify("汇总增值税数据失败,没有查询到相关数据")

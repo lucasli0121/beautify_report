@@ -30,7 +30,7 @@ class ServiceRecordDao:
     
     def __init__(self, id: str = '', from_company_id: str = "", to_company_id: str = "", contract_money: float = 0.0,
                  contract_name: str = "", contract_content: str = '', is_contract: int = 0, invoice_money: float = 0.0,
-                 payment_money: float = 0.0, latest_payment_time: str = "", latest_invoice_time: str = "", status: int = 0, create_time: str = "") -> None:
+                 payment_money: float = 0.0, latest_payment_time: str = "", latest_invoice_time: str = "", sync_time: str = "", status: int = 0, create_time: str = "") -> None:
         self.id = id
         self.from_company_id = from_company_id
         self.to_company_id = to_company_id
@@ -40,6 +40,7 @@ class ServiceRecordDao:
         self.is_contract = is_contract
         self.invoice_money = invoice_money
         self.payment_money = payment_money
+        self.sync_time = sync_time
         self.latest_payment_time = latest_payment_time if latest_payment_time else datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self.latest_invoice_time = latest_invoice_time if latest_invoice_time else datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self.status = status
@@ -59,11 +60,11 @@ class ServiceRecordDao:
         self.invoice_money = float(invoice_money)
         payment_money = str(data.get('payment_money', 0.0)).replace(',', '').strip()
         self.payment_money = float(payment_money)
-        self.latest_payment_time = str(data.get('latest_payment_time', datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-        self.latest_invoice_time = str(data.get('latest_invoice_time', datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+        self.sync_time = str(data.get('sync_time', ''))
+        self.latest_payment_time = str(data.get('latest_payment_time', ''))
+        self.latest_invoice_time = str(data.get('latest_invoice_time', ''))
         self.status = int(data.get('status', 0))
-        self.create_time = str(data.get('create_time', datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-        self.sync_time = str(data.get('sync_time', datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+        self.create_time = str(data.get('create_time', ''))
 
     def to_db(self) -> dict[str, Any]:
         return self.__dict__

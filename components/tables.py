@@ -463,6 +463,7 @@ def show_service_record_table(datas, show_edit, show_delete) -> ui.table:
         {'name': 'payment_money', 'label': '付款金额', 'field': 'payment_money', 'width': '5%', 'align': 'right'},
         {'name': 'invoice_gap_money', 'label': '发票差额', 'field': 'invoice_gap_money', 'width': '5%', 'align': 'right'},
         {'name': 'payment_gap_money', 'label': '付款差额', 'field': 'payment_gap_money', 'width': '5%', 'align': 'right'},
+        {'name': 'sync_time', 'label': '同步时间', 'field': 'sync_time', 'width': '10%', 'align': 'center'},
         {'name': 'latest_payment_time', 'label': '最近付款时间', 'field': 'latest_payment_time', 'width': '10%', 'align': 'center'},
         {'name': 'latest_invoice_time', 'label': '最近开票时间', 'field': 'latest_invoice_time', 'width': '10%', 'align': 'center'},
         {'name': 'status', 'label': '状态', 'field': 'status', 'width': '5%', 'align': 'center'},
@@ -492,6 +493,7 @@ def show_service_record_table(datas, show_edit, show_delete) -> ui.table:
                     \'payment_money\', \
                     \'invoice_gap_money\', \
                     \'payment_gap_money\', \
+                    \'sync_time\', \
                     \'latest_payment_time\', \
                     \'latest_invoice_time\', \
                     \'status\', \

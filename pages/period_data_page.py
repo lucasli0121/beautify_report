@@ -166,9 +166,11 @@ def modify_or_new(dao: PeriodDataDao, is_add: bool = True) -> None:
                     .bind_value_to(dao, 'billing_amount')
             with ui.row().classes('w-full place-content-start items-center gap-1'):
                 ui.label('年月').classes('w-[20%] text-[16px] text-[#333333] font-medium')
-                year_input = inputs.selection_w40([str(x) for x in range(2001, 2031)], None, False, None)
+                from_year = datetime.now().year - 3
+                to_year = datetime.now().year + 2
+                year_select = inputs.selection_w40([str(x) for x in range(from_year, to_year + 1)], None, False, None)
                 if is_add is False and len(dao.create_time) >= 4:
-                    year_input.set_value(dao.create_time[0:4])
+                    year_select.set_value(dao.create_time[0:4])
                 month_select = inputs.selection_w40([str(x).zfill(2) for x in range(1, 13)], None, False, None)
                 if is_add is False and len(dao.create_time) >= 7:
                     month_select.set_value(dao.create_time[5:7])
@@ -187,8 +189,8 @@ def modify_or_new(dao: PeriodDataDao, is_add: bool = True) -> None:
                         dao.last_month_stay_pay = 0.0
                     if dao.billing_amount is None:
                         dao.billing_amount = 0.0
-                    if year_input.value is not None and month_select.value is not None:
-                        dao.create_time = f"{year_input.value}-{month_select.value.zfill(2)}"
+                    if year_select.value is not None and month_select.value is not None:
+                        dao.create_time = f"{year_select.value}-{month_select.value.zfill(2)}"
                     if dao.create_time is None or len(dao.create_time) == 0:
                         ui.notify('请选择年月')
                         return
