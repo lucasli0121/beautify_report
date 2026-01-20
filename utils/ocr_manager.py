@@ -24,7 +24,7 @@ class OcrManager:
         self.ocr_event = Event()
 
     def start(self):
-        self.scheduler.add_job(self.process_ocr_files, 'interval', seconds=10)
+        self.scheduler.add_job(self.process_ocr_files, 'interval', max_instances=1, seconds=30)
         self.scheduler.start()
     def stop(self):
         self.scheduler.shutdown()
