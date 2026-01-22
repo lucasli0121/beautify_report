@@ -6,7 +6,7 @@ LastEditTime: 2025-11-11 13:55:36
 Description: 
 '''
 from fastapi.staticfiles import StaticFiles
-from nicegui import ui,app
+from nicegui import ui,app,events
 from resources import strings
 from menu.top_menu import top_menu
 from pages.company_page import show_company_page
@@ -120,22 +120,83 @@ def show_tabs() -> ui.tab_panels:
         .props('vertical') \
         .classes('w-full h-full q-pa-none') \
         .style('margin: 0 !important; padding: 0 !important;') as tab_panels:
-        with ui.tab_panel(company).classes('gap-0').style('margin: 0 !important; padding: 0 !important; background-color: #F4F9FD !important;'):
+        with ui.tab_panel(company) \
+            .classes('gap-0').style('margin: 0 !important; padding: 0 !important; background-color: #F4F9FD !important;') as company_panel:
             show_company_page()
-        with ui.tab_panel(invoice_title).classes('gap-0').style('margin: 0 !important; padding: 0 !important; background-color: #F4F9FD !important;'):
-            show_invoice_title_page()
-        with ui.tab_panel(bank_account).classes('gap-0').style('margin: 0 !important; padding: 0 !important; background-color: #F4F9FD !important;'):
-            show_company_bank_account_page()
-        with ui.tab_panel(service_record).classes('gap-0').style('margin: 0 !important; padding: 0 !important; background-color: #F4F9FD !important;'):
-            show_service_record_page()
-        with ui.tab_panel(invoiced_record).classes('gap-0').style('margin: 0 !important; padding: 0 !important; background-color: #F4F9FD !important;'):
-            show_invoice_record_page()
-        with ui.tab_panel(tax_approval).classes('gap-0').style('margin: 0 !important; padding: 0 !important; background-color: #F4F9FD !important;'):
-            show_tax_approval_page()
-        with ui.tab_panel(payment_record).classes('gap-0').style('margin: 0 !important; padding: 0 !important; background-color: #F4F9FD !important;'):
-            show_payment_record_page()
-        with ui.tab_panel(paytax_record).classes('gap-0').style('margin: 0 !important; padding: 0 !important; background-color: #F4F9FD !important;'):
-            show_paytax_page()
-        with ui.tab_panel(brief_report).classes('gap-0').style('margin: 0 !important; padding: 0 !important; background-color: #F4F9FD !important;'):
-            show_brief_report_page()
+        with ui.tab_panel(invoice_title) \
+            .classes('gap-0').style('margin: 0 !important; padding: 0 !important; background-color: #F4F9FD !important;') as invoice_title_panel:
+            pass
+        with ui.tab_panel(bank_account) \
+            .classes('gap-0').style('margin: 0 !important; padding: 0 !important; background-color: #F4F9FD !important;') as bank_account_panel:
+            pass
+        with ui.tab_panel(service_record) \
+            .classes('gap-0').style('margin: 0 !important; padding: 0 !important; background-color: #F4F9FD !important;') as service_record_panel:
+            pass
+        with ui.tab_panel(invoiced_record) \
+            .classes('gap-0').style('margin: 0 !important; padding: 0 !important; background-color: #F4F9FD !important;') as invoiced_record_panel:
+            pass
+        with ui.tab_panel(tax_approval) \
+            .classes('gap-0').style('margin: 0 !important; padding: 0 !important; background-color: #F4F9FD !important;') as tax_approval_panel:
+            pass
+        with ui.tab_panel(payment_record) \
+            .classes('gap-0').style('margin: 0 !important; padding: 0 !important; background-color: #F4F9FD !important;') as payment_record_panel:
+            pass
+        with ui.tab_panel(paytax_record) \
+            .classes('gap-0').style('margin: 0 !important; padding: 0 !important; background-color: #F4F9FD !important;') as paytax_record_panel:
+            pass
+        with ui.tab_panel(brief_report) \
+            .classes('gap-0').style('margin: 0 !important; padding: 0 !important; background-color: #F4F9FD !important;') as brief_report_panel:
+            pass
+
+        async def on_tab_change(e: events.ValueChangeEventArguments):
+            if e.previous_value is not None:
+                # 保存当前导航状态
+                match e.previous_value:
+                    case company.label:
+                        company_panel.clear()
+                    case invoice_title.label:
+                        invoice_title_panel.clear()
+                    case bank_account.label:
+                        bank_account_panel.clear()
+                    case service_record.label:
+                        service_record_panel.clear()
+                    case invoiced_record.label:
+                        invoiced_record_panel.clear()
+                    case tax_approval.label:
+                        tax_approval_panel.clear()
+                    case payment_record.label:
+                        payment_record_panel.clear()
+                    case paytax_record.label:
+                        paytax_record_panel.clear()
+                    case brief_report.label:
+                        brief_report_panel.clear()
+            match e.value:
+                case company.label:
+                    with company_panel:
+                        show_company_page()
+                case invoice_title.label:
+                    with invoice_title_panel:
+                        show_invoice_title_page()
+                case bank_account.label:
+                    with bank_account_panel:
+                        show_company_bank_account_page()
+                case service_record.label:
+                    with service_record_panel:
+                        show_service_record_page()
+                case invoiced_record.label:
+                    with invoiced_record_panel:
+                        await show_invoice_record_page()
+                case tax_approval.label:
+                    with tax_approval_panel:
+                        await show_tax_approval_page()
+                case payment_record.label:
+                    with payment_record_panel:
+                        show_payment_record_page()
+                case paytax_record.label:
+                    with paytax_record_panel:
+                        show_paytax_page()
+                case brief_report.label:
+                    with brief_report_panel:
+                        show_brief_report_page()
+        tab_panels.on_value_change(on_tab_change)
     return tab_panels

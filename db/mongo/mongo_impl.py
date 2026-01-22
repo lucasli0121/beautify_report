@@ -10,7 +10,7 @@ Description:
 from copy import deepcopy
 from typing import Any
 from bson import ObjectId
-from pymongo import MongoClient
+from pymongo import MongoClient, ReadPreference
 from pymongo.collection import Collection
 import logging
 from db.base import DbBaseImpl
@@ -23,15 +23,19 @@ class MongoImpl(DbBaseImpl):
             self.conn = MongoClient(
                 host = self.mongo_host,
                 port=int(self.mongo_port),
+                w="majority",
+                read_preference=ReadPreference.PRIMARY,
                 username=self.mongo_username,
                 password=self.mongo_password,
                 authSource=self.mongo_database)
             self.db = self.conn[self.mongo_database]
 
     def __del__(self):
-        if self.conn is not None:
-            self.conn.close()
-
+        try:
+            if self.conn is not None:
+                self.conn.close()
+        except Exception as e:
+            pass
 
     # 公司银行账户表名
     def company_bank_account_tbl(self) -> None|Collection:
@@ -56,15 +60,14 @@ class MongoImpl(DbBaseImpl):
         try:
             if table is None:
                 self.logger.error("table not found in MongoDB.")
-                return False
-            data = deepcopy(data)
-            if 'id' in data:
-                del data['id']
+                return False, None
+            data = dict(data)
+            data.pop('id', None)  # 移除'id'字段，MongoDB会自动生成'_id'
             ret = table.insert_one(data)
-            return ret.acknowledged, ret.inserted_id  # 确认插入操作已被确认
+            return ret.acknowledged, str(ret.inserted_id)  # 确认插入操作已被确认
         except Exception as e:
             self.logger.error(f"添加信息失败: {e}")
-            return False, None
+            return False, e.args[0]
         
     """ 
     更新到数据库

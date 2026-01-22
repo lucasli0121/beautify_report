@@ -1,7 +1,8 @@
 from datetime import datetime
 from typing import Any
-from nicegui import app, ui
+from nicegui import app, ui,run
 from dao.company_dao import CompanyDao
+from dao.recognize_info_dao import RecognizeInfoDao
 from dao.service_record_dao import ServiceRecordDao, ServiceStatus
 from utils import ocr_manager as ocr_mgr
 from db.mydb import MyDb
@@ -35,9 +36,9 @@ def show_refresh_process(msg: str) -> ui.dialog:
     with ui.dialog().props('persistent') as dialog, ui.card().classes('') \
         .style('background-color: #FFFFFF !important; border-radius: 10px;'):
         with ui.row().classes('w-full mt-2 place-content-center items-center gap-1'):
-            ui.spinner('dots', size='20px', color='red').classes('w-[20px] h-[20px]')
             ui.label('提示:').classes(' text-[18px] text-[#333333] font-medium')
             ui.label(msg).classes('text-[16px] text-[#333333] font-normal')
+            ui.spinner('dots', size='20px', color='red').classes('w-[20px] h-[20px]')
     dialog.open()
     return dialog
 
@@ -54,6 +55,12 @@ def query_company_name_company() -> tuple[bool, dict[str, CompanyDao]]:
             company_info[company.brief_name] = company
     return True, company_info
 
+"""
+# @function add_out_company
+# @description 添加外部公司信息
+# @param onComplete 添加完成后的回调函数
+# @return None
+"""
 def add_out_company(onComplete) -> None:
     """
     添加外部公司信息
@@ -190,3 +197,86 @@ def update_contract_payment_money_using_service_dao(service_dao: ServiceRecordDa
             service_dao.status = ServiceStatus.NotFinished.value # 更新状态为未完成
     service_dao.latest_payment_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     return my_db.update_service_record(service_dao.to_db(), {})
+
+"""
+# @function show_recognize_info_dialog
+# @description 显示识别信息对话框
+# @param recognize_type 识别类型
+# @return None
+"""
+async def show_recognize_info_dialog(recognize_type: int) -> None:
+    def on_refresh() ->list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = []
+        res, values = my_db.query_all_recognize_info(recognize_type)
+        if res and values is not None:
+            for item in values:
+                dao = RecognizeInfoDao()
+                dao.from_db(item)
+                row_dict: dict[str, Any] = {}
+                row_dict['file_name'] = dao.file_name
+                if dao.type == 1:
+                    row_dict['type'] = '发票'
+                else:
+                    row_dict['type'] = '完税证明'
+                if dao.result == -1:
+                    row_dict['result'] = '识别失败'
+                elif dao.result == 0:
+                    row_dict['result'] = '识别中'
+                elif dao.result == 1:
+                    row_dict['result'] = '识别成功'
+                else:
+                    row_dict['result'] = '待识别'
+                row_dict['msg'] = dao.msg
+                row_dict['create_time'] = dao.create_time
+                rows.append(row_dict)
+        return rows
+    refresh_dialog = show_refresh_process("正在读取，请稍候")
+    rows = await run.io_bound(on_refresh)
+    refresh_dialog.close()
+    errmsg_label = None
+    with ui.dialog().props('persistent') as dialog, ui.card() \
+        .style('background-color: #FFFFFF !important; border-radius: 10px; width: 60%; max-width: 60%; height: 60%; max-height: 60%;'):
+        with ui.column().classes('w-full h-full place-content-center items-center '):
+            with ui.row().classes('w-full h-[80%] place-content-center items-center'):
+                async def on_grid_row_click(e) -> None:
+                    r = await grid.get_selected_row()
+                    # msg = e.args['data'].get('msg', '')
+                    if r:
+                        result = r.get('result', '')
+                        msg = r.get('msg', '')
+                        if errmsg_label is not None:
+                            errmsg_label.classes.clear()
+                            if result == '识别成功':
+                                errmsg_label.classes.append('w-full text-[12px] text-[#000000] font-small')
+                            elif result == '识别中':
+                                errmsg_label.classes.append('w-full text-[12px] text-[#000000] font-small')
+                            else:
+                                errmsg_label.classes('w-full text-[12px] text-[#FF0000] font-small')
+                            errmsg_label.set_text(msg)
+                grid = ui.aggrid({
+                    'columnDefs': [
+                        {'headerName': '文件名', 'field': 'file_name'},
+                        {'headerName': '类别', 'field': 'type', 'cellClassRules': {
+                            'text-blue-300': 'x == "发票"',
+                            'text-green-300': 'x == "完税证明"',
+                        }},
+                        {'headerName': '识别结果', 'field': 'result', 'cellClassRules': {
+                            'text-gray-300': 'x == "识别失败"',
+                            'text-green-300': 'x == "识别中"',
+                            'text-blue-300': 'x == "识别成功"',
+                        }},
+                        {'headerName': '错误信息', 'field': 'msg'},
+                        {'headerName': '时间', 'field': 'create_time'}
+                    ],
+                    'rowData': [
+                    ],
+                    'rowSelection': {'mode': 'singleRow', 'enableClickSelection': 'true'}
+                }).classes('w-full h-full').on('rowSelected', on_grid_row_click)
+            grid.options['rowData'].clear()
+            grid.options['rowData'] = rows
+                    # grid.run_grid_method('ensureIndexVisible', len(grid.options['rowData']) - 1)
+            with ui.row().classes('w-full h-[9%] place-content-center items-center'):
+                errmsg_label = ui.label('').classes('w-full text-[12px] text-[#FF0000] font-small')
+            with ui.row().classes('w-full h-[9%] place-content-center items-center'):
+                ui.button('关闭', on_click=lambda: dialog.close()).classes('w-30')
+        dialog.open()

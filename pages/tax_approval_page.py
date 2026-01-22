@@ -9,7 +9,7 @@ from dataclasses import dataclass
 import io
 import json
 import re
-from nicegui import ui,app,events
+from nicegui import ui,app,events,run
 from components import tables, inputs, dialogs
 from dao.recognize_info_dao import RecognizeInfoDao, RecognizeResult, RecognizeType
 from dao.tax_approval_dao import TaxApprovalDao
@@ -34,7 +34,7 @@ search_condition = SearchCondition()
 # @description: 显示完税证明页面
 # @return {*}
 #
-def show_tax_approval_page() -> None:
+async def show_tax_approval_page() -> None:
     result, company_info = g.query_company_name_company()
     if result is False:
         ui.notify('查询公司信息失败')
@@ -80,7 +80,7 @@ def show_tax_approval_page() -> None:
     table_rows: list[dict] = []
     course_table: Optional[ui.table] = tables.show_tax_approval_table(table_rows, show_edit, show_delete)
     app.storage.client['tax_approval_table'] = course_table
-    on_search()
+    await on_search()
     # 订阅ocr事件
     g.ocr_mgr.subscribe(on_event)
 
@@ -89,29 +89,31 @@ def show_tax_approval_page() -> None:
 # @description: 处理ocr event订阅事件
 # @return {*}
 """
-def on_event(event_obj: ocr_manager.EventObj) -> None:
+async def on_event(event_obj: ocr_manager.EventObj) -> None:
     if event_obj.type != RecognizeType.TaxProofType.value:
         return
     if event_obj.result == RecognizeResult.InProgress.value:
         refresh_recognizing_list()
     elif event_obj.result in (RecognizeResult.Success.value, RecognizeResult.Failed.value):
-        on_search()
+        await on_search()
 """
 # @function: on_search
 # @description: 查询搜索请求
 # @return {*}
 """
-def on_search() -> None:
-    result, list_values = g.my_db.query_all_tax_approval(search_condition.company_id, search_condition.approval_no, search_condition.ori_voucher_number, search_condition.begin_time, search_condition.end_time)
-    if result is False:
-        ui.notify('查询完税证明失败')
+async def on_search() -> None:
+    if 'tax_approval_table' not in app.storage.client:
         return
-    if 'tax_approval_table' in app.storage.client:
-        app.storage.client['tax_approval_table'].rows.clear()
-        app.storage.client['tax_approval_table'].update()
+    app.storage.client['tax_approval_table'].rows.clear()
+    def do_search() -> list[dict]:
+        rows: list[dict] = []
+        result, list_values = g.my_db.query_all_tax_approval(search_condition.company_id, search_condition.approval_no, search_condition.ori_voucher_number, search_condition.begin_time, search_condition.end_time)
+        if result is False:
+            ui.notify('查询完税证明失败')
+            return rows
         if list_values is None or len(list_values) == 0:
             ui.notify('没有查询到完税证明信息')
-            return
+            return rows
         sn = 1
         for item in list_values:
             row_dict: dict[str, Any] = {}
@@ -124,61 +126,20 @@ def on_search() -> None:
             else:
                 row_dict['company_name'] = '未知公司'
             row_dict.update(dao.to_db())
-            app.storage.client['tax_approval_table'].add_row(row_dict)
+            rows.append(row_dict)
             sn += 1
-        app.storage.client['tax_approval_table'].update()
+        return rows
+    refresh_dialog = g.show_refresh_process("刷新，请稍候")
+    rows = await run.io_bound(do_search)
+    app.storage.client['tax_approval_table'].rows = rows
+    app.storage.client['tax_approval_table'].update()
+    refresh_dialog.close()
 
-def query_recognize_info_list() -> None:
+async def query_recognize_info_list() -> None:
     if 'certificate_badge' in app.storage.client:
         app.storage.client['certificate_badge'].visible = False
-    with ui.dialog().props('persistent') as dialog, ui.card().classes('w-1/2 h-1/2') \
-        .style('background-color: #FFFFFF !important; border-radius: 10px;'):
-        with ui.column().classes('w-full place-content-center items-center'):
-            with ui.row().classes('w-full h-[80%] place-content-center items-center'):
-                grid = ui.aggrid({
-                    'columnDefs': [
-                        {'headerName': '文件名', 'field': 'file_name'},
-                        {'headerName': '类别', 'field': 'type', 'cellClassRules': {
-                            'text-blue-300': 'x == "发票"',
-                            'text-green-300': 'x == "完税证明"',
-                        }},
-                        {'headerName': '识别结果', 'field': 'result', 'cellClassRules': {
-                            'text-gray-300': 'x == "识别失败"',
-                            'text-green-300': 'x == "识别中"',
-                            'text-blue-300': 'x == "识别成功"',
-                        }},
-                        {'headerName': '错误信息', 'field': 'msg'},
-                        {'headerName': '时间', 'field': 'create_time'}
-                    ],
-                    'rowData': [
-                    ],
-                }).classes('w-full')
-            res, values = g.my_db.query_all_recognize_info(RecognizeType.TaxProofType.value)
-            if res and values is not None:
-                for item in values:
-                    dao = RecognizeInfoDao()
-                    dao.from_db(item)
-                    row_dict: dict[str, Any] = {}
-                    row_dict['file_name'] = dao.file_name
-                    if dao.type == 1:
-                        row_dict['type'] = '发票'
-                    else:
-                        row_dict['type'] = '完税证明'
-                    if dao.result == -1:
-                        row_dict['result'] = '识别失败'
-                    elif dao.result == 0:
-                        row_dict['result'] = '识别中'
-                    elif dao.result == 1:
-                        row_dict['result'] = '识别成功'
-                    else:
-                        row_dict['result'] = '待识别'
-                    row_dict['msg'] = dao.msg
-                    row_dict['create_time'] = dao.create_time
-                    grid.options['rowData'].append(row_dict)
-                    # grid.run_grid_method('ensureIndexVisible', len(grid.options['rowData']) - 1)
-            with ui.row().classes('w-full h-[20%] place-content-center items-center'):
-                ui.button('关闭', on_click=lambda: dialog.close()).classes('w-30')
-        dialog.open()
+    await g.show_recognize_info_dialog(RecognizeType.TaxProofType.value)
+    
 
 """
 # @description: 解析上传结果到DAO对象
@@ -241,14 +202,14 @@ def read_pdf_from_upload(handle_upload: Callable) -> None:
     uf.open_ocr_certificate_dialog()
 
 def upload_approval_pdf() -> None:
-    def handle_upload(dao_list: list[TaxApprovalDao]) -> None:
+    async def handle_upload(dao_list: list[TaxApprovalDao]) -> None:
         for dao in dao_list:
             res, _ = g.my_db.add_tax_approval(dao.to_db())
             if not res:
                 ui.notify('保存凭证信息失败')
                 return
         ui.notify('保存凭证信息成功')
-        on_search()
+        await on_search()
     read_pdf_from_upload(handle_upload)
 #
 # @description: 显示删除操作，由table组件触发
@@ -402,7 +363,7 @@ def modify_or_new(tax_dao: TaxApprovalDao, is_add: bool) -> None:
                 .props('flat') \
                 .classes('w-[120px] text-[16px] text-[#888888] font-[400]') \
                 .style('background-color: #FFFFFF !important;border-radius: 10px;border: 1px solid #888888;')
-            def on_create():
+            async def on_create():
                 if tax_dao.approval_no == "" or tax_dao.company_id == "" or tax_dao.ori_voucher_number == "":
                     ui.notify('编号、纳税人、原始凭证号码不能为空')
                     return
@@ -411,7 +372,7 @@ def modify_or_new(tax_dao: TaxApprovalDao, is_add: bool) -> None:
                     result, _ = g.my_db.add_tax_approval(data)
                     if result is True:
                         ui.notify('添加完税证明成功')
-                        on_search()
+                        await on_search()
                         dialog.close()
                     else:
                         ui.notify('添加完税证明失败')
@@ -419,7 +380,7 @@ def modify_or_new(tax_dao: TaxApprovalDao, is_add: bool) -> None:
                     result = g.my_db.update_tax_approval(data, {'id': data['id']})
                     if result is True:
                         ui.notify('修改成功')
-                        on_search()
+                        await on_search()
                         dialog.close()
                     else:
                         ui.notify('修改失败')
@@ -446,7 +407,7 @@ def del_by_ids(ids: list[str]) -> None:
     if ids is None or len(ids) == 0:
         ui.notify('请选择要删除的记录')
         return
-    def make_delete():
+    async def make_delete():
         delok = True
         for id in ids:
             if id is None or len(id) == 0:
@@ -458,7 +419,7 @@ def del_by_ids(ids: list[str]) -> None:
                 return
         if delok is True:
             ui.notify('删除成功')
-            on_search()
+            await on_search()
         dialog.close()
 
     with ui.dialog().props('persistent') as dialog, ui.card() \

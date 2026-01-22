@@ -1,6 +1,7 @@
+import asyncio
 from dataclasses import dataclass
 from datetime import datetime
-from nicegui import ui,events, app
+from nicegui import ui,events, app, run
 from components import inputs, tables, dialogs
 from typing import Any, Callable, Optional
 import pandas as pd
@@ -28,7 +29,7 @@ class SearchCondition:
     status: int = -1 # -1: 全部, 0: 未开票, 1: 已开票, 2: 已作废, 3: 已红冲
 search_condition = SearchCondition()
 
-def show_invoice_record_page():
+async def show_invoice_record_page():
     result, company_info = g.query_company_name_company()
     if result is False:
         ui.notify('查询公司信息失败')
@@ -76,7 +77,6 @@ def show_invoice_record_page():
                         search_condition.status = 2
                     elif value == '已红冲':
                         search_condition.status = 3
-                    on_search()
                 inputs.selection_w40(['全部', '未开票', '已开票', '已作废', '已红冲'], '全部', need_input=False, on_change=on_status_change)
                 search_condition.status = -1
             with ui.row().classes('w-[20%] place-content-start items-center'):
@@ -105,22 +105,25 @@ def show_invoice_record_page():
             
     table_rows: list[dict] = []
     app.storage.client['invoice_record_table'] = tables.show_open_invoice_table(table_rows, show_edit, delete_one)
-    on_search()
+    await on_search()
 
-def on_search() -> None:
-    result, list_values = g.my_db.query_all_invoice_record(
-        search_condition.invoice_from_id,
-        search_condition.invoice_to_id,
-        search_condition.invoice_content,
-        search_condition.invoice_number,
-        search_condition.status,
-        search_condition.begin_time,
-        search_condition.end_time,)
-    if result is False:
-        ui.notify('查询开票记录失败')
+async def on_search() -> None:
+    if 'invoice_record_table' not in app.storage.client:
         return
-    if 'invoice_record_table' in app.storage.client:
-        app.storage.client['invoice_record_table'].rows.clear()
+    app.storage.client['invoice_record_table'].rows.clear()
+    def do_search() -> list[dict]:
+        rows: list[dict] = []
+        result, list_values = g.my_db.query_all_invoice_record(
+            search_condition.invoice_from_id,
+            search_condition.invoice_to_id,
+            search_condition.invoice_content,
+            search_condition.invoice_number,
+            search_condition.status,
+            search_condition.begin_time,
+            search_condition.end_time,)
+        if result is False:
+            ui.notify('查询开票记录失败')
+            return rows
         if list_values is not None:
             sn = 1
             for item in list_values:
@@ -148,9 +151,14 @@ def on_search() -> None:
                 row_dict['before_tax_money'] = '{:,.2f}'.format(invoice_record.before_tax_money)
                 row_dict['added_tax'] = '{:,.2f}'.format(invoice_record.added_tax)
                 row_dict['invoice_money'] = '{:,.2f}'.format(invoice_record.invoice_money)
-                app.storage.client['invoice_record_table'].add_row(row_dict)
+                rows.append(row_dict)
                 sn += 1
-        app.storage.client['invoice_record_table'].update()
+        return rows
+    refresh_dialog = g.show_refresh_process("刷新，请稍候")
+    rows = await run.io_bound(do_search)
+    app.storage.client['invoice_record_table'].rows = rows
+    app.storage.client['invoice_record_table'].update()
+    refresh_dialog.close()
     
 
 def refresh_recognizing_list():
@@ -161,77 +169,10 @@ def refresh_recognizing_list():
             app.storage.client['invoice_badge'].visible = True
             app.storage.client['invoice_badge'].set_text(str(len(values)))
 
-def query_recognize_info_list() -> None:
+async def query_recognize_info_list() -> None:
     if 'invoice_badge' in app.storage.client:
         app.storage.client['invoice_badge'].visible = False
-    errmsg_label = None
-    with ui.dialog().props('persistent') as dialog, ui.card().classes('w-1/2 h-1/2') \
-        .style('background-color: #FFFFFF !important; border-radius: 10px;'):
-        with ui.column().classes('w-full h-full place-content-center items-center '):
-            with ui.row().classes('w-full h-[80%] place-content-center items-center'):
-                async def on_grid_row_click(e) -> None:
-                    r = await grid.get_selected_row()
-                    # msg = e.args['data'].get('msg', '')
-                    if r:
-                        result = r.get('result', '')
-                        msg = r.get('msg', '')
-                        if errmsg_label is not None:
-                            errmsg_label.classes.clear()
-                            if result == '识别成功':
-                                errmsg_label.classes.append('w-full text-[12px] text-[#000000] font-small')
-                            elif result == '识别中':
-                                errmsg_label.classes.append('w-full text-[12px] text-[#000000] font-small')
-                            else:
-                                errmsg_label.classes('w-full text-[12px] text-[#FF0000] font-small')
-                            errmsg_label.set_text(msg)
-                grid = ui.aggrid({
-                    'columnDefs': [
-                        {'headerName': '文件名', 'field': 'file_name'},
-                        {'headerName': '类别', 'field': 'type', 'cellClassRules': {
-                            'text-blue-300': 'x == "发票"',
-                            'text-green-300': 'x == "完税证明"',
-                        }},
-                        {'headerName': '识别结果', 'field': 'result', 'cellClassRules': {
-                            'text-gray-300': 'x == "识别失败"',
-                            'text-green-300': 'x == "识别中"',
-                            'text-blue-300': 'x == "识别成功"',
-                        }},
-                        {'headerName': '错误信息', 'field': 'msg'},
-                        {'headerName': '时间', 'field': 'create_time'}
-                    ],
-                    'rowData': [
-                    ],
-                    'rowSelection': {'mode': 'singleRow', 'enableClickSelection': 'true'}
-                }).classes('w-full h-full').on('rowSelected', on_grid_row_click)
-            res, values = g.my_db.query_all_recognize_info(RecognizeType.InvoiceType.value)
-            if res and values is not None:
-                for item in values:
-                    dao = RecognizeInfoDao()
-                    dao.from_db(item)
-                    row_dict: dict[str, Any] = {}
-                    row_dict['file_name'] = dao.file_name
-                    if dao.type == 1:
-                        row_dict['type'] = '发票'
-                    else:
-                        row_dict['type'] = '完税证明'
-                    if dao.result == -1:
-                        row_dict['result'] = '识别失败'
-                    elif dao.result == 0:
-                        row_dict['result'] = '识别中'
-                    elif dao.result == 1:
-                        row_dict['result'] = '识别成功'
-                    else:
-                        row_dict['result'] = '待识别'
-                    row_dict['msg'] = dao.msg
-                    row_dict['create_time'] = dao.create_time
-                    grid.options['rowData'].append(row_dict)
-                    # grid.run_grid_method('ensureIndexVisible', len(grid.options['rowData']) - 1)
-            with ui.row().classes('w-full h-[9%] place-content-center items-center'):
-                errmsg_label = ui.label('').classes('w-full text-[12px] text-[#FF0000] font-small')
-            with ui.row().classes('w-full h-[9%] place-content-center items-center'):
-                ui.button('关闭', on_click=lambda: dialog.close()).classes('w-30')
-        dialog.open()
-
+    await g.show_recognize_info_dialog(RecognizeType.InvoiceType.value)
 
 def handle_import_pdf(d: dict) -> None:
     if d is None or len(d) == 0:
@@ -354,20 +295,13 @@ def parse_upload_result_to_dao(result: list) -> Optional[InvoiceRecordDao]:
 
 
 def read_pdf_from_upload(handle_upload: Callable) -> None:
-    def invoice_ocr_start(recognize_dao: RecognizeInfoDao) -> None:
-        # dao = parse_upload_result_to_dao(result)
-        # if handle_upload is not None and dao is not None:
-        #     handle_upload(dao)
-        refresh_recognizing_list()
-    def invoice_ocr_end(recognize_dao: RecognizeInfoDao) -> None:
-        on_search()
-    def on_event(event_obj: ocr_manager.EventObj) -> None:
+    async def on_event(event_obj: ocr_manager.EventObj) -> None:
         if event_obj.type != RecognizeType.InvoiceType.value:
             return
         if event_obj.result == RecognizeResult.InProgress.value:
             refresh_recognizing_list()
         elif event_obj.result in (RecognizeResult.Success.value, RecognizeResult.Failed.value):
-            on_search()
+            await on_search()
     g.ocr_mgr.subscribe(on_event)
     uf.open_ocr_invoice_dialog()
 
@@ -375,7 +309,7 @@ def read_pdf_from_upload(handle_upload: Callable) -> None:
 # @param None
 # @return: None
 
-def upload_invoice_pdf() -> None:
+async def upload_invoice_pdf() -> None:
     def handle_upload(dao: InvoiceRecordDao) -> None:
         res, record_list = g.my_db.query_invoice_record_by_invoice_time(dao.from_company_id, dao.to_company_id, dao.invoice_content, dao.invoice_time, dao.invoice_time)
         if res and record_list is not None and len(record_list) > 0:
@@ -822,7 +756,7 @@ def modify_or_add_invoice(dao: InvoiceRecordDao, is_add: bool = True):
                 .props('flat') \
                 .classes('w-[120px] text-[16px] text-[#888888] font-[400]') \
                 .style('background-color: #FFFFFF !important;border-radius: 10px;border: 1px solid #888888;')
-            def on_create():
+            async def on_create():
                 if dao.to_company_id == "" or dao.invoice_content == "" or dao.before_tax_money <= 0 or dao.invoice_money <= 0:
                     ui.notify('受票方,发票内容,税前额,开票额不能为空')
                     return
@@ -833,7 +767,7 @@ def modify_or_add_invoice(dao: InvoiceRecordDao, is_add: bool = True):
                         # 更新服务记录的开票金额
                         # g.update_contract_invoice_money(dao.contract_id, dao.before_tax_money)
                         ui.notify('添加开票信息成功')
-                        on_search()
+                        await on_search()
                     else:
                         ui.notify('添加开票信息失败')
                 else:
@@ -846,7 +780,7 @@ def modify_or_add_invoice(dao: InvoiceRecordDao, is_add: bool = True):
                     #     gap_money = dao.before_tax_money - old_before_tax_money
                     #     g.update_contract_invoice_money(dao.contract_id, gap_money)
                     ui.notify('修改开票信息成功')
-                    on_search()
+                    await on_search()
                 dialog.close()
             ui.button('确定', color=None, on_click=on_create) \
                 .props('flat') \
@@ -860,7 +794,7 @@ def modify_or_add_invoice(dao: InvoiceRecordDao, is_add: bool = True):
 # @return: None
 # 
 '''
-def del_select():
+async def del_select():
     if 'invoice_record_table' not in app.storage.client:
         ui.notify('请先查询开票记录')
         return
@@ -872,19 +806,19 @@ def del_select():
     if not ids:
         ui.notify('没有选中任何开票记录')
         return
-    del_by_ids(ids)
+    await del_by_ids(ids)
     app.storage.client['invoice_record_table'].selected.clear()
     
 
-def delete_one(e: events.GenericEventArguments):
+async def delete_one(e: events.GenericEventArguments):
     id = e.args['id']
-    del_by_ids([id])
+    await del_by_ids([id])
 
-def del_by_ids(ids: list[str]) -> None:
+async def del_by_ids(ids: list[str]) -> None:
     if ids is None or len(ids) == 0:
         ui.notify('请选择要删除的开票记录')
         return
-    def make_delete():
+    async def make_delete():
         delok = True
         for id in ids:
             if id is None or len(id) == 0:
@@ -896,7 +830,7 @@ def del_by_ids(ids: list[str]) -> None:
                 return
         if delok is True:
             ui.notify('删除开票记录成功')
-            on_search()
+            await on_search()
 
     dialogs.make_sure_dialog('确认要进行删除操作?', on_ok=make_delete)
     
