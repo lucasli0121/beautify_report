@@ -111,7 +111,7 @@ async def on_search() -> None:
     if 'invoice_record_table' not in app.storage.client:
         return
     app.storage.client['invoice_record_table'].rows.clear()
-    def do_search() -> list[dict]:
+    def do_search() -> tuple[bool, list[dict], str]:
         rows: list[dict] = []
         result, list_values = g.my_db.query_all_invoice_record(
             search_condition.invoice_from_id,
@@ -122,8 +122,7 @@ async def on_search() -> None:
             search_condition.begin_time,
             search_condition.end_time,)
         if result is False:
-            ui.notify('查询开票记录失败')
-            return rows
+            return False, rows, '查询开票记录失败'
         if list_values is not None:
             sn = 1
             for item in list_values:
@@ -153,9 +152,13 @@ async def on_search() -> None:
                 row_dict['invoice_money'] = '{:,.2f}'.format(invoice_record.invoice_money)
                 rows.append(row_dict)
                 sn += 1
-        return rows
+        return True, rows, ""
     refresh_dialog = g.show_refresh_process("刷新，请稍候")
-    rows = await run.io_bound(do_search)
+    success, rows, message = await run.io_bound(do_search)
+    if not success:
+        refresh_dialog.close()
+        ui.notify(message or '查询开票记录失败')
+        return
     app.storage.client['invoice_record_table'].rows = rows
     app.storage.client['invoice_record_table'].update()
     refresh_dialog.close()

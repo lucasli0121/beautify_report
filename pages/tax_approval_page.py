@@ -105,15 +105,13 @@ async def on_search() -> None:
     if 'tax_approval_table' not in app.storage.client:
         return
     app.storage.client['tax_approval_table'].rows.clear()
-    def do_search() -> list[dict]:
+    def do_search() -> tuple[bool, list[dict], Optional[str]]:
         rows: list[dict] = []
         result, list_values = g.my_db.query_all_tax_approval(search_condition.company_id, search_condition.approval_no, search_condition.ori_voucher_number, search_condition.begin_time, search_condition.end_time)
         if result is False:
-            ui.notify('查询完税证明失败')
-            return rows
+            return False, rows, '查询完税证明失败'
         if list_values is None or len(list_values) == 0:
-            ui.notify('没有查询到完税证明信息')
-            return rows
+            return True, rows, '没有查询到完税证明信息'
         sn = 1
         for item in list_values:
             row_dict: dict[str, Any] = {}
@@ -128,9 +126,15 @@ async def on_search() -> None:
             row_dict.update(dao.to_db())
             rows.append(row_dict)
             sn += 1
-        return rows
+        return True, rows, None
     refresh_dialog = g.show_refresh_process("刷新，请稍候")
-    rows = await run.io_bound(do_search)
+    success, rows, message = await run.io_bound(do_search)
+    if not success:
+        refresh_dialog.close()
+        ui.notify(message or '查询完税证明失败')
+        return
+    if rows is None or len(rows) == 0:
+        ui.notify(message or '没有查询到完税证明信息')
     app.storage.client['tax_approval_table'].rows = rows
     app.storage.client['tax_approval_table'].update()
     refresh_dialog.close()
