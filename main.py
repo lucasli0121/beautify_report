@@ -9,8 +9,9 @@ import os
 import sys
 from typing import Optional
 from starlette.middleware.base import BaseHTTPMiddleware
-from fastapi import Request
-from fastapi.responses import RedirectResponse
+from starlette.requests import ClientDisconnect
+from fastapi import Request, FastAPI
+from fastapi.responses import RedirectResponse, Response
 from nicegui import ui,app
 from resources import strings
 import logging
@@ -30,16 +31,61 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 and not request.url.path.startswith('/static'):
                 app.storage.user['referrer_path'] = request.url.path
                 return RedirectResponse('/login')
-        return await call_next(request)
+        try:
+            return await call_next(request)
+        except ClientDisconnect:
+            # 客户端断开连接（如取消上传），这是正常情况，无需记录为错误
+            pass
+
+
+class ClientDisconnectMiddleware(BaseHTTPMiddleware):
+    """处理客户端断开连接异常，防止作为错误日志记录"""
+    async def dispatch(self, request: Request, call_next):
+        try:
+            return await call_next(request)
+        except ClientDisconnect:
+            # 客户端主动断开连接，这通常是正常的用户行为
+            pass
 
 def init_logger():
     cfg_path = 'cfg/log.yaml'
     if not os.path.exists("log"):
         os.makedirs("log")
+    
+    # 定义自定义过滤器以忽略 ClientDisconnect 异常
+    class ClientDisconnectFilter(logging.Filter):
+        def filter(self, record):
+            # 过滤掉包含 ClientDisconnect 的日志记录
+            if 'ClientDisconnect' in str(record.msg) or \
+               'ClientDisconnect' in str(record.exc_text) or \
+               (hasattr(record, 'exc_info') and record.exc_info):
+                # 检查异常信息
+                if record.exc_info and isinstance(record.exc_info[1], (ClientDisconnect, Exception)):
+                    exc_str = str(record.exc_info[1])
+                    if 'ClientDisconnect' in str(record.exc_info[0]) or 'ClientDisconnect' in exc_str:
+                        return False
+            return True
+    
     if os.path.exists(cfg_path):
         with open(cfg_path, "r", encoding="utf-8") as f:
             config = yaml.load(f, yaml.FullLoader)
+            # 将自定义过滤器添加到所有处理程序
+            for handler_config in config.get('handlers', {}).values():
+                if 'filters' not in handler_config:
+                    handler_config['filters'] = []
             logging.config.dictConfig(config)
+        
+        # 添加自定义过滤器到所有处理程序
+        root_logger = logging.getLogger()
+        client_disconnect_filter = ClientDisconnectFilter()
+        for handler in root_logger.handlers:
+            handler.addFilter(client_disconnect_filter)
+        
+        # 特别是为 uvicorn 和 starlette 添加过滤器
+        for logger_name in ['uvicorn', 'uvicorn.error', 'starlette', 'starlette.middleware.base']:
+            logger = logging.getLogger(logger_name)
+            for handler in logger.handlers:
+                handler.addFilter(client_disconnect_filter)
     else:
         logging.basicConfig(
             level=logging.INFO,
@@ -49,6 +95,8 @@ def init_logger():
         )
 
 def init_app():
+    # 添加中间件以处理客户端断开连接异常
+    app.add_middleware(ClientDisconnectMiddleware)
     app.add_middleware(AuthMiddleware)
     # 添加以下代码以注册静态文件目录
     # 获取当前文件所在目录的路径
@@ -122,7 +170,7 @@ async def app_shutdown():
         app.storage.client.clear()
         app.storage.browser.clear()
         app.storage.general.clear()
-    except Exception as e:
+    except Exception:
         pass
     app.storage.user['authenticated'] = authenticated
 
@@ -132,6 +180,18 @@ if __name__ in {"__main__", "__mp_main__"}:
     init_logger()
     logger = logging.getLogger(__name__)
     init_app()
+    
+    # 添加异常处理器以静默处理 ClientDisconnect 异常
+    async def client_disconnect_exception_handler(request: Request, exc: Exception):
+        """处理客户端断开连接异常，不记录为错误"""
+        if isinstance(exc, ClientDisconnect):
+            logger.debug(f"Client disconnected: {request.url.path}")
+            return Response(status_code=200)
+        raise exc
+    
+    if isinstance(app, FastAPI):
+        app.add_exception_handler(ClientDisconnect, client_disconnect_exception_handler)
+    
     # if global_vars.create_mq() is False:
     #     logger.error("MQTT连接失败，请检查配置文件")
     # api_manager.api_https = ulib.PoolManager(timeout=60.0)

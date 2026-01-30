@@ -2,12 +2,19 @@ version: 1
 formatters:
   simpler:
     format: "%(asctime)s-%(name)s-%(lineno)s-%(levelname)s: %(message)s"
+
+filters:
+  ignore_client_disconnect:
+    (): logging.Filter
+    name: ignore_client_disconnect
+
 handlers:
   console:
     class: logging.StreamHandler
     level: DEBUG
     formatter: simpler
     stream: ext://sys.stdout
+    filters: [ignore_client_disconnect]
 
   info_file_handler:
     class: logging.handlers.TimedRotatingFileHandler
@@ -24,10 +31,16 @@ handlers:
     formatter: simpler
     filename: log/errors.log
     encoding: utf8
+    filters: [ignore_client_disconnect]
+
 loggers:
   my_module:
     level: ERROR
     handlers: [console, error_file_handler]
+  starlette.middleware.base:
+    level: WARNING
+  uvicorn:
+    level: WARNING
 root:
   level: INFO
   handlers: [console, info_file_handler, error_file_handler]
