@@ -489,6 +489,21 @@ class MyDb:
     function:
     description: 从服务器查询信息
     :param {*} self
+    :param period_date: 期间日期，格式YYYY-MM
+    :return: {*}
+    """
+    def query_tax_approval_by_period_date(self, company_id: str, period_date: str) -> tuple[bool, Any|None]:
+        if self.mysql is not None:
+            return False, None
+        else:
+            if self.mongo is not None:
+                return MongoTaxApprovalImpl(self.mongo).query_by_period_date(company_id, period_date)
+        self.logger.error("No database implementation available for querying tax approval by period date.")
+        return False, None
+    """
+    function:
+    description: 从服务器查询信息
+    :param {*} self
     :param id: 完税证明No
     :return: {*}
     """

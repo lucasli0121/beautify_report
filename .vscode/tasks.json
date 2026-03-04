@@ -8,7 +8,7 @@
 			"args": [
 				"build",
 				"-t",
-				"smartschoolweb:latest",
+				"${relativeFileDirname}:latest",
 				"-f",
 				"${workspaceFolder}/Dockerfile",
 				"${workspaceFolder}"
@@ -21,9 +21,13 @@
 			"dependsOn": [
 				"docker-build"
 			],
-			"python": {
-				"file": "main.py"
-			}
+			"args": [
+				"--rm",
+				"-it",
+				"${relativeFileDirname}:latest",
+				"python",
+				"main.py"
+			]
 		}
 	]
 }

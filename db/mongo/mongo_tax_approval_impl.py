@@ -13,6 +13,7 @@ from typing import Any
 from bson.objectid import ObjectId
 from dao.tax_approval_dao import TaxApprovalDao
 from db.mongo.mongo_impl import MongoImpl
+import calendar
 
 class MongoTaxApprovalImpl():
     def __init__(self, mongo_impl: MongoImpl):
@@ -123,7 +124,41 @@ class MongoTaxApprovalImpl():
         dao = TaxApprovalDao()
         dao.from_db(value[0])
         return True, dao
-    
+    """
+    function:
+    description: 从服务器查询信息,根据期间日期查询
+    param {*} course
+    return {*}
+    """
+    def query_by_period_date(self, company_id: str, period_date: str) -> tuple[bool, Any|None]:
+        """
+        根据公司ID和期间 (格式 'YYYY-MM') 查询 tax_period 在该月范围内的记录。
+        :param company_id: 公司ID
+        :param period_date: 年月字符串，格式 'YYYY-MM'，例如 '2025-02'
+        :return: (True, [TaxApprovalDao,...]) 或 (False, None)
+        """
+        tbl_name = self.tax_approval_tbl()
+        if tbl_name is None:
+            self.logger.error("Company table not found in MongoDB.")
+            return False, None
+
+        query = {'company_id': {'$eq': company_id}} if company_id and len(company_id) > 0 else {}
+
+        # period_date 支持格式：'YYYY-MM'
+        if period_date and len(period_date) > 0:
+            try:
+                # 假设 tax_period 存储为 'YYYY-MM-DD至YYYY-MM-DD' 字符串，格式固定为 10 字符日期 + '至' + 10 字符日期
+                # 使用 $expr 和 $substr 在查询中提取范围并进行比较：
+                expr = {
+                    '$eq': [{'$substrCP': ['$tax_period', 11, 7]}, period_date],
+                }
+                query['$expr'] = expr
+            except Exception as e:
+                self.logger.error(f"invalid period_date format: {period_date}, error: {e}")
+                return False, None
+
+        return self.mongo_impl.query_by_condition(tbl_name, query, {'tax_period': -1})
+        
     """
     function:
     description: 删除信息

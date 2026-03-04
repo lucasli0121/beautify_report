@@ -13,11 +13,10 @@ from pages.company_page import show_company_page
 from pages.invoice_title_page import show_invoice_title_page
 from pages.invoice_record_page import show_invoice_record_page
 from pages.paytax_record_page import show_paytax_page
-from pages.brief_report_page import show_brief_report_page
 from pages.company_bank_account_page import show_company_bank_account_page
 from pages.payment_record_page import show_payment_record_page
 from pages.service_record_page import show_service_record_page
-from pages.tax_approval_page import show_tax_approval_page
+from pages.tax_approval_stat_page import show_tax_approval_stat_page
 import navigation
 
 # @ui.page('/')
@@ -110,7 +109,6 @@ def show_tabs() -> ui.tab_panels:
             tax_approval = ui.tab(strings.get('tax_certificate'), icon='verified').props('icon-left').classes('w-full h-[80px]')
             payment_record = ui.tab(strings.get('payment_record'), icon='payment').props('icon-left').classes('w-full h-[80px]')
             paytax_record = ui.tab(strings.get('paytax_record'), icon='paid').props('icon-left').classes('w-full h-[80px]')
-            brief_report = ui.tab(strings.get('brief_report'), icon='bar_chart').props('icon-left').classes('w-full h-[80px]')
             tab_value = company
             if app.storage.user['navigation'] == navigation.HOME_NAVIGATION:
                 tab_value = company
@@ -144,9 +142,6 @@ def show_tabs() -> ui.tab_panels:
         with ui.tab_panel(paytax_record) \
             .classes('gap-0').style('margin: 0 !important; padding: 0 !important; background-color: #F4F9FD !important;') as paytax_record_panel:
             pass
-        with ui.tab_panel(brief_report) \
-            .classes('gap-0').style('margin: 0 !important; padding: 0 !important; background-color: #F4F9FD !important;') as brief_report_panel:
-            pass
 
         async def on_tab_change(e: events.ValueChangeEventArguments):
             if e.previous_value is not None:
@@ -168,8 +163,6 @@ def show_tabs() -> ui.tab_panels:
                         payment_record_panel.clear()
                     case paytax_record.label:
                         paytax_record_panel.clear()
-                    case brief_report.label:
-                        brief_report_panel.clear()
             match e.value:
                 case company.label:
                     with company_panel:
@@ -188,15 +181,12 @@ def show_tabs() -> ui.tab_panels:
                         await show_invoice_record_page()
                 case tax_approval.label:
                     with tax_approval_panel:
-                        await show_tax_approval_page()
+                        await show_tax_approval_stat_page()
                 case payment_record.label:
                     with payment_record_panel:
                         show_payment_record_page()
                 case paytax_record.label:
                     with paytax_record_panel:
                         show_paytax_page()
-                case brief_report.label:
-                    with brief_report_panel:
-                        show_brief_report_page()
         tab_panels.on_value_change(on_tab_change)
     return tab_panels
