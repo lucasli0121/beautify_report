@@ -79,6 +79,8 @@ async def on_search() -> None:
                                     month_dict[f'{i}']['month_attach_value'] += dao.paid_in_money
                                 case '教育费附加':
                                     month_dict[f'{i}']['month_attach_value'] += dao.paid_in_money
+                                case '城市维护建设税':
+                                    month_dict[f'{i}']['month_attach_value'] += dao.paid_in_money
                                 case '印花税':
                                     month_dict[f'{i}']['month_stamp_value'] += dao.paid_in_money
                                 case '企业所得税':
