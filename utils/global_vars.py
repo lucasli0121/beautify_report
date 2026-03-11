@@ -43,7 +43,7 @@ def show_refresh_process(msg: str) -> ui.dialog:
     return dialog
 
 def query_company_name_company() -> tuple[bool, dict[str, CompanyDao]]:
-    result, list_values = my_db.query_all_company('','','','')
+    result, list_values = my_db.query_all_company('','','','', -1)
     if result is False:
         return False, {}
     company_info = {}

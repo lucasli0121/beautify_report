@@ -59,10 +59,12 @@ async def show_invoice_record_page():
                 search_condition.invoice_to_name = ''
             inputs.input_search_w40('发票内容', on_search) \
                 .bind_value_to(search_condition, 'invoice_content')
-            inputs.date_input_w40('开始时间', on_search) \
-                .bind_value_to(search_condition, 'begin_time')
-            inputs.date_input_w40('结束时间', on_search) \
-                .bind_value_to(search_condition, 'end_time')
+            start_time_input = inputs.date_input_w40('开始时间', on_search)
+            start_time_input.bind_value_to(search_condition, 'begin_time')
+            start_time_input.set_value(datetime.now().strftime('%Y-%m-01'))
+            end_time_input = inputs.date_input_w40('结束时间', on_search)
+            end_time_input.bind_value_to(search_condition, 'end_time')
+            end_time_input.set_value(datetime.now().strftime('%Y-%m-%d'))
         with ui.row().classes('w-full place-content-start items-center gap-1'):
             with ui.row().classes('w-[20%] place-content-start items-center'):
                 ui.label('状态').classes('w-[20%] text-[16px] text-[#333333] font-medium')
@@ -264,7 +266,7 @@ def parse_upload_result_to_dao(result: list) -> Optional[InvoiceRecordDao]:
     if from_company_name == '' or to_company_name == '':
         ui.notify('发票信息不完整，开票方和受票方不能为空')
         return None
-    res, from_company_list = g.my_db.query_all_company(from_company_name, '', '', '')
+    res, from_company_list = g.my_db.query_all_company(from_company_name, '', '', '', -1)
     if not res:
         ui.notify(f'查询 "{from_company_name}" 失败')
         return None
@@ -277,7 +279,7 @@ def parse_upload_result_to_dao(result: list) -> Optional[InvoiceRecordDao]:
     if to_company_name == '' or to_company_name == '':
         ui.notify('发票信息不完整，开票方和受票方不能为空')
         return None
-    res, to_company_list = g.my_db.query_all_company(to_company_name, '', '', '')
+    res, to_company_list = g.my_db.query_all_company(to_company_name, '', '', '', -1)
     if not res:
         ui.notify(f'查询 "{to_company_name}" 失败')
         return None

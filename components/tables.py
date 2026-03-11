@@ -13,6 +13,7 @@ def show_company_table(datas, show_edit, show_delete) -> ui.table:
         {'name': 'sn', 'label': '序号', 'field': 'sn', 'width': '5%', 'align': 'center'},
         {'name': 'name', 'label': '名称', 'field': 'name', 'width': '10%', 'align': 'center'},
         {'name': 'brief_name', 'label': '简称', 'field': 'brief_name', 'width': '5%', 'align': 'center'},
+        {'name': 'type', 'label': '公司性质', 'field': 'type', 'width': '5%', 'align': 'center'},
         {'name': 'company_type', 'label': '公司类型', 'field': 'company_type', 'width': '5%', 'align': 'center'},
         {'name': 'address', 'label': '地址', 'field': 'address', 'width': '15%', 'align': 'center'},
         {'name': 'contacts', 'label': '联系人', 'field': 'contacts', 'width': '10%', 'align': 'center'},
@@ -52,6 +53,16 @@ def show_company_table(datas, show_edit, show_delete) -> ui.table:
                 <q-btn size="sm" flat round dense icon="delete_outline"
                     @click="() => $parent.$emit('show_delete', props.row)"
                 />
+            </q-td>
+        ''')
+        table.add_slot('body-cell-type', r'''
+            <q-td auto-width key="type" :props="props" class="item-left">
+                <template v-if="props.row.type == 1">
+                    内部公司
+                </template>
+                <template v-if="props.row.type == 2">
+                    外部公司
+                </template>
             </q-td>
         ''')
         table.add_slot('body-cell-company_type', r'''

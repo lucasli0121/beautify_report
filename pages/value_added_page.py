@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from datetime import datetime
-import asyncio
+import pandas as pd
+from openpyxl.utils import get_column_letter
+from openpyxl.styles import Alignment
 from nicegui import ui,events, app, run
 from components import inputs, tables, dialogs
 from typing import Any, Optional, cast
@@ -57,6 +59,9 @@ def show_value_added_page():
         ui.button('新建', icon='img:/static/images/add_course@2x.png', on_click=show_add) \
             .classes('w-25 rounded-md text-white') \
             .style('background-color: #65B6FF !important')
+        ui.button('导出', icon='file_download', on_click=export_value_added) \
+            .classes('w-25 rounded-md text-white') \
+            .style('background-color: #4CAF50 !important')
             
     table_rows: list[dict] = []
     app.storage.client['value_added_table'] = tables.show_value_added_table(table_rows, show_edit, delete_one)
@@ -73,39 +78,83 @@ def on_search() -> None:
         if list_values is None or len(list_values) == 0:
             ui.notify('没有查询到增值税数据')
             return
+        app.storage.client['value_added_rows'] = []
         def do_refresh() -> list[dict[str, Any]]:
             sn = 1
             rows: list[dict[str, Any]] = []
             for item in list_values:
                 row_dict: dict[str, Any] = {}
+                row_values = []
                 row_dict['sn'] = sn
                 dao = ValueAddedDao()
                 dao.from_db(item)
                 row_dict['id'] = dao.id
-                row_dict['create_time'] = dao.create_time
-                row_dict['last_month_no_verify'] = g.format_currency(dao.last_month_no_verify)
-                row_dict['last_month_stay_pay'] = g.format_currency(dao.last_month_stay_pay)
-                row_dict['opened_input_tax'] = g.format_currency(dao.opened_input_tax)
-                row_dict['opened_output_tax'] = g.format_currency(dao.opened_output_tax)
-                row_dict['to_open_input_tax'] = g.format_currency(dao.to_open_input_tax)
-                row_dict['to_open_output_tax'] = g.format_currency(dao.to_open_output_tax)
-                row_dict['payable_tax'] = g.format_currency(dao.payable_tax)
-                row_dict['sales_amount'] = g.format_currency(dao.sales_amount)
-                row_dict['opened_billing_amount'] = g.format_currency(dao.opened_billing_amount)
-                row_dict['remaining_billing_amount'] = g.format_currency(dao.remaining_billing_amount)
-                row_dict['billing_amount'] = g.format_currency(dao.billing_amount)
                 result, company_dao = g.my_db.query_company_by_id(dao.company_id)
                 company_name = '未知公司'
                 if result and company_dao is not None:
                     company_name = company_dao.brief_name
                 row_dict['company_name'] = company_name
+                row_values.append(company_name)
+                row_dict['create_time'] = dao.create_time
+                row_values.append(dao.create_time)
+                row_dict['last_month_no_verify'] = g.format_currency(dao.last_month_no_verify)
+                row_values.append(g.format_currency(dao.last_month_no_verify))
+                row_dict['last_month_stay_pay'] = g.format_currency(dao.last_month_stay_pay)
+                row_values.append(g.format_currency(dao.last_month_stay_pay))
+                row_dict['opened_input_tax'] = g.format_currency(dao.opened_input_tax)
+                row_values.append(g.format_currency(dao.opened_input_tax))
+                row_dict['opened_output_tax'] = g.format_currency(dao.opened_output_tax)
+                row_values.append(g.format_currency(dao.opened_output_tax))
+                row_dict['to_open_input_tax'] = g.format_currency(dao.to_open_input_tax)
+                row_values.append(g.format_currency(dao.to_open_input_tax))
+                row_dict['to_open_output_tax'] = g.format_currency(dao.to_open_output_tax)
+                row_values.append(g.format_currency(dao.to_open_output_tax))
+                row_dict['payable_tax'] = g.format_currency(dao.payable_tax)
+                row_values.append(g.format_currency(dao.payable_tax))
+                row_dict['sales_amount'] = g.format_currency(dao.sales_amount)
+                row_values.append(g.format_currency(dao.sales_amount))
+                row_dict['opened_billing_amount'] = g.format_currency(dao.opened_billing_amount)
+                row_values.append(g.format_currency(dao.opened_billing_amount))
+                row_dict['remaining_billing_amount'] = g.format_currency(dao.remaining_billing_amount)
+                row_values.append(g.format_currency(dao.remaining_billing_amount))
+                row_dict['billing_amount'] = g.format_currency(dao.billing_amount)
+                row_values.append(g.format_currency(dao.billing_amount))
                 rows.append(row_dict)
+                app.storage.client['value_added_rows'].append(row_values)
                 sn += 1
             return rows
         rows = do_refresh()
         app.storage.client['value_added_table'].rows = rows
         app.storage.client['value_added_table'].update()
 
+"""
+function: export_value_added
+description: 导出增值税数据
+param {*}
+return {*}
+"""
+def export_value_added():
+    if 'value_added_rows' not in app.storage.client or len(app.storage.client['value_added_rows']) == 0:
+        ui.notify('没有数据可以导出')
+        return
+    rows = app.storage.client['value_added_rows']
+    columns = ['公司名称', '日期', '上月未认证', '上月留抵', '已开进项税', '已开销项税', '待开进项税', '待开销项税', '应纳税额', '6%开销售额', '已开票额', '剩余开票额', '开票额']
+    df = pd.DataFrame(rows, columns=columns)
+    fname = f'./static/增值税_{search_condition.record_month}.xlsx'
+    with pd.ExcelWriter(fname, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, startrow=1)        # leave row‑0 free
+        ws = writer.sheets['Sheet1']                       # 或者你自己指定的 sheet 名
+
+        # 自动调整每列宽度
+        for i, col in enumerate(df.columns):
+            column_letter = get_column_letter(i + 1)
+            values = df.iloc[:, i].astype(str).replace(['nan', 'None'], '')
+            max_len = max(
+                values.map(len).max(),   # 所有行的最大长度
+                len(str(col))            # 列标题长度
+            ) + 10  # 额外空格，美观用
+            ws.column_dimensions[column_letter].width = max_len
+    ui.download.file(fname)
 """
 function: show_summary_value_added
 description: 显示增值税汇总对话框

@@ -21,6 +21,7 @@ class SearchCondition:
     address: str = ""
     contacts: str = ""
     company_type: str = "" # general: 一般纳税人, small: 小规模纳税人
+    type: int = -1 # -1: 所有 1: 内部公司, 2: 外部公司
 search_condition = SearchCondition()
 
 #
@@ -49,6 +50,17 @@ def show_company_page() -> None:
                 on_search()
             inputs.selection_w40(['全部','一般纳税人','小规模纳税人'], '全部', False, on_change=on_company_type_change)
             search_condition.company_type = ''
+            def on_type_change(value) -> None:
+                if value == '全部':
+                    search_condition.type = -1
+                elif value == '内部公司':
+                    search_condition.type = 1
+                elif value == '外部公司':
+                    search_condition.type = 2
+                else:
+                    search_condition.type = -1
+                on_search()
+            inputs.selection_w40(['全部','内部公司','外部公司'], '全部', False, on_change=on_type_change)
         with ui.row().classes('w-[30%] place-content-start items-center gap-1'):
             ui.button('刷新', icon='img:/static/images/refresh@2x.png', on_click=on_search) \
                 .classes('w-25 rounded-md text-white') \
@@ -66,7 +78,7 @@ def show_company_page() -> None:
     on_search()
 
 def on_search() -> None:
-    result, list_values = g.my_db.query_inner_company(search_condition.name, search_condition.address, search_condition.contacts, search_condition.company_type)
+    result, list_values = g.my_db.query_all_company(search_condition.name, search_condition.address, search_condition.contacts, search_condition.company_type, search_condition.type)
     if result is False:
         ui.notify('查询公司失败')
         return
@@ -166,6 +178,24 @@ def modify_or_new_company(company_dao: CompanyDao, is_add: bool) -> None:
                 .bind_value_from(company_dao, 'brief_name') \
                 .bind_value_to(company_dao, 'brief_name')
                 
+        with ui.row().classes('w-full place-content-start items-center'):
+            ui.label('公司性质').classes('w-[20%] text-[16px] text-[#333333] font-medium')
+            def on_type_change(value) -> None:
+                if value == '内部公司':
+                    company_dao.type = 1
+                elif value == '外部公司':
+                    company_dao.type = 2
+                else:
+                    company_dao.type = -1
+            type_selector = inputs.selection_w40(['内部公司','外部公司'], '内部公司', False, on_change=on_type_change)
+            if not is_add:
+                if company_dao.type == 1:
+                    type_selector.value = '内部公司'
+                elif company_dao.type == 2:
+                    type_selector.value = '外部公司'
+            else:
+                company_dao.type = 1 # 默认是内部公司类型
+
         with ui.row().classes('w-full place-content-start items-center'):
             ui.label('公司类型').classes('w-[20%] text-[16px] text-[#333333] font-medium')
             def on_company_type_change(value) -> None:
@@ -273,8 +303,6 @@ def modify_or_new_company(company_dao: CompanyDao, is_add: bool) -> None:
                 if len(company_dao.extends) > 0 and is_add:
                     with open('static/json/company_extends.json', 'w', encoding='utf-8') as f:
                         json.dump(company_dao.extends, f, ensure_ascii=False, indent=4)
-                if is_add:
-                    company_dao.type = 1 # 默认是内部公司类型
                 data = company_dao.to_db()
                 if is_add:
                     result, values = g.my_db.query_same_company(data['name'], data['brief_name'])

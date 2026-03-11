@@ -6,6 +6,7 @@ LastEditTime: 2025-03-19 14:21:03
 Description: 
 '''
 from dataclasses import dataclass
+from datetime import datetime
 import io
 import json
 import re
@@ -56,11 +57,13 @@ async def show_tax_approval_page() -> None:
                 .bind_value_to(search_condition, 'approval_no')
             inputs.input_search_w40('原凭证号', on_search) \
                 .bind_value_to(search_condition, 'ori_voucher_number')
-            inputs.date_input_w40('开始时间', on_search) \
+            start_time_input = inputs.date_input_w40('开始时间', on_search) \
                 .bind_value_to(search_condition, 'begin_time')
-            inputs.date_input_w40('结束时间', on_search) \
+            end_time_input = inputs.date_input_w40('结束时间', on_search) \
                 .bind_value_to(search_condition, 'end_time')
-            
+            start_time_input.set_value(datetime.now().strftime('%Y-%m-01'))
+            end_time_input.set_value(datetime.now().strftime('%Y-%m-%d'))
+
         with ui.row().classes('w-full place-content-start items-center gap-1'):
             ui.button('刷新', icon='img:/static/images/refresh@2x.png', on_click=on_search) \
                 .classes('w-25 rounded-md text-white') \
@@ -162,7 +165,7 @@ def parse_upload_result_to_dao(results: list[dict[str, Any]]) -> Optional[None|l
     entry_date_list = result_data.get('入库日期', [])
     paid_in_money_list = result_data.get('实缴金额', [])
     company_name = result_data.get('名称', '')
-    result, company_list = g.my_db.query_all_company(company_name, '', '', '')
+    result, company_list = g.my_db.query_all_company(company_name, '', '', '', -1)
     if result is False or company_list is None or len(company_list) == 0:
         ui.notify(f'上传文件中的公司名称 {company_name} 未在系统中找到，请先添加公司信息')
         return None
