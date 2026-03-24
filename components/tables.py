@@ -633,7 +633,7 @@ def show_value_added_table(datas, show_edit, show_delete) -> ui.table:
         rows=datas,
         selection='multiple',
         row_key='id',
-        pagination={'rowsPerPage': 10, 'sortBy': 'sn', 'page': 1}) \
+        pagination={'rowsPerPage': 0, 'sortBy': 'sn', 'page': 1}) \
             .props('table-header-style="color: white; font-size: 16px; background-color: #65B6FF; position: sticky; top: 0px; background: #65B6FF; z-index: 3" flat no-shadow') \
             .classes('w-full mt-2 gap-0') \
             .style('border: 1px solid #ECECEC; border-radius: 10px 10px 0px 0px; max-width: 100%; height: calc(100vh - 80px - 80px - 40px)') as table:

@@ -6,7 +6,7 @@ from openpyxl.styles import Alignment
 from nicegui import ui,events, app, run
 from components import inputs, tables, dialogs
 from typing import Any, Optional, cast
-from dao.company_dao import CompanyDao
+from dao.company_dao import CompanyDao, CompanyPropery
 from dao.period_data_dao import PeriodDataDao
 from dao.value_added_dao import ValueAddedDao
 from utils import global_vars as g
@@ -93,6 +93,8 @@ def on_search() -> None:
                 company_name = '未知公司'
                 if result and company_dao is not None:
                     company_name = company_dao.brief_name
+                    if company_dao.type == CompanyPropery.OUTER_COMPANY.value:
+                        continue
                 row_dict['company_name'] = company_name
                 row_values.append(company_name)
                 row_dict['create_time'] = dao.create_time
@@ -365,15 +367,31 @@ def modify_or_new(dao: ValueAddedDao, is_add: bool = True) -> None:
                     .bind_value_from(dao, 'sales_amount') \
                     .bind_value_to(dao, 'sales_amount') \
                     .set_enabled(False)
+            opened_billing_amount_input = None
+            remaining_billing_amount_input = None
+            billing_amount_input = None
             with ui.row().classes('w-full place-content-start items-center gap-1'):
                 ui.label('已开票额').classes('w-[20%] text-[16px] text-[#333333] font-medium')
-                ui.input('已开票额') \
+                opened_billing_amount_input = ui.input('已开票额') \
                     .props('rounded-md outlined dense type="number"') \
                     .classes('w-[25%] self-center item-center ') \
                     .bind_value_from(dao, 'opened_billing_amount') \
                     .bind_value_to(dao, 'opened_billing_amount')
+                def on_opened_billing_amount_change(arg: events.ValueChangeEventArguments):
+                    try:
+                        value = arg.value.replace(',', '')
+                        opened_billing_amount = float(value)
+                    except Exception as e:
+                        opened_billing_amount = 0.0
+                    try:
+                        billing_amount = float(dao.billing_amount) if dao.billing_amount is not None else 0.0
+                    except Exception as e:
+                        billing_amount = 0.0
+                    remaining_billing_amount = billing_amount - opened_billing_amount
+                    dao.remaining_billing_amount = remaining_billing_amount
+                opened_billing_amount_input.on_value_change(on_opened_billing_amount_change)
                 ui.label('剩余开票额').classes('w-[20%] text-[16px] text-[#333333] font-medium')
-                ui.input('剩余开票额') \
+                remaining_billing_amount_input = ui.input('剩余开票额') \
                     .props('rounded-md outlined dense type="number"') \
                     .classes('w-[25%] self-center item-center ') \
                     .bind_value_from(dao, 'remaining_billing_amount') \
@@ -381,12 +399,24 @@ def modify_or_new(dao: ValueAddedDao, is_add: bool = True) -> None:
                     .set_enabled(False)
             with ui.row().classes('w-full place-content-start items-center gap-1'):
                 ui.label('可开票额').classes('w-[20%] text-[16px] text-[#333333] font-medium')
-                ui.input('可开票额') \
+                billing_amount_input = ui.input('可开票额') \
                     .props('rounded-md outlined dense type="number"') \
                     .classes('w-[25%] self-center item-center ') \
                     .bind_value_from(dao, 'billing_amount') \
                     .bind_value_to(dao, 'billing_amount')
-            
+                def on_billing_amount_change(arg: events.ValueChangeEventArguments):
+                    try:
+                        value = arg.value.replace(',', '')
+                        billing_amount = float(value)
+                    except Exception as e:
+                        billing_amount = 0.0
+                    try:
+                        opened_billing_amount = float(dao.opened_billing_amount) if dao.opened_billing_amount is not None else 0.0
+                    except Exception as e:
+                        opened_billing_amount = 0.0
+                    remaining_billing_amount = billing_amount - opened_billing_amount
+                    dao.remaining_billing_amount = remaining_billing_amount
+                billing_amount_input.on_value_change(on_billing_amount_change)
             with ui.row().classes('w-full place-content-end'):
                 ui.button('取消', color=None, on_click=dialog.close) \
                     .props('flat') \

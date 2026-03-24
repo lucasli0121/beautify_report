@@ -9,6 +9,9 @@ class CompanyType(Enum):
     GENERAL = 'general'  # 一般纳税人
     SMALL = 'small'      # 小规模纳税人
 
+class CompanyPropery(Enum):
+    INNER_COMPANY = 1 # 内部公司
+    OUTER_COMPANY = 2 # 外部公司
 @dataclass
 class CompanyDao:
     id: str
