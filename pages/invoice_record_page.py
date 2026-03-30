@@ -115,6 +115,8 @@ async def on_search() -> None:
     app.storage.client['invoice_record_table'].rows.clear()
     def do_search() -> tuple[bool, list[dict], str]:
         rows: list[dict] = []
+        end_date = datetime.strptime(search_condition.end_time, '%Y-%m-%d')
+        end_date = end_date + pd.Timedelta(days=1)
         result, list_values = g.my_db.query_all_invoice_record(
             search_condition.invoice_from_id,
             search_condition.invoice_to_id,
@@ -122,7 +124,7 @@ async def on_search() -> None:
             search_condition.invoice_number,
             search_condition.status,
             search_condition.begin_time,
-            search_condition.end_time,)
+            end_date.strftime('%Y-%m-%d'))
         if result is False:
             return False, rows, '查询开票记录失败'
         if list_values is not None:

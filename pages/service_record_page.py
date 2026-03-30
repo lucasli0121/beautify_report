@@ -4,6 +4,7 @@ from datetime import datetime
 from nicegui import ui,events, app
 from components import inputs, tables, dialogs
 from typing import Any, Optional
+import pandas as pd
 from dao.company_dao import CompanyDao
 from dao.invoice_record_dao import InvoiceRecordDao
 from dao.payment_record_dao import PaymentRecordDao
@@ -59,9 +60,11 @@ def show_service_record_page():
                     search_condition.status = -1
             inputs.selection_w40(['所有', '无合同', '待付款', '待开票', '完成'], None, False, on_change=on_status_change)
             inputs.date_input_w40('开始时间', on_search) \
-                .bind_value_to(search_condition, 'begin_time')
+                .bind_value_to(search_condition, 'begin_time') \
+                .set_value(datetime.now().strftime('%Y-%m-01'))
             inputs.date_input_w40('结束时间', on_search) \
-                .bind_value_to(search_condition, 'end_time')
+                .bind_value_to(search_condition, 'end_time') \
+                .set_value(datetime.now().strftime('%Y-%m-%d'))
         with ui.row().classes('w-full place-content-end items-center'):
             ui.button('刷新', icon='img:/static/images/refresh@2x.png', on_click=on_search) \
                 .classes('w-25 rounded-md text-white') \
@@ -83,6 +86,8 @@ def show_service_record_page():
 def on_search() -> None:
     if 'service_record_table' not in app.storage.client:
         return
+    end_date = datetime.strptime(search_condition.end_time, '%Y-%m-%d')
+    end_date = end_date + pd.Timedelta(days=1)
     result, list_values = g.my_db.query_all_service_record(
         search_condition.from_company_id,
         search_condition.to_company_id,

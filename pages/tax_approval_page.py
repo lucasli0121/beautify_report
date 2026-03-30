@@ -10,6 +10,7 @@ from datetime import datetime
 import io
 import json
 import re
+import pandas as pd
 from nicegui import ui,app,events,run
 from components import tables, inputs, dialogs
 from dao.recognize_info_dao import RecognizeInfoDao, RecognizeResult, RecognizeType
@@ -110,7 +111,14 @@ async def on_search() -> None:
     app.storage.client['tax_approval_table'].rows.clear()
     def do_search() -> tuple[bool, list[dict], Optional[str]]:
         rows: list[dict] = []
-        result, list_values = g.my_db.query_all_tax_approval(search_condition.company_id, search_condition.approval_no, search_condition.ori_voucher_number, search_condition.begin_time, search_condition.end_time)
+        end_date = datetime.strptime(search_condition.end_time, '%Y-%m-%d')
+        end_date = end_date + pd.Timedelta(days=1)
+        result, list_values = g.my_db.query_all_tax_approval(
+            search_condition.company_id,
+            search_condition.approval_no,
+            search_condition.ori_voucher_number,
+            search_condition.begin_time,
+            end_date.strftime('%Y-%m-%d'))
         if result is False:
             return False, rows, '查询完税证明失败'
         if list_values is None or len(list_values) == 0:
