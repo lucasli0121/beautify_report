@@ -44,14 +44,15 @@ class OcrManager:
         dao.type = response.get('type', 0)
         dao.result = response.get('result', 0)
         dao.msg = response.get('msg', '')
-        res, save_dao = g.my_db.query_recognize_info_by_id(dao.id)
-        if res and save_dao:
-            file_dir = './static/uploads/'
-            org_file_path = os.path.join(file_dir, save_dao.file_name)
-            try:
-                os.remove(org_file_path)  # 删除原文件
-            except Exception as e:
-                print(f"删除文件 {org_file_path} 失败: {e}")
+        if dao.result == RecognizeResult.Success.value:
+            res, save_dao = g.my_db.query_recognize_info_by_id(dao.id)
+            if res and save_dao:
+                file_dir = './static/uploads/'
+                org_file_path = os.path.join(file_dir, save_dao.file_name)
+                try:
+                    os.remove(org_file_path)  # 删除原文件
+                except Exception as e:
+                    print(f"删除文件 {org_file_path} 失败: {e}")
         self.ocr_event.emit(EventObj(id=dao.id, type=dao.type, result=dao.result, msg=dao.msg))
 
     # async def process_ocr_files(self):
