@@ -99,6 +99,7 @@ async def on_event(event_obj: ocr_manager.EventObj) -> None:
     if event_obj.result == RecognizeResult.InProgress.value:
         refresh_recognizing_list()
     elif event_obj.result in (RecognizeResult.Success.value, RecognizeResult.Failed.value):
+        refresh_recognizing_list()
         await on_search()
 """
 # @function: on_search

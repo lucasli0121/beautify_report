@@ -20,6 +20,8 @@ import yaml
 from utils import global_vars as g
 from pages import main_page, login_page
 
+logger = logging.getLogger(__name__)
+
 # 定义全局颜色
 # ui.colors(primary='#65B6FF', onprimary='#FFFFFF', secondary='#65B6FF', accent='#111B1E', positive='#53B689')
 
@@ -28,6 +30,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if not app.storage.user.get('authenticated', False):
             if not request.url.path.startswith('/_nicegui') \
                 and not request.url.path.startswith('/login') \
+                and not request.url.path.startswith('/api') \
                 and not request.url.path.startswith('/static'):
                 app.storage.user['referrer_path'] = request.url.path
                 return RedirectResponse('/login')
@@ -104,6 +107,34 @@ def init_app():
     # 注册静态文件目录
     # app.mount("/static", StaticFiles(directory=os.path.join(current_dir, "../static")), name="static")
     app.add_static_files('/static', os.path.join(current_dir, "static"))
+
+    @app.api_route('/api/recognize/result', methods=['POST'])
+    async def recognize_result_api(request: Request, payload: dict | None = None):
+        if payload is None:
+            try:
+                payload = await request.json()
+            except Exception:
+                payload = {}
+        if not payload or 'id' not in payload:
+            return {'success': False, 'message': 'id is required'}
+        if 'result' not in payload:
+            return {'success': False, 'message': 'result is required'}
+        if 'type' not in payload:
+            return {'success': False, 'message': 'type is required'}
+
+        result_values = {
+            'id': str(payload.get('id')),
+            'result': payload.get('result', 0),
+            'type': payload.get('type', 0),
+            'msg': str(payload.get('msg', '')),
+            'timestamp': str(payload.get('timestamp', '')),
+        }
+        # app.storage.general.setdefault('recognize_results', []).append(result_values)
+        logger.debug('recognize_result_api called: %s', result_values)
+        g.ocr_mgr.handle_recognize_response(result_values)
+        return {'success': True}
+
+
     # 添加自定义字体
     # ui.add_head_html('''
     #     <style>
@@ -151,8 +182,8 @@ parameters: []
 @app.on_startup
 async def app_startup():
     # 启动OCR管理器
-    g.ocr_mgr.start()
-    # pass
+    # g.ocr_mgr.start()
+    pass
 
 '''
 function app_shutdown
@@ -162,7 +193,7 @@ parameters: []
 @app.on_shutdown
 async def app_shutdown():
     # 关闭OCR管理器
-    g.ocr_mgr.stop()
+    # g.ocr_mgr.stop()
     """应用关闭时清理存储"""
     authenticated = app.storage.user['authenticated']
     try:
@@ -196,6 +227,7 @@ if __name__ in {"__main__", "__mp_main__"}:
     #     logger.error("MQTT连接失败，请检查配置文件")
     # api_manager.api_https = ulib.PoolManager(timeout=60.0)
     ui.run(title=strings.APP_NAME,
+        host='0.0.0.0',
         port=8083,
         language='zh-CN',
         reconnect_timeout=120,

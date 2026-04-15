@@ -308,6 +308,7 @@ def read_pdf_from_upload(handle_upload: Callable) -> None:
         if event_obj.result == RecognizeResult.InProgress.value:
             refresh_recognizing_list()
         elif event_obj.result in (RecognizeResult.Success.value, RecognizeResult.Failed.value):
+            refresh_recognizing_list()
             await on_search()
     g.ocr_mgr.subscribe(on_event)
     uf.open_ocr_invoice_dialog()
