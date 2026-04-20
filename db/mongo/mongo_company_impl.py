@@ -84,7 +84,7 @@ class MongoCompanyImpl():
     :param condition: 查询条件，例如 "id = 1"
     :return: 查询结果列表，每个元素是一个字典，包含公司信息
     """
-    def query_all_company(self, name: str, address: str, contacts: str, company_type: str, type: int) -> tuple[bool, None|list[Any]]:
+    def query_all_company(self, name: str, address: str, contacts: str, company_type: str, belongs_to: str, type: int = -1) -> tuple[bool, None|list[Any]]:
         tbl_name = self.company_tbl()
         if tbl_name is None:
             self.logger.error("Company table not found in MongoDB.")
@@ -102,6 +102,8 @@ class MongoCompanyImpl():
             query['contacts'] = {'$regex': contacts, '$options': 'i'}
         if company_type or len(company_type) > 0:
             query['company_type'] = {'$regex': company_type, '$options': 'i'}
+        if belongs_to or len(belongs_to) > 0:
+            query['belongs_to'] = {'$regex': belongs_to, '$options': 'i'}
         if type is not None and type > 0:
             query['type'] = {'$eq': type}
         return self.mongo_impl.query_by_condition(tbl_name, query, {'brief_name': 1})

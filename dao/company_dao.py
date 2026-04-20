@@ -26,9 +26,10 @@ class CompanyDao:
     tax_no: str
     company_type: str # general: 一般纳税人, small: 小规模纳税人
     type: int # 1: 内部公司, 2: 外部公司
+    belongs_to: str # 公司所属人
     extends: dict[str, Any]
     
-    def __init__(self, id="", name="", brief_name='', address="", contacts="", phone="", email="", invoice_limit=0, has_invoiced=0.0, type = 1, tax_no=''):
+    def __init__(self, id="", name="", brief_name='', address="", contacts="", phone="", email="", invoice_limit=0, has_invoiced=0.0, type = 1, tax_no='', belongs_to=''):
         self.id = str(id)
         self.name = name
         self.brief_name = brief_name
@@ -42,6 +43,7 @@ class CompanyDao:
         self.company_type = CompanyType.GENERAL.value
         self.type = 1
         self.extends = {}
+        self.belongs_to = belongs_to
 
     def from_db(self, data: dict[str, Any]) -> None:
         if '_id' in data:
@@ -60,7 +62,7 @@ class CompanyDao:
         self.company_type = data.get('company_type', CompanyType.GENERAL.value)
         self.type = data.get('type', 1)
         self.extends = data.get('extends', {})
-        
+        self.belongs_to = data.get('belongs_to', '')
 
     def is_small_scale(self) -> bool:
         return self.company_type == CompanyType.SMALL.value

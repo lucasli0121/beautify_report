@@ -268,7 +268,7 @@ def parse_upload_result_to_dao(result: list) -> Optional[InvoiceRecordDao]:
     if from_company_name == '' or to_company_name == '':
         ui.notify('发票信息不完整，开票方和受票方不能为空')
         return None
-    res, from_company_list = g.my_db.query_all_company(from_company_name, '', '', '', -1)
+    res, from_company_list = g.my_db.query_all_company(from_company_name, '', '', '', '', -1)
     if not res:
         ui.notify(f'查询 "{from_company_name}" 失败')
         return None
@@ -281,7 +281,7 @@ def parse_upload_result_to_dao(result: list) -> Optional[InvoiceRecordDao]:
     if to_company_name == '' or to_company_name == '':
         ui.notify('发票信息不完整，开票方和受票方不能为空')
         return None
-    res, to_company_list = g.my_db.query_all_company(to_company_name, '', '', '', -1)
+    res, to_company_list = g.my_db.query_all_company(to_company_name, '', '', '', '', -1)
     if not res:
         ui.notify(f'查询 "{to_company_name}" 失败')
         return None

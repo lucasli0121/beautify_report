@@ -22,6 +22,7 @@ class SearchCondition:
     contacts: str = ""
     company_type: str = "" # general: 一般纳税人, small: 小规模纳税人
     type: int = -1 # -1: 所有 1: 内部公司, 2: 外部公司
+    belongs_to: str = ""
 search_condition = SearchCondition()
 
 #
@@ -61,6 +62,8 @@ def show_company_page() -> None:
                     search_condition.type = -1
                 on_search()
             inputs.selection_w40(['全部','内部公司','外部公司'], '全部', False, on_change=on_type_change)
+            belongs_to_input = inputs.input_search_w40('所属', on_search)
+            belongs_to_input.bind_value_to(search_condition, 'belongs_to')
         with ui.row().classes('w-[30%] place-content-start items-center gap-1'):
             ui.button('刷新', icon='img:/static/images/refresh@2x.png', on_click=on_search) \
                 .classes('w-25 rounded-md text-white') \
@@ -78,7 +81,13 @@ def show_company_page() -> None:
     on_search()
 
 def on_search() -> None:
-    result, list_values = g.my_db.query_all_company(search_condition.name, search_condition.address, search_condition.contacts, search_condition.company_type, search_condition.type)
+    result, list_values = g.my_db.query_all_company(
+        search_condition.name,
+        search_condition.address,
+        search_condition.contacts,
+        search_condition.company_type,
+        search_condition.belongs_to,
+        search_condition.type)
     if result is False:
         ui.notify('查询公司失败')
         return
@@ -243,6 +252,13 @@ def modify_or_new_company(company_dao: CompanyDao, is_add: bool) -> None:
                 .classes('w-[30%] self-center item-center ') \
                 .bind_value_from(company_dao, 'email') \
                 .bind_value_to(company_dao, 'email')
+        with ui.row().classes('w-full place-content-start items-center'):
+            ui.label('所属').classes('w-[20%] text-[16px] text-[#333333] font-medium')
+            ui.input(placeholder='请输入所属信息') \
+                .props('rounded-md outlined dense') \
+                .classes('w-[30%] self-center item-center ') \
+                .bind_value_from(company_dao, 'belongs_to') \
+                .bind_value_to(company_dao, 'belongs_to')
                 
         with ui.row().classes('w-full place-content-start items-center'):
             ui.label('开票限额').classes('w-[20%] text-[16px] text-[#333333] font-medium')

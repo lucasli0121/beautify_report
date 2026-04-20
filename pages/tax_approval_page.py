@@ -174,7 +174,7 @@ def parse_upload_result_to_dao(results: list[dict[str, Any]]) -> Optional[None|l
     entry_date_list = result_data.get('入库日期', [])
     paid_in_money_list = result_data.get('实缴金额', [])
     company_name = result_data.get('名称', '')
-    result, company_list = g.my_db.query_all_company(company_name, '', '', '', -1)
+    result, company_list = g.my_db.query_all_company(company_name, '', '', '', '', -1)
     if result is False or company_list is None or len(company_list) == 0:
         ui.notify(f'上传文件中的公司名称 {company_name} 未在系统中找到，请先添加公司信息')
         return None

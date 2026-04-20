@@ -19,11 +19,12 @@ def show_company_table(datas, show_edit, show_delete) -> ui.table:
         {'name': 'contacts', 'label': '联系人', 'field': 'contacts', 'width': '10%', 'align': 'center'},
         {'name': 'phone', 'label': '电话', 'field': 'phone', 'width': '10%', 'align': 'center'},
         {'name': 'email', 'label': '邮箱', 'field': 'email', 'width': '10%', 'align': 'center'},
+        {'name': 'belongs_to', 'label': '所属', 'field': 'belongs_to', 'width': '10%', 'align': 'center'},
         {'name': 'invoice_limit', 'label': '开票额度', 'field': 'invoice_limit', 'width': '5%', 'align': 'center'},
         {'name': 'has_invoiced', 'label': '已开票', 'field': 'has_invoiced', 'width': '5%', 'align': 'center'},
         {'name': 'tax_no', 'label': '税号', 'field': 'tax_no', 'width': '10%', 'align': 'center'},
         {'name': 'extends', 'label': '扩展信息', 'field': 'extends', 'width': '10%', 'align': 'center'},
-        {'name': 'operation', 'label': '操作', 'field': 'operation', 'width': '10%', 'align': 'center'}
+        {'name': 'operation', 'label': '操作', 'field': 'operation', 'width': '10%', 'align': 'center'} 
     ]
     with ui.table(
         columns=table_columns,
@@ -42,7 +43,20 @@ def show_company_table(datas, show_edit, show_delete) -> ui.table:
         #     </q-tr>
         # ''')
         table.props('v-model:selected="selected"')
-        table.props('visible-columns="[\'sn\', \'name\', \'brief_name\', \'company_type\', \'address\', \'contacts\', \'phone\', \'email\', \'invoice_limit\', \'has_invoiced\', \'tax_no\', \'extends\', \'operation\']"')
+        table.props('visible-columns="[\'sn\', \
+                    \'name\', \
+                    \'brief_name\', \
+                    \'company_type\', \
+                    \'address\', \
+                    \'contacts\', \
+                    \'phone\', \
+                    \'email\', \
+                    \'belongs_to\', \
+                    \'invoice_limit\', \
+                    \'has_invoiced\', \
+                    \'tax_no\', \
+                    \'extends\', \
+                    \'operation\']"')
         
         table.add_slot('body-cell-operation', r'''
             <q-td auto-width key="operation" :props="props" class="item-left">
