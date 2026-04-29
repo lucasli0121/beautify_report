@@ -7,11 +7,11 @@ Description:
 '''
 from fastapi.staticfiles import StaticFiles
 from nicegui import ui,app,events
+from pages.invoice_main_page import show_invoice_main_page
 from resources import strings
 from menu.top_menu import top_menu
 from pages.company_page import show_company_page
 from pages.invoice_title_page import show_invoice_title_page
-from pages.invoice_record_page import show_invoice_record_page
 from pages.paytax_record_page import show_paytax_page
 from pages.company_bank_account_page import show_company_bank_account_page
 from pages.payment_record_page import show_payment_record_page
@@ -178,7 +178,7 @@ def show_tabs() -> ui.tab_panels:
                         show_service_record_page()
                 case invoiced_record.label:
                     with invoiced_record_panel:
-                        await show_invoice_record_page()
+                        await show_invoice_main_page()
                 case tax_approval.label:
                     with tax_approval_panel:
                         await show_tax_approval_stat_page()

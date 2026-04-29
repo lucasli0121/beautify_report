@@ -683,4 +683,38 @@ def show_value_added_table(datas, show_edit, show_delete) -> ui.table:
         ''')
         table.on('show_edit', show_edit)
         table.on('show_delete', show_delete)
-    return table    
+    return table
+
+#
+# @description: 显示开票预警信息
+# @param {list} datas 数据列表
+#
+def show_open_invoice_alarm_table(datas) -> ui.table:
+    table_columns = [
+        {'name': 'id', 'label': 'id', 'field': 'id', 'width': '1%', 'align': 'center'},
+        {'name': 'sn', 'label': '序号', 'field': 'sn', 'width': '5%', 'align': 'center', },
+        {'name': 'company_name', 'label': '开票方', 'field': 'company_name', 'width': '10%', 'align': 'center'},
+        {'name': 'alarm_desc', 'label': '预警类型', 'field': 'alarm_desc', 'width': '10%', 'align': 'center'},
+        {'name': 'invoice_year', 'label': '年份', 'field': 'invoice_year', 'width': '5%', 'align': 'center'},
+        {'name': 'detail', 'label': '详情', 'field': 'detail', 'width': '20%', 'align': 'left'},
+        {'name': 'create_time', 'label': '创建时间', 'field': 'create_time', 'width': '10%', 'align': 'center'}]
+    with ui.table(
+        columns=table_columns,
+        rows=datas,
+        selection='multiple',
+        row_key='id',
+        pagination={'rowsPerPage': 10, 'sortBy': 'sn', 'page': 1}) \
+            .props('table-header-style="color: white; font-size: 16px; background-color: #65B6FF; position: sticky; top: 0px; background: #65B6FF; z-index: 3"  flat no-shadow') \
+            .classes('w-full mt-2 gap-0') \
+            .style('border: 1px solid #ECECEC; border-radius: 10px 10px 0px 0px; max-width: 100%; height: calc(100vh - 80px - 80px - 40px)') as table:
+        
+        table.props('v-model:selected="selected" ')
+        table.props('visible-columns="[ \
+                    \'sn\', \
+                    \'company_name\', \
+                    \'alarm_desc\', \
+                    \'invoice_year\', \
+                    \'detail\', \
+                    \'create_time\']"')
+
+    return table

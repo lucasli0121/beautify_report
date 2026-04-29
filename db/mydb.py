@@ -16,6 +16,7 @@ from dao.payment_record_dao import PaymentRecordDao
 from dao.recognize_info_dao import RecognizeInfoDao
 from dao.service_record_dao import ServiceRecordDao
 from db.mongo.mongo_impl import MongoImpl
+from db.mongo.mongo_invoice_alarm_impl import MongoInvoiceAlarmImpl
 from db.mongo.mongo_invoice_title_impl import MongoInvoiceTitleImpl
 from db.mongo.mongo_period_data_impl import MongoPeriodDataImpl
 from db.mongo.mongo_recognize_info_impl import MongoRecognizeInfoImpl
@@ -263,6 +264,14 @@ class MyDb:
                 return MongoInvoiceRecordImpl(self.mongo).query_all(from_company_id, to_company_id, invoice_content, invoice_number, status, begin_time, end_time)
         self.logger.error("No database implementation available for querying invoice record.")
         return False, None
+    def query_invoice_record_by_from_and_year(self, from_company_id: str, invoice_year: str) -> tuple[bool, Any|None]:
+        if self.mysql is not None:
+            return False, None
+        else:
+            if self.mongo is not None:
+                return MongoInvoiceRecordImpl(self.mongo).query_by_from_and_year(from_company_id, invoice_year)
+        self.logger.error("No database implementation available for querying invoice record by from company and year.")
+        return False, None
     def query_invoice_record_by_id(self, id: str) -> tuple[bool, Any|None]:
         if self.mysql is not None:
             return False, None
@@ -295,6 +304,22 @@ class MyDb:
                 return MongoInvoiceRecordImpl(self.mongo).delete(id)
         self.logger.error("No database implementation available for deleting invoice record.")
         return False
+    def add_invoice_alarm(self, d: dict[str, Any]) -> tuple[bool, str|None]:
+        if self.mysql is not None:
+            return False, None
+        else:
+            if self.mongo is not None:
+                return MongoInvoiceAlarmImpl(self.mongo).add(d)
+        self.logger.error("No database implementation available for adding invoice alarm.")
+        return False, None
+    def query_all_invoice_alarm(self, company_id: str, invoice_year: str) -> tuple[bool, Any|None]:
+        if self.mysql is not None:
+            return False, None
+        else:
+            if self.mongo is not None:
+                return MongoInvoiceAlarmImpl(self.mongo).query_all(company_id, invoice_year)
+        self.logger.error("No database implementation available for querying invoice alarm.")
+        return False, None
     """
         根据公司ID和年月统计进项增值税额
         :param company_id: 公司ID

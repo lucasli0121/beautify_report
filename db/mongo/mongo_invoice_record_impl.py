@@ -85,6 +85,25 @@ class MongoInvoiceRecordImpl():
         # 执行查询
         return self.mongo_impl.query_by_condition(tbl_name, query, {'invoice_time': -1})
     
+    def query_by_from_and_year(self, from_company_id: str, invoice_year: str) -> tuple[bool, Any|None]:
+        tbl_name = self.invoice_record_tbl()
+        if tbl_name is None:
+            self.logger.error("invoice table not found in MongoDB.")
+            return False, None
+        query = {}
+        if from_company_id or len(from_company_id) > 0:
+            query['from_company_id'] = {'$eq': from_company_id}
+        if invoice_year or len(invoice_year) > 0:
+            try:
+                expr = {
+                    '$eq': [{'$substrCP': ['$invoice_time', 0, 4]}, invoice_year],
+                }
+                query['$expr'] = expr
+            except Exception as e:
+                self.logger.error(f"invalid invoice_year format: {invoice_year}, error: {e}")
+                return False, None
+        # 执行查询
+        return self.mongo_impl.query_by_condition(tbl_name, query, None)
     """
     查询开票记录信息
     :param condition: 查询条件，例如 "id = 1"

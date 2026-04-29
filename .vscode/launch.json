@@ -11,6 +11,14 @@
             "stopOnEntry": false,
             "env": {"PYTHONUNBUFFERED": "1"}
         },
-        
+        {
+            "name": "Python: Unittest",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "unittest",
+            "args": ["discover", "-s", "tests", "-p", "test_*.py"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        }
     ]
 }
