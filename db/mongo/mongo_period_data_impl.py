@@ -12,6 +12,7 @@ import logging
 from typing import Any
 from bson.objectid import ObjectId
 from dao.period_data_dao import PeriodDataDao
+from db.mongo.mongo_company_impl import MongoCompanyImpl
 from db.mongo.mongo_impl import MongoImpl
 
 class MongoPeriodDataImpl():
@@ -67,8 +68,38 @@ class MongoPeriodDataImpl():
             query['company_id'] = {'$eq': company_id}
         if create_time and len(create_time) > 0:
             query['create_time'] = {'$eq': create_time}
-        # 执行查询
-        return self.mongo_impl.query_by_condition(tbl_name, query, None)
+        company_impl = MongoCompanyImpl(self.mongo_impl)
+        pipeline = [
+            {'$match': query},
+            {
+                '$addFields': {
+                    'company_obj_id': {
+                        '$toObjectId': '$company_id'
+                    }
+                }
+            },
+            {
+                '$lookup': {
+                    'from': company_impl.company_tbl_name(),
+                    'localField': 'company_obj_id',
+                    'foreignField': '_id',
+                    'as': 'company_info'
+                }
+            },
+            {
+                '$unwind': {
+                    'path': '$company_info',
+                    'preserveNullAndEmptyArrays': True
+                }
+            },  # 展开 company_info
+            {
+                '$sort': {
+                    'company_info.brief_name_pinyin': 1
+                }
+            }
+        ]
+        result = list(tbl_name.aggregate(pipeline))
+        return True, result
     
     
     """

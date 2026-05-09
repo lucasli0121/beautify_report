@@ -24,12 +24,15 @@ class MongoCompanyImpl():
         self.mongo_impl = mongo_impl
 
 
+    def company_tbl_name(self) -> str:
+        return "company_tbl"
+    
     # 公司信息表名
     def company_tbl(self) -> None|Collection:
         if self.mongo_impl.db is None:
             self.logger.error("MongoDB connection is not established.")
             return None
-        return self.mongo_impl.db['company_tbl']
+        return self.mongo_impl.db[self.company_tbl_name()]
     # 公司银行账户表名
     def company_bank_account_tbl(self) -> None|Collection:
         if self.mongo_impl.db is None:
@@ -106,7 +109,7 @@ class MongoCompanyImpl():
             query['belongs_to'] = {'$regex': belongs_to, '$options': 'i'}
         if type is not None and type > 0:
             query['type'] = {'$eq': type}
-        return self.mongo_impl.query_by_condition(tbl_name, query, {'brief_name': 1})
+        return self.mongo_impl.query_by_condition(tbl_name, query, {'brief_name_pinyin': 1})
     
     """
     查询内部公司信息 type 不等于 2

@@ -109,7 +109,7 @@ class MongoImpl(DbBaseImpl):
             
             if sort is not None and len(sort) > 0:
                 # 执行排序查询
-                results = list(table.find(condition).collation({'locale':'zh', 'strength':1}).sort(sort))
+                results = list(table.find(condition).sort(sort))
                 return True, results if results else None
             else:
                 # 执行查询

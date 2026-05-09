@@ -9,7 +9,7 @@ from utils import global_vars as g
 
 @dataclass
 class SearchCondition:
-    company_dao: CompanyDao = CompanyDao()
+    company_dao: CompanyDao = field(default_factory=CompanyDao)
 
 search_condition = SearchCondition()
 

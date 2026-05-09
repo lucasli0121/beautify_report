@@ -22,3 +22,4 @@ pymongo>=4.13.2
 grpcio>=1.76.0
 grpcio-tools>=1.76.0
 apscheduler
+pypinyin

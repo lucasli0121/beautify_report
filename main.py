@@ -182,8 +182,7 @@ parameters: []
 @app.on_startup
 async def app_startup():
     # 启动OCR管理器
-    # g.ocr_mgr.start()
-    pass
+    g.ocr_mgr.start()
 
 '''
 function app_shutdown
@@ -193,7 +192,7 @@ parameters: []
 @app.on_shutdown
 async def app_shutdown():
     # 关闭OCR管理器
-    # g.ocr_mgr.stop()
+    g.ocr_mgr.stop()
     """应用关闭时清理存储"""
     authenticated = app.storage.user['authenticated']
     try:
