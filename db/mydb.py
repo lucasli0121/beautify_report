@@ -9,12 +9,14 @@ Description: mydb 类，数据库代理类，根据配置文件选择数据库�
 # coding="utf8"
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 from configparser import ConfigParser, NoSectionError
 import logging
 from dao.payment_record_dao import PaymentRecordDao
+from dao.period_data_dao import PeriodDataDao
 from dao.recognize_info_dao import RecognizeInfoDao
 from dao.service_record_dao import ServiceRecordDao
+from dao.value_added_dao import ValueAddedDao
 from db.mongo.mongo_impl import MongoImpl
 from db.mongo.mongo_invoice_alarm_impl import MongoInvoiceAlarmImpl
 from db.mongo.mongo_invoice_title_impl import MongoInvoiceTitleImpl
@@ -710,3 +712,67 @@ class MyDb:
                 return MongoValueAddedImpl(self.mongo).delete(id)
         self.logger.error("No database implementation available for deleting value added data.")
         return False
+    """
+    function: handle_summary_value_added_update
+    description: 进行统计增值税，并更新增值税数据库
+    param {*}
+    return {*}
+    """
+    def handle_summary_value_added_update(self, company_id: str, record_month: str) -> tuple[bool, int]:
+        summary_list = self.summary_value_added(company_id, record_month)
+        if summary_list is None or len(summary_list) == 0:
+            return False, 0
+        i = 0
+        for dao in summary_list:
+            if dao.id is None or len(dao.id) == 0:
+                self.add_value_added(dao.to_db())
+            else:
+                self.update_value_added(dao.to_db(), {'id': dao.id})
+            i += 1
+        return True, i
+    
+    """
+    function: summary_value_added
+    description: 进行统计增值税,返回统计结果
+    param {*}
+    return {*}
+    """
+    def summary_value_added(self, company_id: str, record_month: str) -> Optional[list[ValueAddedDao]|None]:
+        result, list_period = self.query_all_period_data(company_id, record_month)
+        if result is False:
+            return None
+        if list_period is None or len(list_period) == 0:
+            return None
+        summary_dao_list : list[ValueAddedDao] = []
+        for item in list_period:
+            period_dao = PeriodDataDao()
+            period_dao.from_db(item)
+            #查询公司信息，判断公司是否小规模，如果小规模，则不进行增值税汇总
+            result, company_dao = self.query_company_by_id(period_dao.company_id)
+            if result is True and company_dao is not None:
+                if company_dao.is_small_scale():
+                    continue
+            value_added_dao = ValueAddedDao()
+            value_added_dao.company_id = period_dao.company_id
+            value_added_dao.create_time = period_dao.create_time
+            result, list_value = self.query_all_value_added(period_dao.company_id, period_dao.create_time)
+            if result is True and list_value is not None and len(list_value) > 0:
+                value_added_dao.from_db(list_value[0])
+            value_added_dao.last_month_no_verify = period_dao.last_month_no_verify
+            value_added_dao.last_month_stay_pay = period_dao.last_month_stay_pay
+            value_added_dao.billing_amount = period_dao.billing_amount
+            result, dict_input_value = self.summary_input_added_tax_by_month(period_dao.company_id, period_dao.create_time)
+            if result is True and dict_input_value is not None:
+                value = float(dict_input_value.get('total_added_tax', 0.0))
+                value_added_dao.opened_input_tax = value
+            result, dict_output_value = self.summary_output_added_tax_by_month(period_dao.company_id, period_dao.create_time)
+            if result is True and dict_output_value is not None:
+                value1 = float(dict_output_value.get('total_added_tax', 0.0))
+                value_added_dao.opened_output_tax = value1
+                value2 = float(dict_output_value.get('total_invoice_money', 0.0))
+                value_added_dao.opened_billing_amount = value2
+            value_added_dao.payable_tax = value_added_dao.opened_output_tax + value_added_dao.to_open_output_tax - value_added_dao.opened_input_tax - value_added_dao.to_open_input_tax - value_added_dao.last_month_stay_pay - value_added_dao.last_month_no_verify
+            value_added_dao.sales_amount = value_added_dao.payable_tax * 1.06 / 0.06
+            value_added_dao.remaining_billing_amount = value_added_dao.billing_amount - value_added_dao.opened_billing_amount
+            summary_dao_list.append(value_added_dao)
+        return summary_dao_list

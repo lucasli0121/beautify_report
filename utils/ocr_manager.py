@@ -74,8 +74,8 @@ class OcrManager:
     """
     def handle_every_day_task(self):
         file_path = "static/期初数据.xlsx"
+        the_month = datetime.now().date().strftime("%Y-%m")
         def read_company_values(company_names:list, sheet_name: str):
-            the_month = datetime.now().date().strftime("%Y-%m")
             for name in company_names:
                 res, company_dao = g.my_db.query_company_by_brief_name(name)
                 if not res or company_dao is None:
@@ -83,11 +83,12 @@ class OcrManager:
                 dao = PeriodDataDao()
                 dao.company_id = company_dao.id
                 res, values_list = g.my_db.query_all_period_data(dao.company_id, the_month)
-                if res and values_list is not None and len(values_list) > 0:
-                    continue
-                dao.create_time = the_month
-                g.my_db.add_period_data(dao.to_db())
+                if not res or values_list is None or len(values_list) == 0:
+                    dao.create_time = the_month
+                    g.my_db.add_period_data(dao.to_db())
+                g.my_db.handle_summary_value_added_update(dao.company_id, the_month)
         self.read_company_names(file_path, read_company_values)
+        
 
     
 

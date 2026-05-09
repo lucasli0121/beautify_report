@@ -194,7 +194,7 @@ async def show_summary_value_added() -> None:
                         return
                     refresh_dialog = g.show_refresh_process("汇总中，请稍候...")
                     record_month = f"{year_select.value}-{month_select.value.zfill(2)}"
-                    result, count = await run.io_bound(do_summary_update, company_id, record_month)
+                    result, count = await run.io_bound(g.my_db.handle_summary_value_added_update, company_id, record_month)
                     if result is False:
                         ui.notify("汇总增值税数据失败,没有查询到相关数据")
                         refresh_dialog.close()
@@ -202,18 +202,18 @@ async def show_summary_value_added() -> None:
                     refresh_dialog.close()
                     ui.notify(f"汇总增值税数据成功，共处理{count}条记录")
                     on_search()
-                def do_summary_update(company_id: str, record_month: str) -> tuple[bool, int]:
-                    summary_list = summary_value_added(company_id, record_month)
-                    if summary_list is None or len(summary_list) == 0:
-                        return False, 0
-                    i = 0
-                    for dao in summary_list:
-                        if dao.id is None or len(dao.id) == 0:
-                            g.my_db.add_value_added(dao.to_db())
-                        else:
-                            g.my_db.update_value_added(dao.to_db(), {'id': dao.id})
-                        i += 1
-                    return True, i
+                # def do_summary_update(company_id: str, record_month: str) -> tuple[bool, int]:
+                #     summary_list = summary_value_added(company_id, record_month)
+                #     if summary_list is None or len(summary_list) == 0:
+                #         return False, 0
+                #     i = 0
+                #     for dao in summary_list:
+                #         if dao.id is None or len(dao.id) == 0:
+                #             g.my_db.add_value_added(dao.to_db())
+                #         else:
+                #             g.my_db.update_value_added(dao.to_db(), {'id': dao.id})
+                #         i += 1
+                #     return True, i
                 ui.button('关闭', color=None, on_click=dialog.close) \
                     .props('flat') \
                     .classes('w-[120px] text-[16px] text-[#888888] font-[400]') \
@@ -292,7 +292,7 @@ def modify_or_new(dao: ValueAddedDao, is_add: bool = True) -> None:
                         ui.notify('请选择年月')
                         return
                     record_month = f"{year_input.value}-{month_select.value.zfill(2)}"
-                    summary_list = summary_value_added(dao.company_id, record_month)
+                    summary_list = g.my_db.summary_value_added(dao.company_id, record_month)
                     if summary_list is None or len(summary_list) == 0:
                         ui.notify('汇总增值税数据失败')
                         return
@@ -395,8 +395,8 @@ def modify_or_new(dao: ValueAddedDao, is_add: bool = True) -> None:
                     .props('rounded-md outlined dense type="number"') \
                     .classes('w-[25%] self-center item-center ') \
                     .bind_value_from(dao, 'remaining_billing_amount') \
-                    .bind_value_to(dao, 'remaining_billing_amount') \
-                    .set_enabled(False)
+                    .bind_value_to(dao, 'remaining_billing_amount')
+                remaining_billing_amount_input.set_enabled(False)
             with ui.row().classes('w-full place-content-start items-center gap-1'):
                 ui.label('可开票额').classes('w-[20%] text-[16px] text-[#333333] font-medium')
                 billing_amount_input = ui.input('可开票额') \
@@ -519,44 +519,44 @@ async def del_by_ids(ids: list[str]) -> None:
 
     dialogs.make_sure_dialog('确认要进行删除操作?', on_ok=make_delete)
 
-def summary_value_added(company_id: str, record_month: str) -> Optional[list[ValueAddedDao]|None]:
-    result, list_period = g.my_db.query_all_period_data(company_id, record_month)
-    if result is False:
-        ui.notify('查询期初数据失败，无法进行增值税汇总')
-        return None
-    if list_period is None or len(list_period) == 0:
-        ui.notify('没有查询到期初数据，无法进行增值税汇总')
-        return None
-    summary_dao_list : list[ValueAddedDao] = []
-    for item in list_period:
-        period_dao = PeriodDataDao()
-        period_dao.from_db(item)
-        #查询公司信息，判断公司是否小规模，如果小规模，则不进行增值税汇总
-        result, company_dao = g.my_db.query_company_by_id(period_dao.company_id)
-        if result is True and company_dao is not None:
-            if company_dao.is_small_scale():
-                continue
-        value_added_dao = ValueAddedDao()
-        value_added_dao.company_id = period_dao.company_id
-        value_added_dao.create_time = period_dao.create_time
-        result, list_value = g.my_db.query_all_value_added(period_dao.company_id, period_dao.create_time)
-        if result is True and list_value is not None and len(list_value) > 0:
-            value_added_dao.from_db(list_value[0])
-        value_added_dao.last_month_no_verify = period_dao.last_month_no_verify
-        value_added_dao.last_month_stay_pay = period_dao.last_month_stay_pay
-        value_added_dao.billing_amount = period_dao.billing_amount
-        result, dict_input_value = g.my_db.summary_input_added_tax_by_month(period_dao.company_id, period_dao.create_time)
-        if result is True and dict_input_value is not None:
-            value = float(dict_input_value.get('total_added_tax', 0.0))
-            value_added_dao.opened_input_tax = value
-        result, dict_output_value = g.my_db.summary_output_added_tax_by_month(period_dao.company_id, period_dao.create_time)
-        if result is True and dict_output_value is not None:
-            value1 = float(dict_output_value.get('total_added_tax', 0.0))
-            value_added_dao.opened_output_tax = value1
-            value2 = float(dict_output_value.get('total_invoice_money', 0.0))
-            value_added_dao.opened_billing_amount = value2
-        value_added_dao.payable_tax = value_added_dao.opened_output_tax + value_added_dao.to_open_output_tax - value_added_dao.opened_input_tax - value_added_dao.to_open_input_tax - value_added_dao.last_month_stay_pay - value_added_dao.last_month_no_verify
-        value_added_dao.sales_amount = value_added_dao.payable_tax * 1.06 / 0.06
-        value_added_dao.remaining_billing_amount = value_added_dao.billing_amount - value_added_dao.opened_billing_amount
-        summary_dao_list.append(value_added_dao)
-    return summary_dao_list
+# def summary_value_added(company_id: str, record_month: str) -> Optional[list[ValueAddedDao]|None]:
+#     result, list_period = g.my_db.query_all_period_data(company_id, record_month)
+#     if result is False:
+#         ui.notify('查询期初数据失败，无法进行增值税汇总')
+#         return None
+#     if list_period is None or len(list_period) == 0:
+#         ui.notify('没有查询到期初数据，无法进行增值税汇总')
+#         return None
+#     summary_dao_list : list[ValueAddedDao] = []
+#     for item in list_period:
+#         period_dao = PeriodDataDao()
+#         period_dao.from_db(item)
+#         #查询公司信息，判断公司是否小规模，如果小规模，则不进行增值税汇总
+#         result, company_dao = g.my_db.query_company_by_id(period_dao.company_id)
+#         if result is True and company_dao is not None:
+#             if company_dao.is_small_scale():
+#                 continue
+#         value_added_dao = ValueAddedDao()
+#         value_added_dao.company_id = period_dao.company_id
+#         value_added_dao.create_time = period_dao.create_time
+#         result, list_value = g.my_db.query_all_value_added(period_dao.company_id, period_dao.create_time)
+#         if result is True and list_value is not None and len(list_value) > 0:
+#             value_added_dao.from_db(list_value[0])
+#         value_added_dao.last_month_no_verify = period_dao.last_month_no_verify
+#         value_added_dao.last_month_stay_pay = period_dao.last_month_stay_pay
+#         value_added_dao.billing_amount = period_dao.billing_amount
+#         result, dict_input_value = g.my_db.summary_input_added_tax_by_month(period_dao.company_id, period_dao.create_time)
+#         if result is True and dict_input_value is not None:
+#             value = float(dict_input_value.get('total_added_tax', 0.0))
+#             value_added_dao.opened_input_tax = value
+#         result, dict_output_value = g.my_db.summary_output_added_tax_by_month(period_dao.company_id, period_dao.create_time)
+#         if result is True and dict_output_value is not None:
+#             value1 = float(dict_output_value.get('total_added_tax', 0.0))
+#             value_added_dao.opened_output_tax = value1
+#             value2 = float(dict_output_value.get('total_invoice_money', 0.0))
+#             value_added_dao.opened_billing_amount = value2
+#         value_added_dao.payable_tax = value_added_dao.opened_output_tax + value_added_dao.to_open_output_tax - value_added_dao.opened_input_tax - value_added_dao.to_open_input_tax - value_added_dao.last_month_stay_pay - value_added_dao.last_month_no_verify
+#         value_added_dao.sales_amount = value_added_dao.payable_tax * 1.06 / 0.06
+#         value_added_dao.remaining_billing_amount = value_added_dao.billing_amount - value_added_dao.opened_billing_amount
+#         summary_dao_list.append(value_added_dao)
+#     return summary_dao_list
