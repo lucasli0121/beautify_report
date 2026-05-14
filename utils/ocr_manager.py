@@ -85,6 +85,9 @@ class OcrManager:
                 res, values_list = g.my_db.query_all_period_data(dao.company_id, the_month)
                 if not res or values_list is None or len(values_list) == 0:
                     dao.create_time = the_month
+                    dao.last_month_no_verify = -1
+                    dao.last_month_stay_pay = -1
+                    dao.billing_amount = -1
                     g.my_db.add_period_data(dao.to_db())
                 g.my_db.handle_summary_value_added_update(dao.company_id, the_month)
         self.read_company_names(file_path, read_company_values)

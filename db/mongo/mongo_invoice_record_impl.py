@@ -276,6 +276,42 @@ class MongoInvoiceRecordImpl():
                 'total_invoice_money': 0.0
             }
         summary = value[0]
+        # 查询当月的红字发票，并且其 blue_invoice_number 对应的蓝字发票不属于当月
+        red_invoice_pipeline = [
+            {
+                '$match': {
+                    'from_company_id': company_id,
+                    'is_red': 1,
+                    # 'invoice_type': 1, # 销项发票 销售出去的票都要统计
+                    '$expr': {
+                        '$eq': [{'$substrBytes': ['$invoice_time', 0, 7]}, record_month]
+                    }
+                }
+            },
+            {
+                '$lookup': {
+                    'from': tbl_name.name,
+                    'localField': 'blue_invoice_number',
+                    'foreignField': 'invoice_number',
+                    'as': 'blue_invoice_docs'
+                }
+            },
+            {'$unwind': '$blue_invoice_docs'},
+            {
+                '$match': {
+                    '$expr': {
+                        '$ne': [{'$substrBytes': ['$blue_invoice_docs.invoice_time', 0, 7]}, record_month]
+                    }
+                }
+            }
+        ]
+        red_invoice_list = list(tbl_name.aggregate(red_invoice_pipeline))
+        if red_invoice_list and len(red_invoice_list) > 0:
+            # 如果存在这样的红字发票，则需要将其金额从当月的销项增值税中扣除
+            for red_invoice in red_invoice_list:
+                summary['total_added_tax'] -= red_invoice.get('added_tax', 0.0)
+                summary['total_before_tax_money'] -= red_invoice.get('before_tax_money', 0.0)
+                summary['total_invoice_money'] -= red_invoice.get('invoice_money', 0.0)
         return True, {
             'total_added_tax': summary.get('total_added_tax', 0.0),
             'total_before_tax_money': summary.get('total_before_tax_money', 0.0),
