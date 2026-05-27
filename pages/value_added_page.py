@@ -503,7 +503,7 @@ async def del_by_ids(ids: list[str]) -> None:
     if ids is None or len(ids) == 0:
         ui.notify('请选择要删除的记录')
         return
-    async def make_delete():
+    def make_delete():
         delok = True
         for id in ids:
             if id is None or len(id) == 0:

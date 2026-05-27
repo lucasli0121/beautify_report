@@ -107,9 +107,9 @@ async def show_invoice_record_page():
             
     table_rows: list[dict] = []
     app.storage.client['invoice_record_table'] = tables.show_open_invoice_table(table_rows, show_edit, delete_one)
-    await on_search()
+    on_search()
 
-async def on_search() -> None:
+def on_search() -> None:
     if 'invoice_record_table' not in app.storage.client:
         return
     app.storage.client['invoice_record_table'].rows.clear()
@@ -158,7 +158,7 @@ async def on_search() -> None:
                 sn += 1
         return True, rows, ""
     refresh_dialog = g.show_refresh_process("刷新，请稍候")
-    success, rows, message = await run.io_bound(do_search)
+    success, rows, message = do_search()
     if not success:
         refresh_dialog.close()
         ui.notify(message or '查询开票记录失败')
@@ -309,7 +309,7 @@ def read_pdf_from_upload(handle_upload: Callable) -> None:
             refresh_recognizing_list()
         elif event_obj.result in (RecognizeResult.Success.value, RecognizeResult.Failed.value):
             refresh_recognizing_list()
-            await on_search()
+            on_search()
     g.ocr_mgr.subscribe(on_event)
     uf.open_ocr_invoice_dialog()
 
@@ -775,7 +775,7 @@ def modify_or_add_invoice(dao: InvoiceRecordDao, is_add: bool = True):
                         # 更新服务记录的开票金额
                         # g.update_contract_invoice_money(dao.contract_id, dao.before_tax_money)
                         ui.notify('添加开票信息成功')
-                        await on_search()
+                        on_search()
                     else:
                         ui.notify('添加开票信息失败')
                 else:
@@ -788,7 +788,7 @@ def modify_or_add_invoice(dao: InvoiceRecordDao, is_add: bool = True):
                     #     gap_money = dao.before_tax_money - old_before_tax_money
                     #     g.update_contract_invoice_money(dao.contract_id, gap_money)
                     ui.notify('修改开票信息成功')
-                    await on_search()
+                    on_search()
                 dialog.close()
             ui.button('确定', color=None, on_click=on_create) \
                 .props('flat') \
@@ -826,7 +826,7 @@ async def del_by_ids(ids: list[str]) -> None:
     if ids is None or len(ids) == 0:
         ui.notify('请选择要删除的开票记录')
         return
-    async def make_delete():
+    def make_delete():
         delok = True
         for id in ids:
             if id is None or len(id) == 0:
@@ -838,7 +838,7 @@ async def del_by_ids(ids: list[str]) -> None:
                 return
         if delok is True:
             ui.notify('删除开票记录成功')
-            await on_search()
+            on_search()
 
     dialogs.make_sure_dialog('确认要进行删除操作?', on_ok=make_delete)
     
