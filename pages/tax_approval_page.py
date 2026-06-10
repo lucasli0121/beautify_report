@@ -124,17 +124,22 @@ async def on_search() -> None:
             return False, rows, '查询完税证明失败'
         if list_values is None or len(list_values) == 0:
             return True, rows, '没有查询到完税证明信息'
+        # 批量查询公司信息，避免循环内单次查询
+        company_ids = [str(item.get('company_id', '')) for item in list_values if item.get('company_id')]
+        companies: dict[str, CompanyDao] = {}
+        if company_ids:
+            result_c, company_dict = g.my_db.query_companies_by_ids(company_ids)
+            if result_c and company_dict is not None:
+                companies = company_dict
+
         sn = 1
         for item in list_values:
             row_dict: dict[str, Any] = {}
             row_dict['sn'] = sn
             dao = TaxApprovalDao()
             dao.from_db(item)
-            res, company_dao = g.my_db.query_company_by_id(dao.company_id)
-            if res and company_dao is not None:
-                row_dict['company_name'] = company_dao.brief_name
-            else:
-                row_dict['company_name'] = '未知公司'
+            company = companies.get(dao.company_id)
+            row_dict['company_name'] = company.brief_name if company is not None else '未知公司'
             row_dict.update(dao.to_db())
             rows.append(row_dict)
             sn += 1
@@ -286,7 +291,8 @@ def modify_or_new(tax_dao: TaxApprovalDao, is_add: bool) -> None:
         with ui.row().classes('w-full place-content-start items-center'):
             ui.label('填表日期').classes('w-[25%] text-[16px] text-[#333333] font-medium')
             def on_create_time_change() -> None:
-                tax_dao.create_time = create_time_input.value
+                val = create_time_input.value or ''
+                tax_dao.create_time = val
             create_time_input = inputs.date_input_w40('填表日期', on_create_time_change)
             if not is_add:
                 create_time_input.value = tax_dao.create_time
@@ -345,7 +351,8 @@ def modify_or_new(tax_dao: TaxApprovalDao, is_add: bool) -> None:
         with ui.row().classes('w-full place-content-start items-center'):
             ui.label('入(退)库日期').classes('w-[25%] text-[16px] text-[#333333] font-medium')
             def on_entry_time_change() -> None:
-                tax_dao.entry_date = entry_time_input.value
+                val = entry_time_input.value or ''
+                tax_dao.entry_date = val
             entry_time_input = inputs.date_input_w40('入(退)库日期', on_entry_time_change)
             if not is_add:
                 entry_time_input.value = tax_dao.entry_date

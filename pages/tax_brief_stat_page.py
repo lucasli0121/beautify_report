@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from nicegui import ui,events, app, run
 from components import inputs, tables,cards
-from typing import Optional
+from typing import Optional, Any
 import pandas as pd
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import Alignment
@@ -34,21 +34,70 @@ async def show_tax_brief_stat_page():
         .style('height: calc(100dvh - 80px); background-color: #FFFFFF !important; border-radius: 10px;'):
         with ui.scroll_area().classes('w-full h-full flex-1') \
             .style('background-color: #FFFFFF !important; border-radius: 10px; overflow-x: auto;'):
-            app.storage.client['tax_brief_grid'] = ui.grid(columns=out_grid_columns).classes('w-full h-full gap-0 items-center')\
-                .style('grid-template-columns: repeat(80,60px)')
-    await on_search()
+                app.storage.client['tax_brief_grid'] = ui.grid(columns=out_grid_columns).classes('w-full h-full gap-0 items-center')\
+                    .style('grid-template-columns: repeat(80,60px)')
+        # 初始化分页状态（按公司分页）
+        app.storage.client.setdefault('tax_brief_paging', {'page': 1, 'page_size': 20, 'total': 0})
+        with ui.row().classes('w-full items-center justify-center gap-2 mt-2'):
+            async def go_first(*_) -> None:
+                await on_search(1)
+
+            async def go_prev(*_) -> None:
+                await on_search(max(1, app.storage.client['tax_brief_paging']['page'] - 1))
+
+            async def go_next(*_) -> None:
+                await on_search(app.storage.client['tax_brief_paging']['page'] + 1)
+
+            async def go_last(*_) -> None:
+                p = app.storage.client['tax_brief_paging']
+                last_page = max(1, (p.get('total', 0) + p.get('page_size', 20) - 1) // p.get('page_size', 20))
+                await on_search(last_page)
+
+            first_btn = ui.button('首页', on_click=go_first)
+            prev_btn = ui.button('上一页', on_click=go_prev)
+            app.storage.client['tax_brief_page_label'] = ui.label('')
+            next_btn = ui.button('下一页', on_click=go_next)
+            last_btn = ui.button('尾页', on_click=go_last)
+            app.storage.client['tax_brief_first_btn'] = first_btn
+            app.storage.client['tax_brief_prev_btn'] = prev_btn
+            app.storage.client['tax_brief_next_btn'] = next_btn
+            app.storage.client['tax_brief_last_btn'] = last_btn
+
+        await on_search()
                         
             
 
-async def on_search() -> None:
+async def on_search(page: int = 1) -> None:
     if 'tax_brief_grid' not in app.storage.client:
         return
     app.storage.client['tax_brief_grid'].clear()
     app.storage.client['tax_brief_rows'] = []
+    paging = app.storage.client.setdefault('tax_brief_paging', {'page': 1, 'page_size': 20, 'total': 0})
+    try:
+        page = int(page)
+    except Exception:
+        page = 1
+    if page < 1:
+        page = 1
+    paging['page'] = page
+
     result, company_info = g.query_company_name_company()
     if result is False:
         ui.notify('查询公司信息失败')
         return
+    # 按内部公司筛选并分页
+    company_list = [c for c in company_info.values() if c.brief_name and len(c.brief_name) > 0 and c.type == 1]
+    total = len(company_list)
+    page_size = paging.get('page_size', 20)
+    total_pages = (total + page_size - 1) // page_size if page_size > 0 else 1
+    total_pages = max(1, total_pages)
+    if page > total_pages:
+        page = total_pages
+        paging['page'] = page
+    paging['total'] = total
+    start_idx = (page - 1) * page_size
+    end_idx = start_idx + page_size
+    page_companies = company_list[start_idx:end_idx]
     with app.storage.client['tax_brief_grid']:
         ui.label('').classes('col-span-2 text-lx font-bold')
         ui.label('年度合计').classes('col-span-6 flex justify-center text-lx font-bold border p-1 border-gray-300')
@@ -64,12 +113,7 @@ async def on_search() -> None:
             ui.label('合计').classes('text-sm flex justify-center font-normal border-r border-b p-1 border-gray-300')
         def do_search() -> tuple[bool, list[dict], str]:
             rows = []
-            for company in company_info.values():
-                if company.brief_name is None or len(company.brief_name) == 0:
-                    continue
-                if company.type != 1: # 只统计内部公司
-                    continue
-                company_dict = {company.brief_name:{}}
+            for company in page_companies:
                 year_dict = {'year_tax_value': 0.0, 'year_attach_value': 0.0, 'year_stamp_value': 0.0, 'year_income_value': 0.0, 'year_other_value': 0.0, 'year_total_value': 0.0}
                 month_dict = {}
                 for i in range(1, 13):
@@ -79,7 +123,6 @@ async def on_search() -> None:
                         for tax_value in tax_values:
                             dao = TaxApprovalDao()
                             dao.from_db(tax_value)
-                            
                             match dao.tax_type:
                                 case '增值税':
                                     month_dict[f'{i}']['month_tax_value'] += dao.paid_in_money
@@ -105,8 +148,7 @@ async def on_search() -> None:
                 values = {'company': company, 'year_dict': year_dict}
                 for i in range(1, 13):
                     values[f'month_dict_{i}'] = month_dict[f'{i}']
-                company_dict[company.brief_name] = values
-                rows.append(company_dict)
+                rows.append({company.brief_name: values})
             return True, rows, ''
             
         refresh_dialog = g.show_refresh_process("统计中，请稍候")
@@ -155,7 +197,15 @@ async def on_search() -> None:
 
                     row_values.extend([month_dict['month_tax_value'], month_dict['month_attach_value'], month_dict['month_stamp_value'], month_dict['month_income_value'], month_dict['month_other_value'], month_dict['month_total_value']])
                 app.storage.client['tax_brief_rows'].append(row_values)
-
+    # 更新分页显示与按钮状态
+    paging['total'] = total
+    total_pages = (total + page_size - 1) // page_size if page_size > 0 else 1
+    total_pages = max(1, total_pages)
+    app.storage.client['tax_brief_page_label'].set_text(f"第 {page} / {total_pages} 页，共 {total} 条")
+    app.storage.client['tax_brief_first_btn'].disabled = (page <= 1)
+    app.storage.client['tax_brief_prev_btn'].disabled = (page <= 1)
+    app.storage.client['tax_brief_next_btn'].disabled = (page >= total_pages)
+    app.storage.client['tax_brief_last_btn'].disabled = (page >= total_pages)
 def export_tax_brief():
     if 'tax_brief_rows' not in app.storage.client or len(app.storage.client['tax_brief_rows']) == 0:
         ui.notify('没有数据可导出')
