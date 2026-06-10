@@ -168,6 +168,38 @@ class MongoCompanyImpl():
         except Exception as e:
             self.logger.error(f"查询公司信息失败: {e}")
             return False, None
+
+    def query_companies_by_ids(self, ids: list[str]) -> tuple[bool, dict[str, CompanyDao]|None]:
+        """
+        批量根据公司ID列表查询公司信息并返回映射。
+
+        参数:
+        - ids: 公司ID字符串列表（数据库中为ObjectId字符串）。
+
+        返回:
+        - (True, dict) 成功时返回字典，key为公司ID字符串，value为对应的 `CompanyDao` 对象。
+        - (False, None) 发生错误时返回。
+        """
+        try:
+            tbl_name = self.company_tbl()
+            if tbl_name is None:
+                self.logger.error("Company table not found in MongoDB.")
+                return False, None
+            if not ids:
+                return True, {}
+            object_ids = [ObjectId(id_str) for id_str in ids if id_str]
+            if not object_ids:
+                return True, {}
+            results = list(tbl_name.find({'_id': {'$in': object_ids}}))
+            companies: dict[str, CompanyDao] = {}
+            for result in results:
+                company_dao = CompanyDao()
+                company_dao.from_db(result)
+                companies[company_dao.id] = company_dao
+            return True, companies
+        except Exception as e:
+            self.logger.error(f"批量查询公司信息失败: {e}")
+            return False, None
         
     def query_company_by_brief_name(self, brief_name: str) -> tuple[bool, CompanyDao|None]:
         try:

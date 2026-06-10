@@ -127,6 +127,23 @@ class MyDb:
                 return MongoCompanyImpl(self.mongo).query_company_by_id(id)
         self.logger.error("No database implementation available for querying company by id.")
         return False, None
+
+    def query_companies_by_ids(self, ids: list[str]) -> tuple[bool, dict[str, CompanyDao]|None]:
+        """
+        批量根据公司ID列表查询公司信息（Facade wrapper）。
+
+        该方法在 MyDb 层根据配置选择底层实现（Mongo 或 MySQL），
+        并调用对应实现的 `query_companies_by_ids`。
+
+        返回与底层实现一致的 (success, mapping|None)。
+        """
+        if self.mysql is not None:
+            return False, None
+        else:
+            if self.mongo is not None:
+                return MongoCompanyImpl(self.mongo).query_companies_by_ids(ids)
+        self.logger.error("No database implementation available for querying companies by ids.")
+        return False, None
     
     def query_company_by_brief_name(self, brief_name: str) -> tuple[bool, CompanyDao|None]:
         if self.mysql is not None:
@@ -258,12 +275,18 @@ class MyDb:
         self.logger.error("No database implementation available for querying invoice record.")
         return False, None
     
-    def query_all_invoice_record(self, from_company_id: str, to_company_id: str, invoice_content: str, invoice_number: str, status: int, begin_time: str, end_time: str) -> tuple[bool, Any|None]:
+    def query_all_invoice_record(self, from_company_id: str, to_company_id: str, invoice_content: str, invoice_number: str, status: int, begin_time: str, end_time: str, page: int = 1, page_size: int = 10) -> tuple[bool, Any|None]:
+        """
+        查询开票记录（带分页支持）的 Facade 方法。
+
+        - 参数 `page` 和 `page_size` 会被传递到底层实现，期望返回 {'total','rows'} 或直接列表。
+        - 该封装根据配置选择 Mongo 或 MySQL 实现并调用相应方法。
+        """
         if self.mysql is not None:
             return False, None
         else:
             if self.mongo is not None:
-                return MongoInvoiceRecordImpl(self.mongo).query_all(from_company_id, to_company_id, invoice_content, invoice_number, status, begin_time, end_time)
+                return MongoInvoiceRecordImpl(self.mongo).query_all(from_company_id, to_company_id, invoice_content, invoice_number, status, begin_time, end_time, page, page_size)
         self.logger.error("No database implementation available for querying invoice record.")
         return False, None
     def query_invoice_record_by_from_and_year(self, from_company_id: str, invoice_year: str) -> tuple[bool, Any|None]:
@@ -314,12 +337,17 @@ class MyDb:
                 return MongoInvoiceAlarmImpl(self.mongo).add(d)
         self.logger.error("No database implementation available for adding invoice alarm.")
         return False, None
-    def query_all_invoice_alarm(self, company_id: str, invoice_year: str) -> tuple[bool, Any|None]:
+    def query_all_invoice_alarm(self, company_id: str, invoice_year: str, page: int = 1, page_size: int = 10) -> tuple[bool, Any|None]:
+        """
+        查询开票预警（支持分页）的 Facade 方法。
+
+        返回与底层实现一致的 (success, {'total', 'rows'}|None) 或 (False, None) 表示失败。
+        """
         if self.mysql is not None:
             return False, None
         else:
             if self.mongo is not None:
-                return MongoInvoiceAlarmImpl(self.mongo).query_all(company_id, invoice_year)
+                return MongoInvoiceAlarmImpl(self.mongo).query_all(company_id, invoice_year, page, page_size)
         self.logger.error("No database implementation available for querying invoice alarm.")
         return False, None
     """
@@ -440,6 +468,15 @@ class MyDb:
             if self.mongo is not None:
                 return MongoServiceRecordImpl(self.mongo).query_by_id(id)
         self.logger.error("No database implementation available for querying service record by id.")
+        return False, None
+
+    def query_service_records_by_ids(self, ids: list[str]) -> tuple[bool, dict[str, ServiceRecordDao]|None]:
+        if self.mysql is not None:
+            return False, None
+        else:
+            if self.mongo is not None:
+                return MongoServiceRecordImpl(self.mongo).query_service_records_by_ids(ids)
+        self.logger.error("No database implementation available for querying service records by ids.")
         return False, None
     def delete_service_record(self, id: str) -> bool:
         if self.mysql is not None:

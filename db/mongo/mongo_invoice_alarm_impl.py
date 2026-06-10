@@ -57,7 +57,7 @@ class MongoInvoiceAlarmImpl():
     :param condition: 查询条件，例如 "id = 1"
     :return: 查询结果列表，每个元素是一个字典，包含公司信息
     """
-    def query_all(self, company_id: str, invoice_year: str) -> tuple[bool, Any|None]:
+    def query_all(self, company_id: str, invoice_year: str, page: int = 1, page_size: int = 10) -> tuple[bool, Any|None]:
         tbl_name = self.invoice_alarm_tbl()
         if tbl_name is None:
             self.logger.error("invoice table not found in MongoDB.")
@@ -67,8 +67,23 @@ class MongoInvoiceAlarmImpl():
             query['company_id'] = {'$eq': company_id}
         if invoice_year and len(invoice_year) > 0:
             query['invoice_year'] = {'$eq': invoice_year}
-        # 执行查询
-        return self.mongo_impl.query_by_condition(tbl_name, query, None)
+        try:
+            page = max(1, int(page))
+        except Exception:
+            page = 1
+        try:
+            page_size = max(1, int(page_size))
+        except Exception:
+            page_size = 10
+        skip = (page - 1) * page_size
+        try:
+            cursor = tbl_name.find(query).sort('create_time', -1).skip(skip).limit(page_size)
+            results = list(cursor)
+            total = tbl_name.count_documents(query)
+            return True, {'total': total, 'rows': results}
+        except Exception as e:
+            self.logger.error(f"分页查询开票预警失败: {e}")
+            return False, None
     
     
     """

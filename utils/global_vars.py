@@ -4,10 +4,10 @@ from nicegui import app, ui,run
 from dao.company_dao import CompanyDao
 from dao.recognize_info_dao import RecognizeInfoDao
 from dao.service_record_dao import ServiceRecordDao, ServiceStatus
-from utils import ocr_manager as ocr_mgr
+from utils.ocr_manager import OcrManager
 from db.mydb import MyDb
 my_db = MyDb()
-ocr_mgr = ocr_mgr.OcrManager()
+ocr_mgr: OcrManager = OcrManager()
 
 def validate_input_float(value, input_component:ui.input) -> None:
     if value is None or len(str(value).strip()) == 0:

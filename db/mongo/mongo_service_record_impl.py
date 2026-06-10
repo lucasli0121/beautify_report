@@ -101,6 +101,38 @@ class MongoServiceRecordImpl():
         dao = ServiceRecordDao()
         dao.from_db(value[0])
         return True, dao
+
+    def query_service_records_by_ids(self, ids: list[str]) -> tuple[bool, dict[str, ServiceRecordDao]|None]:
+        """
+        批量根据服务/合同ID列表查询服务记录并返回映射。
+
+        参数:
+        - ids: 服务记录的ID字符串列表。
+
+        返回:
+        - (True, dict) 成功时返回字典，key为服务记录ID字符串，value为 `ServiceRecordDao` 对象。
+        - (False, None) 发生异常时返回。
+        """
+        tbl_name = self.service_record_tbl()
+        if tbl_name is None:
+            self.logger.error("Company table not found in MongoDB.")
+            return False, None
+        if not ids:
+            return True, {}
+        object_ids = [ObjectId(id_str) for id_str in ids if id_str]
+        if not object_ids:
+            return True, {}
+        try:
+            results = list(tbl_name.find({'_id': {'$in': object_ids}}))
+            services: dict[str, ServiceRecordDao] = {}
+            for result in results:
+                dao = ServiceRecordDao()
+                dao.from_db(result)
+                services[dao.id] = dao
+            return True, services
+        except Exception as e:
+            self.logger.error(f"批量查询服务记录失败: {e}")
+            return False, None
     """
     function:
     description: 删除信息

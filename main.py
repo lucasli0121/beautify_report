@@ -16,7 +16,7 @@ from nicegui import ui,app
 from resources import strings
 import logging
 import logging.config
-import yaml
+import yaml  # type: ignore[import]
 from utils import global_vars as g
 from pages import main_page, login_page
 

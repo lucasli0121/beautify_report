@@ -690,6 +690,18 @@ def show_value_added_table(datas, show_edit, show_delete) -> ui.table:
 # @param {list} datas 数据列表
 #
 def show_open_invoice_alarm_table(datas) -> ui.table:
+    """
+    显示开票预警信息表格（不使用表格内置分页）。
+
+    这里将 `pagination.rowsPerPage` 设置为 0，表示禁用表格自身的分页控件，
+    以便使用页面外部的分页按钮（例如首页/上一页/下一页/尾页）来控制分页。
+
+    参数:
+    - datas: 表格数据列表
+
+    返回:
+    - NiceGUI 表格对象
+    """
     table_columns = [
         {'name': 'id', 'label': 'id', 'field': 'id', 'width': '1%', 'align': 'center'},
         {'name': 'sn', 'label': '序号', 'field': 'sn', 'width': '5%', 'align': 'center', },
@@ -703,7 +715,7 @@ def show_open_invoice_alarm_table(datas) -> ui.table:
         rows=datas,
         selection='multiple',
         row_key='id',
-        pagination={'rowsPerPage': 10, 'sortBy': 'sn', 'page': 1}) \
+        pagination={'rowsPerPage': 0}) \
             .props('table-header-style="color: white; font-size: 16px; background-color: #65B6FF; position: sticky; top: 0px; background: #65B6FF; z-index: 3"  flat no-shadow') \
             .classes('w-full mt-2 gap-0') \
             .style('border: 1px solid #ECECEC; border-radius: 10px 10px 0px 0px; max-width: 100%; height: calc(100vh - 80px - 80px - 40px)') as table:

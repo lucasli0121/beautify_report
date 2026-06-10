@@ -30,6 +30,14 @@ class SearchCondition:
 search_condition = SearchCondition()
 
 async def show_invoice_record_page():
+    """
+    显示开票记录页面 UI。
+
+    该函数负责构建查询表单、操作按钮（刷新、删除、导出等）和记录表格。
+    - 初始化 `app.storage.client['invoice_record_paging']` 分页状态。
+    - 创建表格并在上方放置翻页控件（上一页/下一页）。
+    - 发起首次查询 `on_search()` 填充表格。
+    """
     result, company_info = g.query_company_name_company()
     if result is False:
         ui.notify('查询公司信息失败')
@@ -107,13 +115,65 @@ async def show_invoice_record_page():
             
     table_rows: list[dict] = []
     app.storage.client['invoice_record_table'] = tables.show_open_invoice_table(table_rows, show_edit, delete_one)
-    on_search()
+    # 初始化分页状态
+    app.storage.client.setdefault('invoice_record_paging', {'page': 1, 'page_size': 10, 'total': 0})
+    # 分页控件-放在表格下方，使用外部分页按钮控制页面翻页
+    async def go_first(*_) -> None:
+        await on_search(1)
 
-def on_search() -> None:
+    async def go_prev(*_) -> None:
+        await on_search(max(1, app.storage.client['invoice_record_paging']['page'] - 1))
+
+    async def go_next(*_) -> None:
+        await on_search(app.storage.client['invoice_record_paging']['page'] + 1)
+
+    async def go_last(*_) -> None:
+        last_page = max(1, (app.storage.client['invoice_record_paging']['total'] + app.storage.client['invoice_record_paging']['page_size'] - 1) // app.storage.client['invoice_record_paging']['page_size'])
+        await on_search(last_page)
+
+    with ui.row().classes('w-full items-center justify-center gap-2'):
+        first_btn = ui.button('首页', on_click=go_first)
+        prev_btn = ui.button('上一页', on_click=go_prev)
+        page_label = ui.label('')
+        next_btn = ui.button('下一页', on_click=go_next)
+        last_btn = ui.button('尾页', on_click=go_last)
+        app.storage.client['invoice_record_first_btn'] = first_btn
+        app.storage.client['invoice_record_prev_btn'] = prev_btn
+        app.storage.client['invoice_record_next_btn'] = next_btn
+        app.storage.client['invoice_record_last_btn'] = last_btn
+        app.storage.client['invoice_record_page_label'] = page_label
+
+    await on_search()
+
+async def on_search(page: int = 1) -> None:
+    """
+    查询开票记录并更新表格与分页状态（异步函数）。
+
+    参数:
+    - page: 要查询的页码（从1开始）。
+
+    行为:
+    - 读取并更新 `app.storage.client['invoice_record_paging']`。
+    - 调用 `g.my_db.query_all_invoice_record(...)` 执行服务器端分页查询，返回 `{'total','rows'}`。
+    - 收集当前页所有涉及的公司ID与合同ID，使用 `g.my_db.query_companies_by_ids` 与 `g.my_db.query_service_records_by_ids` 批量查询，避免每行单独查询（优化N+1问题）。
+    - 更新表格数据、分页显示与翻页按钮可用状态。
+    """
     if 'invoice_record_table' not in app.storage.client:
         return
+    # 同步分页状态
+    paging = app.storage.client.setdefault('invoice_record_paging', {'page': 1, 'page_size': 10, 'total': 0})
+    try:
+        page = int(page)
+    except Exception:
+        page = 1
+    if page < 1:
+        page = 1
+    paging['page'] = page
+    page_size = paging.get('page_size', 10)
+
     app.storage.client['invoice_record_table'].rows.clear()
-    def do_search() -> tuple[bool, list[dict], str]:
+
+    def do_search() -> tuple[bool, list[dict], str, int]:
         rows: list[dict] = []
         end_date = datetime.strptime(search_condition.end_time, '%Y-%m-%d')
         end_date = end_date + pd.Timedelta(days=1)
@@ -124,48 +184,97 @@ def on_search() -> None:
             search_condition.invoice_number,
             search_condition.status,
             search_condition.begin_time,
-            end_date.strftime('%Y-%m-%d'))
+            end_date.strftime('%Y-%m-%d'),
+            page,
+            page_size)
         if result is False:
-            return False, rows, '查询开票记录失败'
-        if list_values is not None:
-            sn = 1
-            for item in list_values:
-                invoice_record = InvoiceRecordDao()
-                invoice_record.from_db(item)
-                row_dict: dict[str, Any] = {}
-                row_dict['sn'] = sn
-                row_dict.update(invoice_record.to_db())
-                result, company_dao = g.my_db.query_company_by_id(invoice_record.from_company_id)
-                if result and company_dao is not None:
-                    from_company_name = company_dao.brief_name
-                else:
-                    from_company_name = '未知开票方'
-                row_dict['from_company_name'] = from_company_name
-                result, to_company_dao = g.my_db.query_company_by_id(invoice_record.to_company_id)
-                if result and to_company_dao is not None:
-                    row_dict['to_company_name'] = to_company_dao.brief_name
-                else:
-                    row_dict['to_company_name'] = '未知受票方'
-                result, service_dao = g.my_db.query_service_record_by_id(invoice_record.contract_id)
-                if result and service_dao is not None:
-                    row_dict['contract_name'] = service_dao.contract_name
-                else:
-                    row_dict['contract_name'] = '无'
-                row_dict['before_tax_money'] = '{:,.2f}'.format(invoice_record.before_tax_money)
-                row_dict['added_tax'] = '{:,.2f}'.format(invoice_record.added_tax)
-                row_dict['invoice_money'] = '{:,.2f}'.format(invoice_record.invoice_money)
-                rows.append(row_dict)
-                sn += 1
-        return True, rows, ""
+            return False, rows, '查询开票记录失败', 0
+        total = 0
+        data_list: list[dict[str, Any]]
+        if list_values is None:
+            data_list = []
+        elif isinstance(list_values, dict):
+            total = int(list_values.get('total', 0))
+            data_list = list_values.get('rows', []) or []
+        else:
+            # 兼容旧返回值
+            data_list = list_values
+            total = len(data_list)
+
+        from_company_ids = {str(item.get('from_company_id', '')) for item in data_list if item.get('from_company_id')}
+        to_company_ids = {str(item.get('to_company_id', '')) for item in data_list if item.get('to_company_id')}
+        contract_ids = {str(item.get('contract_id', '')) for item in data_list if item.get('contract_id')}
+
+        company_ids = list(from_company_ids | to_company_ids)
+        service_ids = list(contract_ids)
+
+        companies: dict[str, CompanyDao] = {}
+        services: dict[str, ServiceRecordDao] = {}
+        if company_ids:
+            result, company_dict = g.my_db.query_companies_by_ids(company_ids)
+            if result and company_dict is not None:
+                companies = company_dict
+        if service_ids:
+            result, service_dict = g.my_db.query_service_records_by_ids(service_ids)
+            if result and service_dict is not None:
+                services = service_dict
+
+        sn = (page - 1) * page_size + 1
+        for item in data_list:
+            invoice_record = InvoiceRecordDao()
+            invoice_record.from_db(item)
+            row_dict: dict[str, Any] = {}
+            row_dict['sn'] = sn
+            row_dict.update(invoice_record.to_db())
+            from_company_name = '未知开票方'
+            to_company_name = '未知受票方'
+            contract_name = '无'
+            if invoice_record.from_company_id in companies:
+                from_company_name = companies[invoice_record.from_company_id].brief_name
+            if invoice_record.to_company_id in companies:
+                to_company_name = companies[invoice_record.to_company_id].brief_name
+            if invoice_record.contract_id in services:
+                contract_name = services[invoice_record.contract_id].contract_name
+            row_dict['from_company_name'] = from_company_name
+            row_dict['to_company_name'] = to_company_name
+            row_dict['contract_name'] = contract_name
+            row_dict['before_tax_money'] = '{:,.2f}'.format(invoice_record.before_tax_money)
+            row_dict['added_tax'] = '{:,.2f}'.format(invoice_record.added_tax)
+            row_dict['invoice_money'] = '{:,.2f}'.format(invoice_record.invoice_money)
+            rows.append(row_dict)
+            sn += 1
+        return True, rows, "", total
+
     refresh_dialog = g.show_refresh_process("刷新，请稍候")
-    success, rows, message = do_search()
+    success, rows, message, total = await run.io_bound(do_search)
     if not success:
         refresh_dialog.close()
         ui.notify(message or '查询开票记录失败')
         return
+    refresh_dialog.close()
+    total_pages = (total + page_size - 1) // page_size if page_size > 0 else 1
+    total_pages = max(1, total_pages)
+    if page > total_pages:
+        page = total_pages
+        paging['page'] = page
+        refresh_dialog = g.show_refresh_process("刷新，请稍候")
+        success, rows, message, total = await run.io_bound(do_search)
+        refresh_dialog.close()
+        if not success:
+            ui.notify(message or '查询开票记录失败')
+            return
     app.storage.client['invoice_record_table'].rows = rows
     app.storage.client['invoice_record_table'].update()
-    refresh_dialog.close()
+    # 更新分页信息
+    paging['total'] = total
+    total_pages = (total + page_size - 1) // page_size if page_size > 0 else 1
+    total_pages = max(1, total_pages)
+    app.storage.client['invoice_record_page_label'].set_text(f"第 {page} / {total_pages} 页，共 {total} 条")
+    # 更新按钮可用状态
+    app.storage.client['invoice_record_first_btn'].disabled = (page <= 1)
+    app.storage.client['invoice_record_prev_btn'].disabled = (page <= 1)
+    app.storage.client['invoice_record_next_btn'].disabled = (page >= total_pages)
+    app.storage.client['invoice_record_last_btn'].disabled = (page >= total_pages)
     
 
 def refresh_recognizing_list():
@@ -309,7 +418,7 @@ def read_pdf_from_upload(handle_upload: Callable) -> None:
             refresh_recognizing_list()
         elif event_obj.result in (RecognizeResult.Success.value, RecognizeResult.Failed.value):
             refresh_recognizing_list()
-            on_search()
+            await on_search()
     g.ocr_mgr.subscribe(on_event)
     uf.open_ocr_invoice_dialog()
 
@@ -628,7 +737,7 @@ def modify_or_add_invoice(dao: InvoiceRecordDao, is_add: bool = True):
                         try:
                             dao.quantity = int(value)
                             if before_tax_money_input is not None:
-                                before_tax_money_input.set_value(dao.quantity * dao.unit_price)
+                                before_tax_money_input.set_value(str(dao.quantity * dao.unit_price))
                         except ValueError:
                             ui.notify('数量必须是整数')
                             dao.quantity = 0
@@ -636,7 +745,7 @@ def modify_or_add_invoice(dao: InvoiceRecordDao, is_add: bool = True):
                     .props('type="number" step="1" rounded-md outlined dense') \
                     .classes('w-[30%] self-center item-center ') \
                     .on_value_change(on_quantity_change) \
-                    .set_value(dao.quantity)
+                    .set_value(str(dao.quantity))
             with ui.row().classes('w-[49%] place-content-start items-center gap-1'):
                 ui.label('单价').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
                 def on_unit_price_change(e: events.ValueChangeEventArguments) -> None:
@@ -647,7 +756,7 @@ def modify_or_add_invoice(dao: InvoiceRecordDao, is_add: bool = True):
                         try:
                             dao.unit_price = float(value)
                             if before_tax_money_input is not None:
-                                before_tax_money_input.set_value(dao.quantity * dao.unit_price)
+                                before_tax_money_input.set_value(str(dao.quantity * dao.unit_price))
                         except ValueError:
                             ui.notify('单价必须是数字')
                             dao.unit_price = 0.0
@@ -655,7 +764,7 @@ def modify_or_add_invoice(dao: InvoiceRecordDao, is_add: bool = True):
                     .props('type="number" step="0.01" rounded-md outlined dense') \
                     .classes('w-[30%] self-center item-center ') \
                     .on_value_change(on_unit_price_change) \
-                    .set_value(dao.unit_price)
+                    .set_value(str(dao.unit_price))
         with ui.row().classes('w-full place-content-between items-center'):
             with ui.row().classes('w-[49%] place-content-start items-center gap-1'):
                 ui.label('含税额').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
@@ -673,10 +782,10 @@ def modify_or_add_invoice(dao: InvoiceRecordDao, is_add: bool = True):
                                     dao.before_tax_money = gap_invoice_money
                             add_tax = round(dao.before_tax_money / (1 + dao.tax_rate) * dao.tax_rate, 2) if dao.tax_rate else 0
                             if add_tax_input is not None:
-                                add_tax_input.set_value(add_tax)
+                                add_tax_input.set_value(str(add_tax))
                             invoice_money = round(dao.before_tax_money / (1 + dao.tax_rate), 2)
                             if invoice_money_input is not None:
-                                invoice_money_input.set_value(invoice_money)
+                                invoice_money_input.set_value(str(invoice_money))
                         except ValueError:
                             ui.notify('税前额必须是数字')
                             dao.before_tax_money = 0
@@ -684,7 +793,7 @@ def modify_or_add_invoice(dao: InvoiceRecordDao, is_add: bool = True):
                     .props('type="number" step="0.01" rounded-md outlined dense') \
                     .classes('w-[30%] self-center item-center ') \
                     .on_value_change(on_before_tax_change)
-                before_tax_money_input.set_value(dao.before_tax_money)
+                before_tax_money_input.set_value(str(dao.before_tax_money))
                 before_tax_label = ui.label('').classes('w-[40%] text-[14px] text-red font-small self-center')
             with ui.row().classes('w-[49%] place-content-start items-center gap-1'):
                 ui.label('税率').classes('w-[20%] self-right text-[16px] text-[#333333] font-medium')
@@ -701,10 +810,10 @@ def modify_or_add_invoice(dao: InvoiceRecordDao, is_add: bool = True):
                         dao.tax_rate = 0.13
                     add_tax = round(dao.before_tax_money / (1 + dao.tax_rate) * dao.tax_rate, 2) if dao.tax_rate else 0
                     if add_tax_input is not None:
-                        add_tax_input.set_value(add_tax)
+                        add_tax_input.set_value(str(add_tax))
                     invoice_money = round(dao.before_tax_money / (1 + dao.tax_rate), 2)
                     if invoice_money_input is not None:
-                        invoice_money_input.set_value(invoice_money)
+                        invoice_money_input.set_value(str(invoice_money))
                 tax_rate_select = inputs.selection_w40(['1%','3%','6%','9%','13%'], '3%', False, on_change=on_tax_rate_change)
                 if is_add:
                     dao.tax_rate = 0.03  # 默认税率为0.03
@@ -775,7 +884,7 @@ def modify_or_add_invoice(dao: InvoiceRecordDao, is_add: bool = True):
                         # 更新服务记录的开票金额
                         # g.update_contract_invoice_money(dao.contract_id, dao.before_tax_money)
                         ui.notify('添加开票信息成功')
-                        on_search()
+                        await on_search()
                     else:
                         ui.notify('添加开票信息失败')
                 else:
@@ -788,7 +897,7 @@ def modify_or_add_invoice(dao: InvoiceRecordDao, is_add: bool = True):
                     #     gap_money = dao.before_tax_money - old_before_tax_money
                     #     g.update_contract_invoice_money(dao.contract_id, gap_money)
                     ui.notify('修改开票信息成功')
-                    on_search()
+                    await on_search()
                 dialog.close()
             ui.button('确定', color=None, on_click=on_create) \
                 .props('flat') \
@@ -838,7 +947,7 @@ async def del_by_ids(ids: list[str]) -> None:
                 return
         if delok is True:
             ui.notify('删除开票记录成功')
-            on_search()
+            asyncio.create_task(on_search())
 
     dialogs.make_sure_dialog('确认要进行删除操作?', on_ok=make_delete)
     
