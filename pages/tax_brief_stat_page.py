@@ -206,33 +206,81 @@ async def on_search(page: int = 1) -> None:
     app.storage.client['tax_brief_prev_btn'].disabled = (page <= 1)
     app.storage.client['tax_brief_next_btn'].disabled = (page >= total_pages)
     app.storage.client['tax_brief_last_btn'].disabled = (page >= total_pages)
-def export_tax_brief():
-    if 'tax_brief_rows' not in app.storage.client or len(app.storage.client['tax_brief_rows']) == 0:
+async def export_tax_brief():
+    # 重新统计全部公司的数据并导出（不再只导出当前分页）
+    result, company_info = g.query_company_name_company()
+    if result is False:
+        ui.notify('查询公司信息失败')
+        return
+    company_list = [c for c in company_info.values() if c.brief_name and len(c.brief_name) > 0 and c.type == 1]
+    if not company_list:
         ui.notify('没有数据可导出')
         return
-    rows = app.storage.client['tax_brief_rows']
+
+    def build_all_rows() -> tuple[bool, list, str]:
+        rows = []
+        for company in company_list:
+            year_dict = {'year_tax_value': 0.0, 'year_attach_value': 0.0, 'year_stamp_value': 0.0, 'year_income_value': 0.0, 'year_other_value': 0.0, 'year_total_value': 0.0}
+            month_dict = {}
+            for i in range(1, 13):
+                month_dict[f'{i}'] = {'month_tax_value': 0.0, 'month_attach_value': 0.0, 'month_stamp_value': 0.0, 'month_income_value': 0.0, 'month_other_value': 0.0, 'month_total_value': 0.0}
+                res, tax_values = g.my_db.query_tax_approval_by_period_date(company.id, f'{search_condition.select_year[:-1]}-{i:02d}')
+                if res and tax_values and len(tax_values) > 0:
+                    for tax_value in tax_values:
+                        dao = TaxApprovalDao()
+                        dao.from_db(tax_value)
+                        match dao.tax_type:
+                            case '增值税':
+                                month_dict[f'{i}']['month_tax_value'] += dao.paid_in_money
+                            case '地方教育附加' | '教育费附加' | '城市维护建设税':
+                                month_dict[f'{i}']['month_attach_value'] += dao.paid_in_money
+                            case '印花税':
+                                month_dict[f'{i}']['month_stamp_value'] += dao.paid_in_money
+                            case '企业所得税':
+                                month_dict[f'{i}']['month_income_value'] += dao.paid_in_money
+                            case _:
+                                month_dict[f'{i}']['month_other_value'] += dao.paid_in_money
+                        month_dict[f'{i}']['month_total_value'] += dao.paid_in_money
+                    year_dict['year_tax_value'] += month_dict[f'{i}']['month_tax_value']
+                    year_dict['year_attach_value'] += month_dict[f'{i}']['month_attach_value']
+                    year_dict['year_stamp_value'] += month_dict[f'{i}']['month_stamp_value']
+                    year_dict['year_income_value'] += month_dict[f'{i}']['month_income_value']
+                    year_dict['year_other_value'] += month_dict[f'{i}']['month_other_value']
+                    year_dict['year_total_value'] += month_dict[f'{i}']['month_total_value']
+            row_values = [company.brief_name, year_dict['year_tax_value'], year_dict['year_attach_value'], year_dict['year_stamp_value'], year_dict['year_income_value'], year_dict['year_other_value'], year_dict['year_total_value']]
+            for i in range(1, 13):
+                md = month_dict[f'{i}']
+                row_values.extend([md['month_tax_value'], md['month_attach_value'], md['month_stamp_value'], md['month_income_value'], md['month_other_value'], md['month_total_value']])
+            rows.append(row_values)
+        return True, rows, ''
+
+    refresh_dialog = g.show_refresh_process('导出中，请稍候')
+    success, rows_all, message = await run.io_bound(build_all_rows)
+    refresh_dialog.close()
+    if not success or not rows_all:
+        ui.notify(message or '没有数据可导出')
+        return
+
+    # 更新缓存（方便页面继续使用）
+    app.storage.client['tax_brief_rows'] = rows_all
+
     columns = ['公司名称', '增值税', '附加', '印花税', '所得税', '其他税', '合计']
     for _ in range(1, 13):
         columns.extend(['增值税', '附加', '印花税', '所得税', '其他税', '合计'])
-    df = pd.DataFrame(rows, columns=columns)
+    df = pd.DataFrame(rows_all, columns=columns)
     fname = f'./static/完税汇总_{search_condition.select_year}.xlsx'
     with pd.ExcelWriter(fname, engine='openpyxl') as writer:
-        df.to_excel(writer, index=False, startrow=1)        # leave row‑0 free
-        ws = writer.sheets['Sheet1']                       # 或者你自己指定的 sheet 名
+        df.to_excel(writer, index=False, startrow=1)
+        ws = writer.sheets['Sheet1']
 
-        # 自动调整每列宽度
         for i, col in enumerate(df.columns):
             column_letter = get_column_letter(i + 1)
             values = df.iloc[:, i].astype(str).replace(['nan', 'None'], '')
-            max_len = max(
-                values.map(len).max(),   # 所有行的最大长度
-                len(str(col))            # 列标题长度
-            ) + 5  # 额外空格，美观用
+            max_len = max(values.map(len).max(), len(str(col))) + 5
             ws.column_dimensions[column_letter].width = max_len
 
-        # 在第一行合并前 3 列作为标题
-        ws.merge_cells('B1:G1')                            # range 可用坐标
-        ws['B1'] = '年度合计'                           # 写文字到合并单元格
+        ws.merge_cells('B1:G1')
+        ws['B1'] = '年度合计'
         ws['B1'].alignment = Alignment(horizontal='center', vertical='center')
         for i in range(1, 13):
             start_col = 8 + (i - 1) * 6
@@ -241,5 +289,5 @@ def export_tax_brief():
             cell = ws.cell(row=1, column=start_col)
             cell.value = f'{i}月'
             cell.alignment = Alignment(horizontal='center', vertical='center')
-        
+
     ui.download.file(fname)
